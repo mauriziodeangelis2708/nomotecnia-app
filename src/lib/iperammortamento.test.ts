@@ -45,6 +45,7 @@ describe("pre-assessment Iperammortamento 2026", () => {
     const result = assessIperammortamento({
       ...coherentBase,
       tipo_bene: "energia",
+      tipo_energia: "elettrica",
       autoconsumo: "si",
       impianto_ammesso: "si",
       dimensionamento: "no",
@@ -52,7 +53,45 @@ describe("pre-assessment Iperammortamento 2026", () => {
       accumulo: "no",
     });
     expect(result.status).toBe("ostacolo");
-    expect(result.blockers).toContain("Dimensionamento entro i limiti di producibilità previsti");
+    expect(result.blockers).toContain(
+      "Produzione elettrica entro il limite del 105%, calcolato secondo il decreto",
+    );
+  });
+
+  it("non applica il limite elettrico del 105% indistintamente al calore di processo", () => {
+    const result = assessIperammortamento({
+      ...coherentBase,
+      tipo_bene: "energia",
+      tipo_energia: "termica",
+      autoconsumo: "si",
+      impianto_ammesso: "si",
+      calore_processo: "si",
+      calore_non_cessibile: "si",
+      fonte_termica_ammessa: "si",
+      sito_pod: "si",
+      accumulo: "no",
+    });
+    expect(result.status).toBe("coerente");
+    expect(result.missing).not.toContain(
+      "Produzione elettrica entro il limite del 105%, calcolato secondo il decreto",
+    );
+  });
+
+  it("richiede le condizioni del decreto per calore di processo", () => {
+    const result = assessIperammortamento({
+      ...coherentBase,
+      tipo_bene: "energia",
+      tipo_energia: "termica",
+      autoconsumo: "si",
+      impianto_ammesso: "si",
+      calore_processo: "no",
+      calore_non_cessibile: "si",
+      fonte_termica_ammessa: "si",
+      sito_pod: "si",
+      accumulo: "no",
+    });
+    expect(result.status).toBe("ostacolo");
+    expect(result.blockers).toContain("Calore destinato esclusivamente al processo produttivo");
   });
 
   it("richiede il controllo di conferma e acconto quando è partita la procedura GSE", () => {
