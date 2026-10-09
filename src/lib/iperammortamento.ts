@@ -67,7 +67,10 @@ export function assessIperammortamento(a: IperAnswers) {
   criticalYes("sanzioni_231", "Sanzione interdittiva rilevante");
   requiredYes("sicurezza_durc", "Conformità sicurezza sul lavoro e regolarità contributiva");
   requiredYes("bene_nuovo", "Bene nuovo e strumentale all’attività d’impresa");
-  requiredYes("termine", "Completamento dell’investimento entro il 30 settembre 2028");
+  requiredYes(
+    "termine",
+    "Investimento nel periodo 1° gennaio 2026–30 settembre 2028 secondo i criteri applicabili",
+  );
   criticalYes(
     "esclusione_446",
     "Investimento già agevolato nel regime specificamente escluso dalla legge",
