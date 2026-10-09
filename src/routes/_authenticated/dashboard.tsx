@@ -37,14 +37,60 @@ function Dashboard() {
     },
   });
 
-  async function newAssessment(clientId: string) {
-    const { data: u } = await supabase.auth.getUser();
-    const { data, error } = await supabase.from("assessments").insert({ client_id: clientId, created_by: u.user!.id }).select("id").single();
-    if (error) return toast.error(error.message);
-    qc.invalidateQueries({ queryKey: ["clients"] });
-    nav({ to: "/assessment/$id", params: { id: data.id } });
+ async function newAssessment(clientId: string) {
+  // Cerca una valutazione già esistente per questa azienda
+  const { data: existing, error: searchError } = await supabase
+    .from("assessments")
+    .select("id")
+    .eq("client_id", clientId)
+    .in("status", ["bozza", "in lavorazione"])
+    .order("updated_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (searchError) {
+    toast.error(searchError.message);
+    return;
   }
 
+  // Se esiste, riapre la valutazione salvata
+  if (existing) {
+    nav({
+      to: "/assessment/$id",
+      params: { id: existing.id },
+    });
+    return;
+  }
+
+  // Se non esiste, crea una nuova valutazione
+  const { data: u } = await supabase.auth.getUser();
+
+  if (!u.user) {
+    toast.error("Utente non autenticato");
+    return;
+  }
+
+  const { data, error } = await supabase
+    .from("assessments")
+    .insert({
+      client_id: clientId,
+      created_by: u.user.id,
+    })
+    .select("id")
+    .single();
+
+  if (error) {
+    toast.error(error.message);
+    return;
+  }
+
+  qc.invalidateQueries({ queryKey: ["clients"] });
+
+  nav({
+    to: "/assessment/$id",
+    params: { id: data.id },
+  });
+}
   const list = (clients.data ?? []).filter((c) => !q || `${c.ragione_sociale} ${c.partita_iva ?? ""}`.toLowerCase().includes(q.toLowerCase()));
 
   return (
