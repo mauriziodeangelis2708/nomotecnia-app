@@ -15,6 +15,7 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedAssessmentIdRouteImport } from './routes/_authenticated/assessment.$id'
+import { Route as AuthenticatedIperammortamentoIdRouteImport } from './routes/_authenticated/iperammortamento.$id'
 import { Route as AuthenticatedReportIdRouteImport } from './routes/_authenticated/report.$id'
 
 const IndexRoute = IndexRouteImport.update({
@@ -47,6 +48,12 @@ const AuthenticatedAssessmentIdRoute =
     path: '/assessment/$id',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedIperammortamentoIdRoute =
+  AuthenticatedIperammortamentoIdRouteImport.update({
+    id: '/iperammortamento/$id',
+    path: '/iperammortamento/$id',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedReportIdRoute = AuthenticatedReportIdRouteImport.update({
   id: '/report/$id',
   path: '/report/$id',
@@ -59,6 +66,7 @@ export interface FileRoutesByFullPath {
   '/admin': typeof AuthenticatedAdminRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/assessment/$id': typeof AuthenticatedAssessmentIdRoute
+  '/iperammortamento/$id': typeof AuthenticatedIperammortamentoIdRoute
   '/report/$id': typeof AuthenticatedReportIdRoute
 }
 export interface FileRoutesByTo {
@@ -67,6 +75,7 @@ export interface FileRoutesByTo {
   '/admin': typeof AuthenticatedAdminRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/assessment/$id': typeof AuthenticatedAssessmentIdRoute
+  '/iperammortamento/$id': typeof AuthenticatedIperammortamentoIdRoute
   '/report/$id': typeof AuthenticatedReportIdRoute
 }
 export interface FileRoutesById {
@@ -77,15 +86,28 @@ export interface FileRoutesById {
   '/_authenticated/admin': typeof AuthenticatedAdminRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/assessment/$id': typeof AuthenticatedAssessmentIdRoute
+  '/_authenticated/iperammortamento/$id': typeof AuthenticatedIperammortamentoIdRoute
   '/_authenticated/report/$id': typeof AuthenticatedReportIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
-    '/' | '/auth' | '/admin' | '/dashboard' | '/assessment/$id' | '/report/$id'
+    | '/'
+    | '/auth'
+    | '/admin'
+    | '/dashboard'
+    | '/assessment/$id'
+    | '/iperammortamento/$id'
+    | '/report/$id'
   fileRoutesByTo: FileRoutesByTo
   to:
-    '/' | '/auth' | '/admin' | '/dashboard' | '/assessment/$id' | '/report/$id'
+    | '/'
+    | '/auth'
+    | '/admin'
+    | '/dashboard'
+    | '/assessment/$id'
+    | '/iperammortamento/$id'
+    | '/report/$id'
   id:
     | '__root__'
     | '/'
@@ -94,6 +116,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin'
     | '/_authenticated/dashboard'
     | '/_authenticated/assessment/$id'
+    | '/_authenticated/iperammortamento/$id'
     | '/_authenticated/report/$id'
   fileRoutesById: FileRoutesById
 }
@@ -147,6 +170,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAssessmentIdRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/iperammortamento/$id': {
+      id: '/_authenticated/iperammortamento/$id'
+      path: '/iperammortamento/$id'
+      fullPath: '/iperammortamento/$id'
+      preLoaderRoute: typeof AuthenticatedIperammortamentoIdRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/report/$id': {
       id: '/_authenticated/report/$id'
       path: '/report/$id'
@@ -161,6 +191,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedAdminRoute: typeof AuthenticatedAdminRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedAssessmentIdRoute: typeof AuthenticatedAssessmentIdRoute
+  AuthenticatedIperammortamentoIdRoute: typeof AuthenticatedIperammortamentoIdRoute
   AuthenticatedReportIdRoute: typeof AuthenticatedReportIdRoute
 }
 
@@ -168,6 +199,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAdminRoute: AuthenticatedAdminRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedAssessmentIdRoute: AuthenticatedAssessmentIdRoute,
+  AuthenticatedIperammortamentoIdRoute: AuthenticatedIperammortamentoIdRoute,
   AuthenticatedReportIdRoute: AuthenticatedReportIdRoute,
 }
 
@@ -184,11 +216,10 @@ export const routeTree = rootRouteImport
   ._addFileTypes<FileRouteTypes>()
 
 import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
+import type { createStart } from '@tanstack/react-start'
 declare module '@tanstack/react-start' {
   interface Register {
     ssr: true
     router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
   }
 }
