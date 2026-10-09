@@ -149,9 +149,8 @@ function Kpi({
   return (
     <div className="rounded-lg border bg-card p-4">
       <div className="text-xs uppercase tracking-wide text-muted-foreground">{label}</div>
-      <div className="mt-1 flex items-center gap-2 text-xl font-semibold tabular">
-        {value} {badge}
-      </div>
+      <div className="mt-1 text-xl font-semibold tabular">{value}</div>
+      {badge && <div className="mt-2 flex flex-wrap">{badge}</div>}
       {hint && <div className="mt-1 text-xs text-muted-foreground">{hint}</div>}
     </div>
   );

@@ -5,7 +5,15 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import type { Json } from "@/integrations/supabase/types";
 import { useRules } from "@/hooks/use-rules";
-import { evaluate, nonnegative, type Answers } from "@/lib/engine";
+import {
+  evaluate,
+  nonnegative,
+  SIZE_LABEL,
+  STATUS_LABEL,
+  type Answers,
+  type Status,
+  type Size,
+} from "@/lib/engine";
 import { isIntegerQuestion, STEPS } from "@/lib/questions";
 import { CHECKLIST, DOC_STATUS, dt, eur } from "@/lib/checklist";
 import { QuestionField } from "@/components/QuestionField";
@@ -825,8 +833,9 @@ function Snapshots({ id }: { id: string }) {
                 {x.label || "Valutazione"} (esito storico, ricalcolare con regole correnti)
               </div>
               <div className="text-xs text-muted-foreground">
-                {dt(x.created_at)} · dimensione {r.size ?? "n.d."} · requisiti{" "}
-                {r.gateStatus ?? "n.d."} · {r.version ?? "Versione precedente: da ricalcolare"}
+                {dt(x.created_at)} · dimensione {SIZE_LABEL[r.size as Size] ?? "n.d."} · requisiti{" "}
+                {STATUS_LABEL[r.gateStatus as Status] ?? "Da verificare"} ·{" "}
+                {r.version ?? "Versione precedente: da ricalcolare"}
               </div>
             </div>
             <div className="text-right tabular">

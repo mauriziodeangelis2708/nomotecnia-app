@@ -91,7 +91,12 @@ function Report() {
             <tbody>
               {CHECKLIST.map((d) => (
                 <tr key={d.key} className="border-b">
-                  <td className="py-1.5">{d.label}</td>
+                  <td className="py-1.5">
+                    {d.label}
+                    {cl[d.key]?.note && (
+                      <p className="mt-1 text-xs text-muted-foreground">{cl[d.key]?.note}</p>
+                    )}
+                  </td>
                   <td className="py-1.5 text-right text-muted-foreground">
                     {DOC_STATUS.find((s) => s.value === (cl[d.key]?.status ?? "mancante"))?.label}
                   </td>
