@@ -15,7 +15,7 @@ import {
   IPER_VERSION,
   type IperAnswers,
 } from "@/lib/iperammortamento";
-import { ArrowLeft, Save, AlertTriangle, CircleHelp } from "lucide-react";
+import { ArrowLeft, Save, AlertTriangle, CircleHelp, Plus, Trash2 } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/iperammortamento/$id")({
   head: () => ({
@@ -32,6 +32,60 @@ const yesNo = [
   ["no", "No"],
   ["non_so", "Non so"],
 ] as const;
+
+type DataRow = Record<string, string>;
+const IVV_FIELDS = [
+  ["categoria", "Categoria e codice da tabella GSE Allegato IV/V"],
+  ["descrizione", "Descrizione del bene"],
+  ["completamento", "Data prevista di completamento (YYYY-MM-DD)"],
+  ["interconnessione", "Data prevista di interconnessione (YYYY-MM-DD)"],
+  ["bene_complesso", "Componente di bene complesso? (Sì/No)"],
+  ["descrizione_complesso", "Descrizione del bene complesso/componente (se applicabile)"],
+  ["costo_netto", "Costo di acquisizione al netto di altre agevolazioni (€)"],
+  ["coefficiente", "Coefficiente di ammortamento (%)"],
+  ["stato_bene", "Solo in conferma: stato del bene (confermato / decaduto)"],
+  ["leasing", "Solo in conferma: acquisto con leasing, anche parziale? (Sì/No)"],
+  ["importo_leasing", "Solo in conferma: importo leasing (€)"],
+  [
+    "data_ultima_quota_acconto",
+    "Solo in conferma: data ultima quota per raggiungere l’acconto del 20%",
+  ],
+  ["importo_ultima_quota_acconto", "Solo in conferma: importo ultima quota acconto (€)"],
+  ["acconto_totale", "Solo in conferma: importo totale acconto (€)"],
+  ["fatture", "Solo in conferma: riferimenti fatture e documenti di acquisto"],
+] as const;
+const FER_FIELDS = [
+  ["fonte", "Tipologia di fonte rinnovabile / accumulo"],
+  ["descrizione", "Descrizione impianto"],
+  ["potenza", "Potenza (kWp per fotovoltaico, kW per altre fonti)"],
+  ["completamento", "Data prevista di completamento (YYYY-MM-DD)"],
+  ["entrata_esercizio", "Data prevista di entrata in funzione (YYYY-MM-DD)"],
+  ["costo_netto", "Costo di acquisizione al netto di altre agevolazioni (€)"],
+  ["coefficiente", "Coefficiente di ammortamento (%)"],
+  ["classe_enea", "Per fotovoltaico: modulo ENEA categoria b o c e relativo costo (€)"],
+  ["stato_bene", "Solo in conferma: stato dell’impianto (confermato / decaduto)"],
+  ["leasing", "Solo in conferma: acquisto con leasing, anche parziale? (Sì/No)"],
+  ["importo_leasing", "Solo in conferma: importo leasing (€)"],
+  [
+    "data_ultima_quota_acconto",
+    "Solo in conferma: data ultima quota per raggiungere l’acconto del 20%",
+  ],
+  ["importo_ultima_quota_acconto", "Solo in conferma: importo ultima quota acconto (€)"],
+  ["acconto_totale", "Solo in conferma: importo totale acconto (€)"],
+  ["fatture", "Solo in conferma: riferimenti fatture e documenti di acquisto"],
+] as const;
+
+function readRows(value: unknown): DataRow[] {
+  if (typeof value !== "string") return [];
+  try {
+    const parsed: unknown = JSON.parse(value);
+    return Array.isArray(parsed)
+      ? parsed.filter((row): row is DataRow => !!row && typeof row === "object")
+      : [];
+  } catch {
+    return [];
+  }
+}
 
 function IperammortamentoPage() {
   const { id } = Route.useParams();
@@ -60,6 +114,21 @@ function IperammortamentoPage() {
     },
   });
 
+  const priorCompanyData = useQuery({
+    queryKey: ["latest-company-assessment", clientId],
+    enabled: isNew && !!clientId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("assessments")
+        .select("answers")
+        .eq("client_id", clientId!)
+        .order("updated_at", { ascending: false })
+        .limit(10);
+      if (error) throw error;
+      return (data ?? []).map((row) => row.answers);
+    },
+  });
+
   const existing = useQuery({
     queryKey: ["assessment", id],
     enabled: !isNew,
@@ -77,6 +146,40 @@ function IperammortamentoPage() {
       setAnswers(saved as IperAnswers);
     }
   }, [existing.data]);
+
+  useEffect(() => {
+    if (!isNew || !company.data || priorCompanyData.isLoading) return;
+    const previous = priorCompanyData.data ?? [];
+    const prior = previous.map((answers) =>
+      answers && typeof answers === "object" && !Array.isArray(answers)
+        ? (answers as Record<string, unknown>)
+        : {},
+    );
+    const pick = (...keys: string[]) => {
+      for (const priorAnswers of prior) {
+        for (const key of keys) {
+          const value = priorAnswers[key];
+          if ((typeof value === "string" && value.trim()) || typeof value === "number")
+            return value;
+        }
+      }
+      return undefined;
+    };
+    const prefill: IperAnswers = {
+      _assessment_type: "iperammortamento_2026",
+      denominazione: company.data.ragione_sociale,
+      partita_iva: company.data.partita_iva || String(pick("partita_iva") ?? ""),
+      codice_fiscale: String(pick("codice_fiscale") ?? ""),
+      forma_giuridica: String(pick("forma_giuridica") ?? ""),
+      sede_legale_indirizzo: String(pick("sede_legale_indirizzo") ?? ""),
+      sede_legale_comune: company.data.comune || String(pick("comune_sede") ?? ""),
+      pec: String(pick("pec") ?? ""),
+      email: String(pick("email") ?? ""),
+      telefono: String(pick("telefono") ?? ""),
+      referente_nome: company.data.referente || String(pick("gecoweb_referente_nome") ?? ""),
+    };
+    setAnswers((current) => ({ ...prefill, ...current }));
+  }, [isNew, company.data, priorCompanyData.data, priorCompanyData.isLoading]);
 
   const companyName =
     existing.data?.title.replace(/^Iperammortamento 2026 · /, "") ||
@@ -148,8 +251,9 @@ function IperammortamentoPage() {
     }
   }
 
-  if (company.isLoading || existing.isLoading) return <p>Caricamento…</p>;
-  if (company.error || existing.error)
+  if (company.isLoading || existing.isLoading || priorCompanyData.isLoading)
+    return <p>Caricamento…</p>;
+  if (company.error || existing.error || priorCompanyData.error)
     return (
       <p role="alert" className="text-destructive">
         Impossibile caricare i dati dell’azienda o della valutazione.
@@ -176,6 +280,229 @@ function IperammortamentoPage() {
       </div>
 
       <Disclaimer />
+
+      <section className="rounded-lg border bg-card p-5">
+        <h2 className="font-semibold">0. Dati aziendali e firmatario</h2>
+        <p className="mt-2 text-sm text-muted-foreground">
+          Il percorso Iperammortamento è autonomo: non richiede un assessment Lazio Innova. I dati
+          ripresi dalla scheda cliente o da un assessment precedente sono solo precompilati e vanno
+          verificati; i campi vuoti restano da fornire.
+        </p>
+        <div className="mt-4 grid gap-4 sm:grid-cols-2">
+          <TextInputQuestion
+            label="Denominazione / ragione sociale"
+            value={answers.denominazione ?? companyName}
+            onChange={(v) => set("denominazione", v)}
+          />
+          <TextInputQuestion
+            label="Partita IVA"
+            value={answers.partita_iva}
+            onChange={(v) => set("partita_iva", v)}
+          />
+          <TextInputQuestion
+            label="Codice fiscale"
+            value={answers.codice_fiscale}
+            onChange={(v) => set("codice_fiscale", v)}
+          />
+          <TextInputQuestion
+            label="Forma giuridica / tipologia operatore GSE"
+            value={answers.forma_giuridica}
+            onChange={(v) => set("forma_giuridica", v)}
+          />
+          <TextInputQuestion
+            label="Data costituzione impresa (YYYY-MM-DD)"
+            value={answers.data_costituzione}
+            onChange={(v) => set("data_costituzione", v)}
+          />
+          <TextInputQuestion
+            label="Data iscrizione Registro Imprese (YYYY-MM-DD)"
+            value={answers.data_iscrizione_registro}
+            onChange={(v) => set("data_iscrizione_registro", v)}
+          />
+          <TextInputQuestion
+            label="Sede legale — indirizzo"
+            value={answers.sede_legale_indirizzo}
+            onChange={(v) => set("sede_legale_indirizzo", v)}
+          />
+          <TextInputQuestion
+            label="Sede legale — Comune"
+            value={answers.sede_legale_comune}
+            onChange={(v) => set("sede_legale_comune", v)}
+          />
+          <TextInputQuestion
+            label="Sede legale — provincia"
+            value={answers.sede_legale_provincia}
+            onChange={(v) => set("sede_legale_provincia", v)}
+          />
+          <TextInputQuestion
+            label="Sede legale — CAP"
+            value={answers.sede_legale_cap}
+            onChange={(v) => set("sede_legale_cap", v)}
+          />
+          <TextInputQuestion
+            label="PEC aziendale"
+            value={answers.pec}
+            onChange={(v) => set("pec", v)}
+          />
+          <TextInputQuestion
+            label="Email aziendale"
+            value={answers.email}
+            onChange={(v) => set("email", v)}
+          />
+          <TextInputQuestion
+            label="Telefono aziendale"
+            value={answers.telefono}
+            onChange={(v) => set("telefono", v)}
+          />
+          <TextInputQuestion
+            label="Firmatario: legale rappresentante / titolare / responsabile / delegato"
+            value={answers.firmatario_tipo}
+            onChange={(v) => set("firmatario_tipo", v)}
+          />
+          <TextInputQuestion
+            label="Firmatario — nome e cognome"
+            value={answers.firmatario_nome}
+            onChange={(v) => set("firmatario_nome", v)}
+          />
+          <TextInputQuestion
+            label="Firmatario — codice fiscale"
+            value={answers.firmatario_cf}
+            onChange={(v) => set("firmatario_cf", v)}
+          />
+          <TextInputQuestion
+            label="Referente GSE — nome e cognome"
+            value={answers.referente_nome}
+            onChange={(v) => set("referente_nome", v)}
+          />
+          <TextInputQuestion
+            label="Referente GSE — email"
+            value={answers.referente_email}
+            onChange={(v) => set("referente_email", v)}
+          />
+          <TextInputQuestion
+            label="Referente GSE — cellulare (prefisso internazionale con 00)"
+            value={answers.referente_telefono}
+            onChange={(v) => set("referente_telefono", v)}
+          />
+        </div>
+        <p className="mt-3 text-xs text-muted-foreground">
+          La registrazione Area Clienti, SPID, selezione del tipo operatore e firma/delega si
+          completano sul portale GSE. Se firma un delegato, il legale rappresentante/titolare/
+          responsabile deve conferire la delega con SPID.
+        </p>
+      </section>
+
+      <section className="rounded-lg border bg-card p-5">
+        <h2 className="font-semibold">0.1 Struttura produttiva per la comunicazione preventiva</h2>
+        <p className="mt-2 text-sm text-muted-foreground">
+          La comunicazione preventiva è riferita a una struttura produttiva. Se gli investimenti
+          riguardano più strutture, occorre predisporre comunicazioni distinte. Per i campi
+          catastali Sezione e Sub prevalente, la guida GSE consente “NP” quando il dato non è
+          presente.
+        </p>
+        <div className="mt-4 grid gap-4 sm:grid-cols-2">
+          <TextInputQuestion
+            label="Denominazione della struttura produttiva"
+            value={answers.struttura_nome}
+            onChange={(v) => set("struttura_nome", v)}
+          />
+          <TextInputQuestion
+            label="Indirizzo della struttura"
+            value={answers.struttura_indirizzo}
+            onChange={(v) => set("struttura_indirizzo", v)}
+          />
+          <TextInputQuestion
+            label="Comune"
+            value={answers.struttura_comune}
+            onChange={(v) => set("struttura_comune", v)}
+          />
+          <TextInputQuestion
+            label="Provincia"
+            value={answers.struttura_provincia}
+            onChange={(v) => set("struttura_provincia", v)}
+          />
+          <TextInputQuestion
+            label="CAP"
+            value={answers.struttura_cap}
+            onChange={(v) => set("struttura_cap", v)}
+          />
+          <TextInputQuestion
+            label="Sezione catastale (oppure NP)"
+            value={answers.struttura_sezione_catastale}
+            onChange={(v) => set("struttura_sezione_catastale", v)}
+          />
+          <TextInputQuestion
+            label="Foglio catastale"
+            value={answers.struttura_foglio}
+            onChange={(v) => set("struttura_foglio", v)}
+          />
+          <TextInputQuestion
+            label="Particella catastale"
+            value={answers.struttura_particella}
+            onChange={(v) => set("struttura_particella", v)}
+          />
+          <TextInputQuestion
+            label="Sub prevalente (oppure NP)"
+            value={answers.struttura_subalterno}
+            onChange={(v) => set("struttura_subalterno", v)}
+          />
+          <TextInputQuestion
+            label="Numero pratica NPTR5 (se già assegnato)"
+            value={answers.pratica_nptr}
+            onChange={(v) => set("pratica_nptr", v)}
+          />
+        </div>
+      </section>
+
+      <section className="rounded-lg border bg-card p-5">
+        <h2 className="font-semibold">0.2 Elenco investimenti da dichiarare al GSE</h2>
+        <p className="mt-2 text-sm text-muted-foreground">
+          Inserisci una scheda per ogni bene Allegato IV/V e per ogni impianto FER. Le categorie e i
+          codici IV/V vanno scelti dalle tabelle ufficiali GSE. Il modulo raccoglie i dati per la
+          preparazione; non calcola i massimali FER né trasmette la comunicazione.
+        </p>
+        <div className="mt-5">
+          <DataRows
+            title="Beni Allegato IV/V"
+            fields={IVV_FIELDS}
+            value={answers.beni_ivv_json}
+            onChange={(v) => set("beni_ivv_json", v)}
+          />
+        </div>
+        <div className="mt-6">
+          <DataRows
+            title="Impianti di autoconsumo FER e sistemi di accumulo"
+            fields={FER_FIELDS}
+            value={answers.impianti_fer_json}
+            onChange={(v) => set("impianti_fer_json", v)}
+          />
+        </div>
+        <div className="mt-5 grid gap-4 sm:grid-cols-2">
+          <TextInputQuestion
+            label="Producibilità complessiva FER prevista (kWh)"
+            value={answers.producibilita_kwh}
+            onChange={(v) => set("producibilita_kwh", v === "" ? undefined : Number(v))}
+            type="number"
+          />
+          <TextInputQuestion
+            label="Consumo elettrico annuo della struttura nell’anno precedente (kWh)"
+            value={answers.fabbisogno_kwh}
+            onChange={(v) => set("fabbisogno_kwh", v === "" ? undefined : Number(v))}
+            type="number"
+          />
+          <TextInputQuestion
+            label="POD della struttura (se più di uno, separati da punto e virgola)"
+            value={answers["pod"]}
+            onChange={(v) => set("pod", v)}
+          />
+          <TextInputQuestion
+            label="Fabbisogno equivalente per consumi termici, se applicabile (kWh)"
+            value={answers["fabbisogno_termico_equivalente"]}
+            onChange={(v) => set("fabbisogno_termico_equivalente", v)}
+            type="number"
+          />
+        </div>
+      </section>
 
       <section className="rounded-lg border bg-card p-5">
         <h2 className="font-semibold">1. Impresa e requisiti generali</h2>
@@ -207,6 +534,12 @@ function IperammortamentoPage() {
             onChange={(v) => set("bene_nuovo", v)}
           />
           <TriQuestion
+            label="Sono state verificate le dichiarazioni e i requisiti di impresa richiesti nella DSAN GSE?"
+            help="Non attestare il requisito senza consultare il decreto e la DSAN effettiva nel portale. Se non conosci il contenuto o non hai i documenti, lascia la risposta non selezionata e completa la verifica con il referente fiscale/legale."
+            value={answers["dichiarazioni_gse"]}
+            onChange={(v) => set("dichiarazioni_gse", v)}
+          />
+          <TriQuestion
             label="È previsto che l’investimento rientri nel periodo agevolabile dal 1° gennaio 2026 al 30 settembre 2028, secondo i criteri applicabili?"
             value={answers.termine}
             onChange={(v) => set("termine", v)}
@@ -236,10 +569,15 @@ function IperammortamentoPage() {
               <option value="">Seleziona…</option>
               <option value="allegato_iv">Bene materiale – Allegato IV</option>
               <option value="allegato_v">Software o bene immateriale – Allegato V</option>
+              <option value="beni_iv_v">Beni Allegato IV e V</option>
               <option value="energia">Autoproduzione di energia rinnovabile</option>
+              <option value="misto">Beni Allegato IV/V e impianti FER</option>
             </select>
           </div>
-          {(answers.tipo_bene === "allegato_iv" || answers.tipo_bene === "allegato_v") && (
+          {(answers.tipo_bene === "allegato_iv" ||
+            answers.tipo_bene === "allegato_v" ||
+            answers.tipo_bene === "beni_iv_v" ||
+            answers.tipo_bene === "misto") && (
             <>
               <TriQuestion
                 label="Un tecnico ha verificato che il bene rientra in una voce dell’Allegato IV/V?"
@@ -251,13 +589,18 @@ function IperammortamentoPage() {
                 value={answers.interconnessione}
                 onChange={(v) => set("interconnessione", v)}
               />
-              {answers.tipo_bene === "allegato_iv" ? (
+              {(answers.tipo_bene === "allegato_iv" ||
+                answers.tipo_bene === "beni_iv_v" ||
+                answers.tipo_bene === "misto") && (
                 <TriQuestion
                   label="Le caratteristiche tecniche richieste per la specifica categoria di bene sono documentate?"
                   value={answers.requisiti_tecnici}
                   onChange={(v) => set("requisiti_tecnici", v)}
                 />
-              ) : (
+              )}
+              {(answers.tipo_bene === "allegato_v" ||
+                answers.tipo_bene === "beni_iv_v" ||
+                answers.tipo_bene === "misto") && (
                 <TriQuestion
                   label="Il software è funzionale ai processi digitali/operativi contemplati dall’Allegato V, e non soltanto un software generico?"
                   help="La presenza di AI, cloud o low-code nell’elenco non rende da sola agevolabile qualsiasi prodotto o abbonamento."
@@ -267,7 +610,7 @@ function IperammortamentoPage() {
               )}
             </>
           )}
-          {answers.tipo_bene === "energia" && (
+          {(answers.tipo_bene === "energia" || answers.tipo_bene === "misto") && (
             <>
               <div className="space-y-2">
                 <Label>Quale tipo di energia produce l’impianto?</Label>
@@ -415,9 +758,11 @@ function IperammortamentoPage() {
             <>
               <TriQuestion
                 label={
-                  answers.tipo_bene === "energia"
-                    ? "Sono terminati i lavori dell’impianto e sono verificate le condizioni di entrata in funzione?"
-                    : "L’interconnessione è stata effettivamente realizzata?"
+                  answers.tipo_bene === "misto"
+                    ? "Per ciascun bene: interconnessione IV/V o fine lavori/entrata in funzione FER, secondo il tipo d’investimento?"
+                    : answers.tipo_bene === "energia"
+                      ? "Sono terminati i lavori dell’impianto e sono verificate le condizioni di entrata in funzione?"
+                      : "L’interconnessione è stata effettivamente realizzata?"
                 }
                 value={answers.completamento_tecnico}
                 onChange={(v) => set("completamento_tecnico", v)}
@@ -511,6 +856,14 @@ function IperammortamentoPage() {
             </a>
             <a
               className="underline"
+              href="https://www.gse.it/documenti_site/Documenti%20GSE/Servizi%20per%20te/Nuovo%20Piano%20Transizione%205.0/Guida%20piattaforma%20NPTR5.pdf"
+              target="_blank"
+              rel="noreferrer"
+            >
+              Guida GSE alla compilazione NPTR5
+            </a>
+            <a
+              className="underline"
               href="https://www.gazzettaufficiale.it/atto/serie_generale/caricaArticolo?art.codiceRedazionale=25G00212&art.dataPubblicazioneGazzetta=2025-12-30&art.flagTipoArticolo=5&art.idArticolo=1&art.idGruppo=3&art.idSottoArticolo=1&art.idSottoArticolo1=10&art.progressivo=0&art.versione=1"
               target="_blank"
               rel="noreferrer"
@@ -595,6 +948,99 @@ function NumberQuestion({
         value={typeof value === "number" ? value : ""}
         onChange={(e) => onChange(e.target.value === "" ? undefined : Number(e.target.value))}
       />
+    </div>
+  );
+}
+
+function TextInputQuestion({
+  label,
+  value,
+  onChange,
+  type = "text",
+  help,
+}: {
+  label: string;
+  value: string | number | undefined;
+  onChange: (value: string) => void;
+  type?: "text" | "number";
+  help?: string;
+}) {
+  return (
+    <div className="space-y-2">
+      <Label>{label}</Label>
+      {help && <p className="text-xs text-muted-foreground">{help}</p>}
+      <Input
+        type={type}
+        min={type === "number" ? 0 : undefined}
+        step={type === "number" ? "any" : undefined}
+        value={value === undefined ? "" : String(value)}
+        onChange={(e) => onChange(e.target.value)}
+      />
+    </div>
+  );
+}
+
+function DataRows({
+  title,
+  fields,
+  value,
+  onChange,
+}: {
+  title: string;
+  fields: readonly (readonly [string, string])[];
+  value: unknown;
+  onChange: (value: string) => void;
+}) {
+  const rows = readRows(value);
+  const update = (index: number, key: string, fieldValue: string) => {
+    const next = rows.map((row, i) => (i === index ? { ...row, [key]: fieldValue } : row));
+    onChange(JSON.stringify(next));
+  };
+  return (
+    <div>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h3 className="font-medium">{title}</h3>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={() => onChange(JSON.stringify([...rows, {}]))}
+        >
+          <Plus className="mr-1 h-4 w-4" /> Aggiungi scheda
+        </Button>
+      </div>
+      {rows.length === 0 ? (
+        <p className="mt-2 text-sm text-muted-foreground">Nessuna scheda inserita.</p>
+      ) : (
+        <div className="mt-3 space-y-4">
+          {rows.map((row, index) => (
+            <div key={index} className="rounded-md border p-4">
+              <div className="mb-3 flex items-center justify-between">
+                <span className="text-sm font-medium">Scheda {index + 1}</span>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  aria-label={`Rimuovi scheda ${index + 1}`}
+                  onClick={() => onChange(JSON.stringify(rows.filter((_, i) => i !== index)))}
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </div>
+              <div className="grid gap-4 sm:grid-cols-2">
+                {fields.map(([key, fieldLabel]) => (
+                  <TextInputQuestion
+                    key={key}
+                    label={fieldLabel}
+                    value={row[key]}
+                    onChange={(v) => update(index, key, v)}
+                  />
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
