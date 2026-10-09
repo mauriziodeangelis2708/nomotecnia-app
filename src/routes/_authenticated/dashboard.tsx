@@ -109,6 +109,33 @@ function Dashboard() {
   toast.success("Valutazione eliminata");
   await qc.invalidateQueries({ queryKey: ["clients"] });
 }
+  
+  async function deleteClient(id: string, name: string) {
+  const confirmed = window.confirm(
+    `Vuoi eliminare definitivamente il cliente "${name}" e tutte le sue valutazioni? Questa operazione non può essere annullata.`
+  );
+
+  if (!confirmed) return;
+
+  const { data, error } = await supabase
+    .from("clients")
+    .delete()
+    .eq("id", id)
+    .select("id");
+
+  if (error) {
+    toast.error("Errore durante l'eliminazione: " + error.message);
+    return;
+  }
+
+  if (!data || data.length === 0) {
+    toast.error("Cliente non eliminato. Verifica i permessi.");
+    return;
+  }
+
+  toast.success("Cliente e valutazioni eliminati");
+  await qc.invalidateQueries({ queryKey: ["clients"] });
+}
   const list = (clients.data ?? []).filter((c) => !q || `${c.ragione_sociale} ${c.partita_iva ?? ""}`.toLowerCase().includes(q.toLowerCase()));
 
   return (
@@ -137,6 +164,13 @@ function Dashboard() {
                   <p className="text-xs text-muted-foreground">{[c.partita_iva && `P.IVA ${c.partita_iva}`, c.comune, c.referente].filter(Boolean).join(" · ") || "—"}</p>
                 </div>
                 <Button size="sm" variant="outline" onClick={() => newAssessment(c.id)}><Plus className="h-4 w-4" /> Assessment</Button>
+             <Button
+  size="sm"
+  variant="destructive"
+  onClick={() => deleteClient(c.id, c.ragione_sociale)}
+>
+  Elimina cliente
+</Button>
               </div>
               <ul className="mt-4 divide-y text-sm">
                 {(c.assessments ?? []).length === 0 && <li className="py-2 text-muted-foreground">Nessun assessment.</li>}
