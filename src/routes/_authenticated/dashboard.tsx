@@ -91,6 +91,24 @@ function Dashboard() {
     params: { id: data.id },
   });
 }
+  async function deleteAssessment(id: string) {
+  if (!window.confirm("Vuoi eliminare definitivamente questa valutazione?")) {
+    return;
+  }
+
+  const { error } = await supabase
+    .from("assessments")
+    .delete()
+    .eq("id", id);
+
+  if (error) {
+    toast.error("Errore durante l'eliminazione: " + error.message);
+    return;
+  }
+
+  toast.success("Valutazione eliminata");
+  await qc.invalidateQueries({ queryKey: ["clients"] });
+}
   const list = (clients.data ?? []).filter((c) => !q || `${c.ragione_sociale} ${c.partita_iva ?? ""}`.toLowerCase().includes(q.toLowerCase()));
 
   return (
@@ -127,7 +145,18 @@ function Dashboard() {
                     <Link to="/assessment/$id" params={{ id: a.id }} className="flex items-center gap-2 hover:text-primary">
                       <FileText className="h-4 w-4" /> {a.title}
                     </Link>
-                    <span className="text-xs text-muted-foreground">{a.status} · {dt(a.updated_at)}</span>
+                    <div className="flex items-center gap-3">
+  <span className="text-xs text-muted-foreground">
+    {a.status} · {dt(a.updated_at)}
+  </span>
+  <Button
+    size="sm"
+    variant="destructive"
+    onClick={() => deleteAssessment(a.id)}
+  >
+    Elimina
+  </Button>
+</div>
                   </li>
                 ))}
               </ul>
