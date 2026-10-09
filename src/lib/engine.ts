@@ -1,11 +1,14 @@
-// Motore di pre-istruttoria — logica pura, nessun accesso a rete/DB.
-// Tutti gli importi/soglie arrivano dalla tabella `rules` (configurabile da admin).
-// Nessuna regola è considerata verificata finché lo stato non è "validata".
-
+// Valutazione preliminare pura: nessun esito equivale a concessione Lazio Innova.
+import {
+  BANDO_VERSION,
+  COMMON_TECH_CHECKS,
+  GENERAL_CHECKS,
+  NUMERIC_RULES,
+  TECH_CHECKS,
+} from "./bando";
 export type Status = "confermato" | "potenziale" | "non_ammissibile" | "ignoto";
 export type Size = "micro" | "piccola" | "media" | "grande";
 export type Answers = Record<string, unknown>;
-
 export interface Rule {
   key: string;
   category: string;
@@ -20,7 +23,6 @@ export interface Rule {
   review_notes: string | null;
 }
 export type RuleMap = Record<string, Rule | undefined>;
-
 export interface Check {
   key: string;
   label: string;
@@ -32,7 +34,11 @@ export interface Intervention extends Check {
   theoretical: number | null;
   documented: number;
 }
+export type Checklist = Record<string, { status: string; note?: string }>;
 export interface Result {
+  version: string;
+  projectStatus: Status;
+  projectReasons: string[];
   size: Size | null;
   sizeStatus: Status;
   sizeReasons: string[];
@@ -44,277 +50,914 @@ export interface Result {
     potential: number;
     documented: number;
     cap: number | null;
-    confirmedCapped: number;
-    potentialCapped: number;
+    residual: number | null;
+    confirmedCapped: number | null;
+    potentialCapped: number | null;
     minimum: number | null;
     meetsMinimumConfirmed: boolean | null;
     meetsMinimumPotential: boolean | null;
   };
-  score: { status: "da_verificare" | "formula_validata"; note: string; inputs: Record<string, unknown> };
+  score: {
+    status: "da_verificare" | "formula_validata";
+    note: string;
+    inputs: Record<string, unknown>;
+    criteria: (number | null)[];
+    total: number | null;
+    supportedTotal: number | null;
+  };
   warnings: string[];
 }
-
-const RANK: Record<Status, number> = { non_ammissibile: 0, ignoto: 1, potenziale: 2, confermato: 3 };
+const RANK: Record<Status, number> = {
+  non_ammissibile: 0,
+  ignoto: 1,
+  potenziale: 2,
+  confermato: 3,
+};
 export function worst(...s: Status[]): Status {
   return s.reduce((a, b) => (RANK[b] < RANK[a] ? b : a), "confermato" as Status);
 }
-/** combina: un "ignoto" in un gate non annulla ma degrada a potenziale */
-function gateCombine(list: Status[]): Status {
-  if (list.includes("non_ammissibile")) return "non_ammissibile";
-  if (list.some((s) => s !== "confermato")) return "potenziale";
-  return "confermato";
+export function nonnegative(v: unknown, integer = false): number | null {
+  if (typeof v !== "number" && typeof v !== "string") return null;
+  if (typeof v === "string" && (!v.trim() || !/^\d+(?:[.,]\d+)?$/.test(v.trim()))) return null;
+  const n = typeof v === "number" ? v : Number(v.trim().replace(",", "."));
+  return Number.isFinite(n) && n >= 0 && (!integer || Number.isSafeInteger(n)) ? n : null;
 }
-
-const num = (v: unknown): number | null => {
-  if (v === null || v === undefined || v === "") return null;
-  const n = typeof v === "number" ? v : Number(String(v).replace(",", "."));
-  return Number.isFinite(n) ? n : null;
+const yes = (v: unknown) => v === "si";
+const text = (v: unknown) => typeof v === "string" && v.trim().length > 0;
+const selected = (v: unknown, allowed: string[]) =>
+  Array.isArray(v)
+    ? [...new Set(v.filter((x): x is string => typeof x === "string" && allowed.includes(x)))]
+    : [];
+const money = (v: number) => Math.round((v + Number.EPSILON) * 100) / 100;
+// Un override non validato, senza fonte, o divergente dall'Avviso non genera importi.
+const rv = (r: RuleMap, key: string) => {
+  const rule = r[key];
+  const n = nonnegative(rule?.value);
+  return rule?.status === "validata" &&
+    !rule.requires_official_check &&
+    text(rule.source) &&
+    text(rule.reference) &&
+    n === NUMERIC_RULES[key]
+    ? n
+    : null;
 };
-const tri = (v: unknown): "si" | "no" | "nonso" | null =>
-  v === "si" || v === "no" || v === "nonso" ? v : null;
-const rv = (r: RuleMap, k: string) => r[k]?.value ?? null;
-
+function triCheck(
+  key: string,
+  label: string,
+  v: unknown,
+  ok = "si",
+  ruleKeys: string[] = [],
+): Check {
+  return {
+    key,
+    label,
+    ruleKeys,
+    status: v === ok ? "confermato" : v === "si" || v === "no" ? "non_ammissibile" : "ignoto",
+    reasons:
+      v === ok
+        ? []
+        : [
+            v === "si" || v === "no"
+              ? "Condizione dichiarata non soddisfatta: verificare eventuali eccezioni previste nel testo ufficiale."
+              : "Dato mancante o non noto: acquisire e verificare.",
+          ],
+  };
+}
 export function classOf(ula: number, fatt: number, attivo: number): Size {
-  if (ula < 10 && (fatt <= 2_000_000 || attivo <= 2_000_000)) return "micro";
-  if (ula < 50 && (fatt <= 10_000_000 || attivo <= 10_000_000)) return "piccola";
-  if (ula < 250 && (fatt <= 50_000_000 || attivo <= 43_000_000)) return "media";
+  if (![ula, fatt, attivo].every((n) => nonnegative(n) !== null))
+    throw new Error("Dati dimensionali non validi");
+  if (ula < 10 && (fatt <= 2000000 || attivo <= 2000000)) return "micro";
+  if (ula < 50 && (fatt <= 10000000 || attivo <= 10000000)) return "piccola";
+  if (ula < 250 && (fatt <= 50000000 || attivo <= 43000000)) return "media";
   return "grande";
 }
-
 export function classifySize(a: Answers): { size: Size | null; status: Status; reasons: string[] } {
-  const reasons: string[] = [];
-  const assoc = tri(a.ha_associate_collegate);
-  const useAgg = assoc === "si" && tri(a.dati_aggregati_disponibili) === "si";
-  const year = (y: "2025" | "2024") => {
-    const ula = num(useAgg ? a[`ula_agg_${y}`] : a[`ula_${y}`]);
-    const f = num(useAgg ? a[`fatturato_agg_${y}`] : a[`fatturato_${y}`]);
-    const t = num(useAgg ? a[`attivo_agg_${y}`] : a[`attivo_${y}`]);
-    return ula === null || f === null || t === null ? null : classOf(ula, f, t);
+  const assoc = a["ha_associate_collegate"];
+  if (assoc !== "si" && assoc !== "no")
+    return {
+      size: null,
+      status: "ignoto",
+      reasons: ["Assetto autonomo/associato/collegato non verificato."],
+    };
+  if (assoc === "si" && !yes(a["dati_aggregati_disponibili"]))
+    return {
+      size: null,
+      status: "ignoto",
+      reasons: [
+        "Servono i dati aggregati delle imprese associate/collegate; i dati individuali non li sostituiscono.",
+      ],
+    };
+  const year = (y: string) => {
+    const suffix = assoc === "si" ? `agg_${y}` : y;
+    const u = nonnegative(a[`ula_${suffix}`]),
+      f = nonnegative(a[`fatturato_${suffix}`]),
+      t = nonnegative(a[`attivo_${suffix}`]);
+    return u === null || f === null || t === null ? null : classOf(u, f, t);
   };
-  const s25 = year("2025");
-  const s24 = year("2024");
-  if (!s25 && !s24) return { size: null, status: "ignoto", reasons: ["Dati ULA/fatturato/attivo mancanti."] };
-  let status: Status = "confermato";
-  const size = (s25 ?? s24) as Size;
-  if (!s25 || !s24) {
-    status = "potenziale";
-    reasons.push("Disponibile un solo esercizio: la dimensione va confermata su due esercizi.");
-  } else if (s25 !== s24) {
-    status = "potenziale";
-    reasons.push(`Dimensione diversa tra 2025 (${s25}) e 2024 (${s24}): verificare la regola dei due esercizi consecutivi.`);
-  }
-  if (assoc === "nonso") {
-    status = worst(status, "potenziale");
-    reasons.push("Non è noto se esistono imprese associate/collegate: incertezza dimensionale.");
-  } else if (assoc === "si" && !useAgg) {
-    status = worst(status, "potenziale");
-    reasons.push("Esistono imprese associate/collegate ma i dati aggregati non sono disponibili: dimensione incerta.");
-  }
-  if (size === "grande") reasons.push("Supera le soglie PMI.");
-  return { size, status: size === "grande" ? "non_ammissibile" : status, reasons };
+  const p = year("2025"),
+    q = year("2024");
+  if (!p || !q)
+    return {
+      size: p ?? q,
+      status: "ignoto",
+      reasons: [
+        "Dati di due esercizi mancanti/non validi. Imprese nuove: stima in buona fede da verificare con modelli 5/6.",
+      ],
+    };
+  if (p !== q || yes(a["operazioni_straordinarie"]))
+    return {
+      size: null,
+      status: "ignoto",
+      reasons: [
+        "Variazione dimensionale o operazione straordinaria: acquisire esercizi ulteriori e verifica professionale della regola dei due esercizi; nessun massimale attribuito.",
+      ],
+    };
+  return {
+    size: p,
+    status: p === "grande" ? "non_ammissibile" : "confermato",
+    reasons:
+      p === "grande"
+        ? ["Superate le soglie PMI su entrambi gli esercizi."]
+        : [
+            "Classificazione sui dati dichiarati: riconfermare alla concessione; modifiche societarie possono cambiarla.",
+          ],
+  };
 }
-
-function triCheck(key: string, label: string, v: unknown, okWhen: "si" | "no", ruleKeys: string[], msgKo: string): Check {
-  const t = tri(v);
-  if (t === null) return { key, label, status: "ignoto", reasons: ["Risposta non fornita."], ruleKeys };
-  if (t === "nonso") return { key, label, status: "ignoto", reasons: ["Informazione non nota: da acquisire."], ruleKeys };
-  return t === okWhen
-    ? { key, label, status: "confermato", reasons: [], ruleKeys }
-    : { key, label, status: "non_ammissibile", reasons: [msgKo], ruleKeys };
+// Date ISO con fuso esplicito, per non confondere UTC e ora italiana.
+export function timestamp(v: unknown): number | null {
+  if (
+    typeof v !== "string" ||
+    !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2})?(?:Z|[+-]\d{2}:\d{2})$/.test(v)
+  )
+    return null;
+  const day = v.slice(0, 10);
+  if (isoDay(day) === null) return null;
+  const n = Date.parse(v);
+  return Number.isFinite(n) ? n : null;
 }
-
-export function evaluate(a: Answers, rules: RuleMap, evidences: { intervention: string | null; amount: number | null }[] = []): Result {
-  const warnings: string[] = [];
-  const sz = classifySize(a);
-  const size = sz.size;
-
-  // --- Gate di ammissibilità soggettiva
+export function isoDay(v: unknown): number | null {
+  if (typeof v !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(v)) return null;
+  const n = Date.parse(`${v}T00:00:00Z`);
+  return Number.isFinite(n) && new Date(n).toISOString().slice(0, 10) === v ? n : null;
+}
+export function calendarMonths(v: number, months: number): number {
+  const d = new Date(v),
+    day = d.getUTCDate();
+  d.setUTCDate(1);
+  d.setUTCMonth(d.getUTCMonth() + months);
+  const last = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 0)).getUTCDate();
+  d.setUTCDate(Math.min(day, last));
+  return d.getTime();
+}
+export function romeDay(t: number): number {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Europe/Rome",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(new Date(t));
+  const part = (name: string) => parts.find((p) => p.type === name)!.value;
+  return isoDay(`${part("year")}-${part("month")}-${part("day")}`)!;
+}
+export function submissionInWindow(v: unknown): boolean | null {
+  const n = timestamp(v);
+  return n === null
+    ? null
+    : n >= Date.parse("2026-09-30T12:00:00+02:00") && n <= Date.parse("2026-10-29T17:00:00+01:00");
+}
+const docOK = (cl: Checklist, key: string) => cl[key]?.status === "verificato";
+export function evaluate(
+  a: Answers,
+  rules: RuleMap,
+  evidences: { intervention: string | null; amount: number | null }[] = [],
+  checklist: Checklist = {},
+): Result {
+  const warnings = [
+    "Stima preliminare sui dati dichiarati. Solo Lazio Innova verifica ammissibilità, punteggio e concessione; disponibilità fondi e graduatoria non sono garantite.",
+    "Importi art. 5 già comprensivi del 20% personale. In GeCoWEB indicare la base senza tale 20%: non aggiungerlo due volte.",
+  ];
+  const sz = classifySize(a),
+    size = sz.size;
   const gates: Check[] = [];
-  const sede = tri(a.sede_lazio);
-  if (sede === "si") gates.push({ key: "sede", label: "Sede nel Lazio", status: "confermato", reasons: [], ruleKeys: ["sede_lazio"] });
-  else if (sede === "no") {
-    const fut = tri(a.sede_lazio_entro_termine);
-    gates.push({
-      key: "sede", label: "Sede nel Lazio",
-      status: fut === "si" ? "potenziale" : fut === "no" ? "non_ammissibile" : "ignoto",
-      reasons: [fut === "si" ? "Apertura sede nel Lazio dichiarata entro il termine: verificare termine e documentazione." : fut === "no" ? "Nessuna sede nel Lazio." : "Apertura sede nel Lazio da chiarire."],
-      ruleKeys: ["sede_lazio"],
-    });
-  } else gates.push({ key: "sede", label: "Sede nel Lazio", status: "ignoto", reasons: ["Da verificare."], ruleKeys: ["sede_lazio"] });
-
-  const ateco = triCheck("ateco", "ATECO non escluso", a.ateco_escluso, "no", ["ateco_exclusions"], "Codice ATECO in settore escluso.");
-  if (!a.ateco_codice) ateco.reasons.push("Codice ATECO non indicato.");
-  if (!rules.ateco_exclusions?.value_text) {
-    ateco.status = worst(ateco.status, "potenziale");
-    ateco.reasons.push("Elenco esclusioni ATECO non ancora trascritto nelle regole.");
+  const add = (key: string, label: string, value: unknown, ok = "si", ruleKeys: string[] = []) =>
+    gates.push(triCheck(key, label, value, ok, ruleKeys));
+  let sede = triCheck(
+    "sede",
+    "Sede operativa e attività nel Lazio risultanti al Registro",
+    a["sede_operativa_lazio"],
+    "si",
+    ["sede_lazio"],
+  );
+  if (a["sede_operativa_lazio"] === "no" && yes(a["sede_lazio_entro_termine"]))
+    sede = {
+      ...sede,
+      status: yes(a["apertura_sede_documentata"]) ? "potenziale" : "ignoto",
+      reasons: [
+        "Acquisire entro la richiesta di erogazione; apertura e attività devono essere descritte, giustificate e documentate già in domanda.",
+      ],
+    };
+  gates.push(sede);
+  const ateco = triCheck(
+    "ateco",
+    "Attività effettiva non esclusa (Appendice 1)",
+    a["ateco_escluso"],
+    "no",
+    ["ateco_exclusions"],
+  );
+  if (!text(a["ateco_codice"]) || !yes(a["attivita_esclusioni_verificate"])) {
+    ateco.status = worst(ateco.status, "ignoto");
+    ateco.reasons.push(
+      "Codice e attività effettiva devono essere verificati sull'intero elenco: nessuna classificazione automatica per solo ATECO.",
+    );
   }
-  gates.push(ateco);
-  gates.push({ key: "pmi", label: "Requisito PMI", status: sz.status, reasons: sz.reasons, ruleKeys: ["sme_thresholds"] });
-  gates.push(triCheck("registro", "Iscrizione Registro Imprese e attività", a.iscritta_attiva, "si", [], "Impresa non iscritta/attiva."));
-  gates.push(triCheck("durc", "Regolarità contributiva (DURC)", a.durc_regolare, "si", [], "DURC non regolare."));
-  gates.push(triCheck("difficolta", "Non impresa in difficoltà", a.impresa_difficolta, "no", [], "Impresa in difficoltà."));
-  gates.push(triCheck("procedure", "Assenza procedure concorsuali", a.procedure_concorsuali, "no", [], "Procedure concorsuali in corso."));
-
-  const dm = tri(a.de_minimis_ricevuti);
-  const dmCap = rv(rules, "de_minimis_cap");
-  const dmAmt = num(a.de_minimis_importo);
-  if (dm === "no") gates.push({ key: "deminimis", label: "Capienza de minimis", status: "confermato", reasons: [], ruleKeys: ["de_minimis_cap"] });
-  else if (dm === "si") {
-    if (dmCap === null || dmAmt === null)
-      gates.push({ key: "deminimis", label: "Capienza de minimis", status: "ignoto", reasons: ["Aiuti de minimis ricevuti: massimale o importo non disponibile. Verificare RNA."], ruleKeys: ["de_minimis_cap"] });
-    else
-      gates.push({ key: "deminimis", label: "Capienza de minimis", status: dmAmt < dmCap ? "potenziale" : "non_ammissibile", reasons: [dmAmt < dmCap ? `Residuo stimato ${dmCap - dmAmt} EUR: confrontare con il contributo richiesto.` : "Massimale de minimis esaurito."], ruleKeys: ["de_minimis_cap"] });
-  } else gates.push({ key: "deminimis", label: "Capienza de minimis", status: "ignoto", reasons: ["Da verificare su RNA."], ruleKeys: ["de_minimis_cap"] });
-
-  const ov = tri(a.altri_voucher);
-  if (ov === "si") {
-    const same = tri(a.stesse_spese);
-    gates.push({ key: "cumulo", label: "Cumulo con altri voucher", status: same === "no" ? "potenziale" : same === "si" ? "non_ammissibile" : "ignoto", reasons: [same === "si" ? "Stesse spese già agevolate: rischio doppio finanziamento." : "Altri voucher presenti: verificare regole di cumulo."], ruleKeys: [] });
-  } else if (ov === "no") gates.push({ key: "cumulo", label: "Cumulo con altri voucher", status: "confermato", reasons: [], ruleKeys: [] });
-  else gates.push({ key: "cumulo", label: "Cumulo con altri voucher", status: "ignoto", reasons: ["Da verificare."], ruleKeys: [] });
-
-  const gateStatus = gateCombine(gates.map((g) => g.status));
-
-  // --- Interventi
-  const iv: Intervention[] = [];
-  const evSum = (k: string) => evidences.filter((e) => e.intervention === k).reduce((s, e) => s + (e.amount ?? 0), 0);
-  const push = (c: Check, theoretical: number | null) =>
-    iv.push({ ...c, theoretical, documented: theoretical === null ? 0 : Math.min(theoretical, evSum(c.key)) });
-  const bySize = (prefix: string, allowed: Size[]) => {
-    if (!size || !allowed.includes(size)) return null;
-    const map: Record<string, string> = { micro: "micro", piccola: "small", media: "medium" };
-    return rv(rules, `${prefix}_${map[size]}`);
+  gates.push(ateco, {
+    key: "pmi",
+    label: "Dimensione PMI",
+    status: sz.status,
+    reasons: sz.reasons,
+    ruleKeys: ["sme_thresholds"],
+  });
+  const registro = triCheck(
+    "registro",
+    "Registro Imprese italiano e attività",
+    a["iscritta_attiva"],
+  );
+  if (
+    a["iscritta_attiva"] === "no" &&
+    yes(a["registro_ue"]) &&
+    yes(a["registro_italiano_entro_saldo"])
+  ) {
+    registro.status = "potenziale";
+    registro.reasons = [
+      "Impresa di altro Stato SEE: documenti equipollenti e rappresentante italiano (art. 6), iscrizione italiana entro saldo.",
+    ];
+  }
+  gates.push(registro);
+  add("durc", "Regolarità contributiva alla domanda e al saldo", a["durc_regolare"]);
+  // Il semplice stato di difficoltà UE NON è un'autonoma causa di esclusione nell'Appendice 2.
+  const procedure = triCheck(
+    "procedure",
+    "Pieno esercizio dei diritti / procedure concorsuali",
+    a["procedure_concorsuali"],
+    "no",
+  );
+  if (yes(a["procedure_concorsuali"])) {
+    procedure.status = "ignoto";
+    procedure.reasons = [
+      "Verificare eccezioni art. 95 CCII, art. 186-bis e art. 124 D.Lgs. 36/2023; non escludere automaticamente.",
+    ];
+  }
+  gates.push(procedure);
+  for (const [key, label] of GENERAL_CHECKS) add(key, label, a[key]);
+  const dmCap = rv(rules, "de_minimis_cap"),
+    dmAmt = nonnegative(a["de_minimis_impresa_unica"]);
+  const residual = dmCap !== null && dmAmt !== null ? Math.max(0, money(dmCap - dmAmt)) : null;
+  const dmCheck: Check = {
+    key: "deminimis",
+    label: "De minimis: Impresa Unica, tre anni mobili",
+    status:
+      residual === 0
+        ? "non_ammissibile"
+        : residual === null || !yes(a["de_minimis_verificato"])
+          ? "ignoto"
+          : "confermato",
+    reasons:
+      residual === null
+        ? [
+            "Acquisire tutti gli aiuti concessi all'Impresa Unica nei tre anni mobili alla concessione; zero va indicato espressamente.",
+          ]
+        : [
+            `Residuo dichiarato ${residual} EUR; verificare RNA, fusioni/scissioni e tutti gli aiuti rilevanti alla concessione.`,
+          ],
+    ruleKeys: ["de_minimis_cap"],
   };
-
-  // Diagnosi digitale
-  let diagnosiBlocks = false;
-  {
-    const k = ["diag_small", "diag_medium", "diag_rule"];
-    if (!size) push({ key: "diagnosi", label: "Diagnosi digitale", status: "ignoto", reasons: ["Dimensione non determinata."], ruleKeys: k }, null);
-    else if (size === "micro") push({ key: "diagnosi", label: "Diagnosi digitale", status: "non_ammissibile", reasons: ["Non ammissibile per micro imprese."], ruleKeys: k }, 0);
-    else if (size === "piccola" || size === "media") {
-      const d = tri(a.diagnosi_prevista);
-      const val = size === "piccola" ? rv(rules, "diag_small") : rv(rules, "diag_medium");
-      if (d === "si") push({ key: "diagnosi", label: "Diagnosi digitale", status: "confermato", reasons: ["Obbligatoria per piccole/medie: prevista."], ruleKeys: k }, val);
-      else {
-        diagnosiBlocks = true;
-        push({ key: "diagnosi", label: "Diagnosi digitale", status: d === "no" ? "non_ammissibile" : "ignoto", reasons: ["Obbligatoria per piccole/medie: non prevista o non definita. Gli altri interventi non possono essere considerati confermati."], ruleKeys: k }, d === "no" ? 0 : val);
+  gates.push(dmCheck);
+  add(
+    "cumulo",
+    "Nessun altro aiuto sugli interventi/costi coperti dalle somme forfettarie",
+    a["doppio_finanziamento_assente"],
+  );
+  const previous = triCheck(
+    "precedenti",
+    "Precedenti Voucher Digitalizzazione PMI Lazio",
+    a["precedenti_voucher_lazio"],
+    "no",
+  );
+  if (yes(a["precedenti_voucher_lazio"])) {
+    const ok = a["precedenti_erogazione_presentata"];
+    previous.status = ok === "si" ? "confermato" : ok === "no" ? "non_ammissibile" : "ignoto";
+    previous.reasons = [
+      "Richiesta di erogazione del precedente voucher deve risultare presentata alla data della nuova domanda; mai finanziabile una tipologia già concessa.",
+    ];
+  }
+  gates.push(previous);
+  if (yes(a["domanda_inviata"])) {
+    const ok = submissionInWindow(a["domanda_timestamp"]);
+    gates.push({
+      key: "termine_domanda",
+      label: "Invio tramite GeCoWEB entro termini (ora italiana)",
+      status: ok === null ? "ignoto" : ok ? "confermato" : "non_ammissibile",
+      reasons: ok
+        ? []
+        : [
+            "PEC GeCoWEB: 30/09/2026 ore 12:00 — 29/10/2026 ore 17:00. Occorre data/ora ISO con fuso esplicito.",
+          ],
+      ruleKeys: [],
+    });
+    add(
+      "bollo",
+      "Marca da bollo annullata/conservata con identificativo e data, o esenzione motivata",
+      a["marca_bollo_regolare"],
+    );
+    add(
+      "invio_formale",
+      "Formulario finalizzato, domanda generata e firmata digitalmente, ricevuta PEC GeCoWEB",
+      a["domanda_gecoweb_regolare"],
+    );
+  } else
+    warnings.push(
+      "Domanda in preparazione: l'invio deve avvenire esclusivamente in GeCoWEB tra 30/09/2026 ore 12:00 e 29/10/2026 ore 17:00 (Europe/Rome). Vale l'ultima domanda valida, che annulla le precedenti.",
+    );
+  add(
+    "tempi",
+    "Conclusione e richiesta saldo completa entro sei mesi dalla concessione",
+    a["saldo_entro_sei_mesi"],
+  );
+  if (size === "micro") {
+    add(
+      "relazione_micro",
+      "Modello 2 ex ante allegato alla domanda (o diagnosi equivalente)",
+      a["relazione_micro_exante"],
+    );
+    add(
+      "fornitore_micro",
+      "Unico soggetto ICT per tutti gli interventi, firma modello 2 ex post",
+      a["fornitore_micro_unico"],
+    );
+  }
+  for (const [key, label] of [
+    ["polizza_o_modello3", "Polizza valida / esenzione modello 3"],
+    ...(size === "micro"
+      ? [["modello2_exante", "Modello 2 ex ante micro / diagnosi equivalente"]]
+      : []),
+    ...(yes(a["precedenti_voucher_lazio"])
+      ? [["precedenti_voucher", "Documenti del precedente Voucher Lazio"]]
+      : []),
+  ]) {
+    gates.push({
+      key: `doc_${key}`,
+      label: label!,
+      status: docOK(checklist, key!) ? "confermato" : "ignoto",
+      reasons: docOK(checklist, key!)
+        ? []
+        : [
+            "Documento non verificato nella checklist. La sola dichiarazione non sostituisce il controllo dell'operatore.",
+          ],
+      ruleKeys: [],
+    });
+  }
+  if (yes(a["progetto_realizzato"])) {
+    const concession = isoDay(a["data_concessione"]),
+      completed = isoDay(a["data_conclusione"]),
+      balance = isoDay(a["data_richiesta_saldo"]);
+    const deadline = concession === null ? null : calendarMonths(concession, 6);
+    gates.push({
+      key: "saldo_date",
+      label: "Date effettive: conclusione e saldo entro sei mesi dalla concessione",
+      status:
+        concession === null || deadline === null || completed === null || balance === null
+          ? "ignoto"
+          : completed > deadline ||
+              balance < completed ||
+              completed < concession ||
+              completed > deadline
+            ? "non_ammissibile"
+            : balance > deadline
+              ? "ignoto"
+              : "confermato",
+      reasons: [
+        "Termine ordinario art. 7. Eventuali procedure di regolarizzazione (invito a ulteriori 30 giorni) vanno verificate con Lazio Innova; non attribuiscono proroghe automatiche.",
+      ],
+      ruleKeys: [],
+    });
+  }
+  const conflicts = triCheck(
+    "conflitti",
+    "Conflitti di interesse: rapporti rilevanti e dichiarazione modello 4",
+    a["conflitti_interesse"],
+    "no",
+  );
+  if (yes(a["conflitti_interesse"])) {
+    conflicts.status = docOK(checklist, "modello4_conflitti") ? "confermato" : "ignoto";
+    conflicts.reasons = [
+      "La presenza di rapporti non comporta esclusione automatica; verificare e allegare il modello 4 nei casi previsti.",
+    ];
+  }
+  gates.push(conflicts);
+  const gateStatus = worst(...gates.map((x) => x.status));
+  const iv: Intervention[] = [];
+  const push = (
+    key: string,
+    label: string,
+    ruleKeys: string[],
+    amount: number | null,
+    checks: Check[],
+  ) => {
+    if (key !== "diagnosi" && yes(a["progetto_realizzato"])) {
+      const started = isoDay(a[`${key}_data_avvio`]),
+        submitted = timestamp(a["domanda_timestamp"]);
+      const diagnosis = isoDay(a["data_diagnosi_exante"]);
+      // Confronto per giorno: la domanda PEC include ora, ma l'adozione va successiva.
+      const submitDay = submitted === null ? null : romeDay(submitted);
+      const reference =
+        submitDay === null || (size !== "micro" && diagnosis === null)
+          ? null
+          : Math.max(submitDay, diagnosis ?? submitDay);
+      checks.push({
+        key: `${key}_date`,
+        label: "Avvio effettivo dopo domanda/diagnosi",
+        status:
+          started === null || reference === null
+            ? "ignoto"
+            : started <= reference
+              ? "non_ammissibile"
+              : "confermato",
+        reasons: [
+          "Indicare la prima adozione/acquisto dei componenti. La diagnosi può precedere la domanda; tutti gli altri interventi devono essere successivi alla data più recente.",
+        ],
+        ruleKeys: [],
+      });
+    }
+    const reasons = checks.flatMap((c) => c.reasons.map((reason) => `${c.label}: ${reason}`));
+    let status = worst(sz.status, ...checks.map((c) => c.status));
+    if (amount === null) {
+      status = worst(status, "ignoto");
+      reasons.push(
+        "Importo non calcolabile: regola assente, non validata o divergente dall'Avviso.",
+      );
+    }
+    const old = selected(a["precedenti_tipologie"], [
+      "diagnosi",
+      "workplace",
+      "commerce",
+      "cyber",
+      "cloud_application",
+      "cloud_database",
+      "cloud_web",
+      "cloud_backup",
+    ]);
+    if (yes(a["precedenti_voucher_lazio"])) {
+      if (!yes(a["precedenti_tipologie_complete"])) {
+        status = worst(status, "ignoto");
+        reasons.push("Elenco completo delle tipologie già concesse da verificare.");
+      }
+      if (old.includes(key)) {
+        status = "non_ammissibile";
+        reasons.push(
+          "Tipologia già finanziata da un precedente Voucher Lazio: esclusa anche con spese diverse.",
+        );
       }
     }
+    const documented = money(
+      evidences
+        .filter((e) => e.intervention === key)
+        .reduce((sum, e) => sum + (nonnegative(e.amount) ?? 0), 0),
+    );
+    iv.push({
+      key,
+      label,
+      ruleKeys,
+      status,
+      reasons,
+      theoretical: status === "non_ammissibile" ? 0 : amount,
+      documented,
+    });
+  };
+  const check = (key: string, label: string, ok = "si") => triCheck(key, label, a[key], ok);
+  const duration = (key: string) => {
+    const n = nonnegative(a[key], true);
+    return {
+      key,
+      label: "Durata di ogni servizio ricorrente",
+      status: n === null ? "ignoto" : n < 36 ? "non_ammissibile" : "confermato",
+      reasons:
+        n === null
+          ? ["Durata minima comune non indicata o non valida."]
+          : n < 36
+            ? ["Ogni servizio ricorrente deve coprire almeno 36 mesi."]
+            : [],
+      ruleKeys: [],
+    } as Check;
+  };
+  const common = (prefix: string) => COMMON_TECH_CHECKS.map(([k, l]) => check(`${prefix}_${k}`, l));
+  const bySize = (prefix: string) =>
+    size && size !== "grande"
+      ? rv(
+          rules,
+          `${prefix}_${({ micro: "micro", piccola: "small", media: "medium" } as const)[size]}`,
+        )
+      : null;
+  const diagnosisChecks = [
+    check("diagnosi_prevista", "Diagnosi obbligatoria prevista"),
+    check(
+      "diagnosi_manager",
+      "Manager UNI 11814 accreditato / albo MIMIT settore 8, indipendenza della persona e società, modello 1 e stesso firmatario ex post salvo forza maggiore",
+    ),
+    check(
+      "diagnosi_tempi",
+      "Ex ante prima degli interventi, non oltre tre mesi prima della domanda, consegna entro Atto di Impegno",
+    ),
+  ];
+  if ((size === "piccola" || size === "media") && yes(a["progetto_realizzato"])) {
+    const diagnosed = isoDay(a["data_diagnosi_exante"]),
+      submitted = timestamp(a["domanda_timestamp"]),
+      day = submitted === null ? null : romeDay(submitted);
+    diagnosisChecks.push({
+      key: "diagnosi_obsoleta",
+      label: "Diagnosi ex ante non obsoleta",
+      status:
+        diagnosed === null || day === null
+          ? "ignoto"
+          : diagnosed < calendarMonths(day, -3)
+            ? "non_ammissibile"
+            : "confermato",
+      reasons: [
+        "Non oltre tre mesi prima della domanda; l'avvio degli altri interventi resta successivo alla diagnosi.",
+      ],
+      ruleKeys: [],
+    });
   }
-
-  // Digital Workplace
-  if (a.interesse_workplace === "si") {
-    const k = ["workplace_per_employee", "workplace_categories", "workplace_min_months"];
-    const reasons: string[] = [];
-    const required = rv(rules, "workplace_categories") ?? 5;
-    const cats = Array.isArray(a.workplace_categorie) ? (a.workplace_categorie as string[]) : [];
-    const addetti = num(a.addetti_inps_luglio_2026);
-    const durata = num(a.workplace_durata_mesi);
-    const minM = rv(rules, "workplace_min_months");
-    let st: Status = "confermato";
-    if (cats.length < required) { st = "non_ammissibile"; reasons.push(`Coperte ${cats.length}/${required} categorie obbligatorie.`); }
-    if (addetti === null) { st = worst(st, "ignoto"); reasons.push("Numero addetti INPS luglio 2026 non disponibile."); }
-    if (minM === null) { st = worst(st, "potenziale"); reasons.push("Durata minima non configurata: da verificare sul testo ufficiale."); }
-    else if (durata === null) { st = worst(st, "ignoto"); reasons.push("Durata dei servizi non indicata."); }
-    else if (durata < minM) { st = "non_ammissibile"; reasons.push(`Durata ${durata} mesi inferiore al minimo ${minM}.`); }
-    if (!a.sw_attuali) reasons.push("Software attuali non descritti.");
-    const per = rv(rules, "workplace_per_employee");
-    push({ key: "workplace", label: "Digital Workplace", status: st, reasons, ruleKeys: k }, addetti !== null && per !== null && st !== "non_ammissibile" ? addetti * per : st === "non_ammissibile" ? 0 : null);
-  }
-
-  // Digital Commerce
-  if (a.interesse_commerce === "si") {
-    const k = ["commerce_micro", "commerce_small", "commerce_medium", "commerce_tech"];
-    const t = a.commerce_tipo;
-    const val = bySize("commerce", ["micro", "piccola", "media"]);
-    if (t === "saas") push({ key: "commerce", label: "Digital Commerce", status: "non_ammissibile", reasons: ["Semplice SaaS: non soddisfa i requisiti tecnici IaaS/PaaS."], ruleKeys: k }, 0);
-    else if (t === "iaas" || t === "paas") {
-      const ok = tri(a.commerce_requisiti_confermati);
-      push({ key: "commerce", label: "Digital Commerce", status: ok === "si" ? "confermato" : "potenziale", reasons: ok === "si" ? [] : ["Requisiti tecnici IaaS/PaaS da documentare."], ruleKeys: k }, val);
-    } else push({ key: "commerce", label: "Digital Commerce", status: "ignoto", reasons: ["Architettura della soluzione non definita."], ruleKeys: k }, null);
-  }
-
-  // Cybersecurity
-  if (a.interesse_cyber === "si") {
-    const k = ["cyber_small", "cyber_medium", "cyber_sizes"];
-    if (size === "micro") push({ key: "cyber", label: "Cybersecurity", status: "non_ammissibile", reasons: ["Ammessa solo per piccole e medie imprese."], ruleKeys: k }, 0);
-    else if (size === "piccola" || size === "media") {
-      const ok = tri(a.cyber_perimetro_definito);
-      push({ key: "cyber", label: "Cybersecurity", status: ok === "si" ? "confermato" : "potenziale", reasons: ok === "si" ? [] : ["Perimetro e servizi da definire."], ruleKeys: k }, bySize("cyber", ["piccola", "media"]));
-    } else push({ key: "cyber", label: "Cybersecurity", status: "ignoto", reasons: ["Dimensione non determinata."], ruleKeys: k }, null);
-  }
-
-  // Cloud
-  if (a.interesse_cloud === "si") {
-    const types: [string, string, string][] = [
-      ["application", "Cloud — application server", "cloud_application"],
-      ["database", "Cloud — database", "cloud_database"],
-      ["web", "Cloud — web server", "cloud_web"],
-      ["backup", "Cloud — backup", "cloud_backup"],
+  if (size === "piccola" || size === "media")
+    push(
+      "diagnosi",
+      "Diagnosi digitale",
+      ["diag_small", "diag_medium", "diag_rule"],
+      size === "piccola" ? rv(rules, "diag_small") : rv(rules, "diag_medium"),
+      diagnosisChecks,
+    );
+  const microForbidden =
+    size === "micro" && (yes(a["diagnosi_contributo_micro"]) || yes(a["interesse_cyber"]));
+  if (size === "micro" && yes(a["diagnosi_contributo_micro"]))
+    push("diagnosi", "Diagnosi digitale (contributo non ammesso alle micro)", ["diag_rule"], 0, [
+      {
+        key: "micro",
+        label: "Micro",
+        status: "non_ammissibile",
+        reasons: [
+          "Una diagnosi privata può sostituire il modello 2, ma il progetto non può richiedere il contributo A.",
+        ],
+        ruleKeys: [],
+      },
+    ]);
+  if (yes(a["interesse_workplace"])) {
+    const cats = selected(a["workplace_categorie"], ["c1", "c2", "c3", "c4", "c5"]);
+    const count = nonnegative(a["workplace_postazioni"], true),
+      inps = nonnegative(a["addetti_inps_luglio_2026"], true);
+    const centralized = a["inps_accentrato"];
+    const lazio = nonnegative(a["addetti_lazio_documentati"], true);
+    const limit =
+      centralized === "no"
+        ? inps
+        : centralized === "si" && yes(a["addetti_lazio_verificati"])
+          ? lazio
+          : null;
+    const qty: Check = {
+      key: "postazioni",
+      label: "Postazioni acquistate / limite addetti luglio 2026",
+      status:
+        count === null || inps === null || limit === null
+          ? "ignoto"
+          : count < 1 || count > limit || limit > inps
+            ? "non_ammissibile"
+            : "confermato",
+      reasons:
+        count === null || limit === null
+          ? [
+              "Indicare postazioni realmente acquistate, forza aziendale INPS e, in caso di accentramento fuori regione, addetti Lazio documentati (Registro o quantificazione alternativa allegata).",
+            ]
+          : count < 1 || count > limit || (inps !== null && limit > inps)
+            ? ["Quantità non positiva o superiore al limite documentato."]
+            : [],
+      ruleKeys: [],
+    };
+    const checks: Check[] = [
+      {
+        key: "categorie",
+        label: "Cinque categorie obbligatorie distinte",
+        status: cats.length === 5 ? "confermato" : "non_ammissibile",
+        reasons:
+          cats.length === 5
+            ? []
+            : ["Tutte e cinque devono essere incluse; duplicati/codici sconosciuti non contano."],
+        ruleKeys: [],
+      },
+      qty,
+      duration("workplace_durata_mesi"),
+      ...TECH_CHECKS["workplace"]!.map(([k, l]) => check(k, l)),
+      ...common("workplace"),
     ];
-    const sel = Array.isArray(a.cloud_sistemi) ? (a.cloud_sistemi as string[]) : [];
-    const already = a.gia_cloud;
-    const residui = tri(a.sistemi_locali_residui);
-    if (sel.length === 0) warnings.push("Cloud: nessun sistema esistente on-premise indicato — nessuna migrazione attribuibile.");
-    for (const [t, label, rk] of types) {
-      if (!sel.includes(t)) continue;
-      const reasons: string[] = [];
-      let st: Status;
-      const ex = tri(a[`cloud_${t}_esistente`]);
-      if ((already === "si" || already === "parziale") && residui !== "si") {
-        st = residui === "no" ? "non_ammissibile" : "ignoto";
-        reasons.push("Impresa già in cloud: ammissibili solo sistemi locali residui reali.");
-      } else if (ex === "si") st = "confermato";
-      else if (ex === "no") { st = "non_ammissibile"; reasons.push("Sistema non esistente: non è una migrazione reale."); }
-      else { st = "ignoto"; reasons.push("Esistenza del sistema on-premise da verificare."); }
-      if (st === "confermato" && !a[`cloud_${t}_descrizione`]) { st = "potenziale"; reasons.push("Descrivere il sistema esistente (inventario)."); }
-      push({ key: `cloud_${t}`, label, status: st, reasons, ruleKeys: [rk, "cloud_rule"] }, st === "non_ammissibile" ? 0 : rv(rules, rk));
-    }
+    const rate = rv(rules, "workplace_per_employee");
+    push(
+      "workplace",
+      "Digital Workplace",
+      ["workplace_per_employee", "workplace_categories", "workplace_min_months"],
+      count !== null && rate !== null ? money(count * rate) : null,
+      checks,
+    );
   }
-
-  // Applica gate e diagnosi obbligatoria
+  if (yes(a["interesse_commerce"]))
+    push(
+      "commerce",
+      "Digital Commerce",
+      ["commerce_micro", "commerce_small", "commerce_medium", "commerce_tech"],
+      bySize("commerce"),
+      [
+        {
+          key: "architettura",
+          label: "Architettura IaaS/PaaS",
+          status:
+            a["commerce_tipo"] === "saas"
+              ? "non_ammissibile"
+              : ["iaas", "paas"].includes(String(a["commerce_tipo"]))
+                ? "confermato"
+                : "ignoto",
+          reasons: a["commerce_tipo"] === "saas" ? ["Semplice SaaS escluso."] : [],
+          ruleKeys: [],
+        },
+        duration("commerce_durata_mesi"),
+        ...TECH_CHECKS["commerce"]!.map(([k, l]) => check(k, l)),
+        ...common("commerce"),
+      ],
+    );
+  if (yes(a["interesse_cyber"])) {
+    const sol = selected(
+      a["cyber_soluzioni"],
+      Array.from({ length: 8 }, (_, i) => `s${i + 1}`),
+    );
+    push(
+      "cyber",
+      "Cyber Security",
+      ["cyber_small", "cyber_medium", "cyber_sizes"],
+      bySize("cyber"),
+      [
+        {
+          key: "dimensione",
+          label: "Solo piccole/medie",
+          status:
+            size === "micro" || size === "grande"
+              ? "non_ammissibile"
+              : size
+                ? "confermato"
+                : "ignoto",
+          reasons: size === "micro" ? ["Intervento E vietato alle micro."] : [],
+          ruleKeys: [],
+        },
+        {
+          key: "soluzione",
+          label: "Almeno una delle otto soluzioni ammesse",
+          status: sol.length ? "confermato" : "ignoto",
+          reasons: sol.length
+            ? []
+            : ["Selezionare una soluzione ammessa e documentarne le caratteristiche."],
+          ruleKeys: [],
+        },
+        duration("cyber_durata_mesi"),
+        ...TECH_CHECKS["cyber"]!.map(([k, l]) => check(k, l)),
+        ...common("cyber").filter((c) => !c.key.endsWith("fornitore_ict_unitario")),
+      ],
+    );
+  }
+  if (yes(a["interesse_cloud"])) {
+    const types = selected(a["cloud_sistemi"], ["application", "database", "web", "backup"]);
+    if (!types.length)
+      warnings.push(
+        "Cloud selezionato ma nessuna tipologia VM definita: contributo non determinabile.",
+      );
+    for (const t of types)
+      push(`cloud_${t}`, `Cloud — ${t}`, [`cloud_${t}`, "cloud_rule"], rv(rules, `cloud_${t}`), [
+        check(`cloud_${t}_esistente`, "Sistema esistente e in uso"),
+        ...TECH_CHECKS["cloud"]!.map(([k, l]) => check(`cloud_${t}_${k}`, l)),
+        duration(`cloud_${t}_durata_mesi`),
+        ...common(`cloud_${t}`),
+        {
+          key: "inventario",
+          label: "Inventario sistema",
+          status: text(a[`cloud_${t}_descrizione`]) ? "confermato" : "ignoto",
+          reasons: text(a[`cloud_${t}_descrizione`])
+            ? []
+            : ["Inventario hardware/software e uso attuale non descritti."],
+          ruleKeys: [],
+        },
+      ]);
+  }
+  // Una diagnosi assente blocca il progetto. Una diagnosi non verificata non conferma altri interventi.
+  const diagStatus =
+    size === "piccola" || size === "media"
+      ? worst(...diagnosisChecks.map((c) => c.status))
+      : "confermato";
   for (const i of iv) {
-    if (gateStatus === "non_ammissibile" && i.status !== "non_ammissibile") {
-      i.status = "non_ammissibile"; i.reasons.push("Requisiti soggettivi non soddisfatti.");
-    } else if (gateStatus === "potenziale" && i.status === "confermato") {
-      i.status = "potenziale"; i.reasons.push("Requisiti soggettivi non tutti confermati.");
-    }
-    if (diagnosiBlocks && i.key !== "diagnosi" && i.status === "confermato") {
-      i.status = "potenziale"; i.reasons.push("Diagnosi digitale obbligatoria non prevista.");
-    }
-    // Ogni regola non validata impedisce lo stato "confermato" normativo pieno: segnalata ma non degradata.
+    i.status = worst(i.status, gateStatus, diagStatus);
+    if (gateStatus !== "confermato")
+      i.reasons.push("Requisiti soggettivi incompleti o incompatibili.");
+    if (diagStatus !== "confermato")
+      i.reasons.push("Diagnosi digitale obbligatoria non soddisfatta/verificata.");
+    if (i.status === "non_ammissibile") i.theoretical = 0;
   }
-
-  const val = (i: Intervention) => (i.theoretical ?? 0);
-  const confirmed = iv.filter((i) => i.status === "confermato").reduce((s, i) => s + val(i), 0);
-  const potential = confirmed + iv.filter((i) => i.status === "potenziale").reduce((s, i) => s + val(i), 0);
-  const documented = iv.filter((i) => i.status !== "non_ammissibile").reduce((s, i) => s + i.documented, 0);
-  const cap = size === "micro" ? rv(rules, "max_micro") : size === "piccola" ? rv(rules, "max_small") : size === "media" ? rv(rules, "max_medium") : null;
+  const cap =
+    size === "micro"
+      ? rv(rules, "max_micro")
+      : size === "piccola"
+        ? rv(rules, "max_small")
+        : size === "media"
+          ? rv(rules, "max_medium")
+          : null;
   const minimum = rv(rules, "min_project");
-  const capIt = (v: number) => (cap === null ? v : Math.min(v, cap));
-  if (cap === null) warnings.push("Massimale non applicabile: dimensione non determinata.");
-  if (sz.status !== "confermato" && size) warnings.push("Massimale applicato su dimensione non confermata.");
-  if (iv.some((i) => i.theoretical === null && i.status !== "non_ammissibile")) warnings.push("Alcuni interventi non hanno valore calcolabile per dati mancanti.");
-
-  const scoreRule = rules.score_formula;
-  const score = scoreRule?.status === "validata" && scoreRule.value_text
-    ? { status: "formula_validata" as const, note: `Formula validata: ${scoreRule.value_text}. Calcolo da effettuare secondo il testo ufficiale.`, inputs: { iva_2025: a.iva_volume_2025, inps_2025: a.inps_addetti_2025, premialita: a.premialita } }
-    : { status: "da_verificare" as const, note: "Formula di punteggio non verificata sul testo ufficiale: nessun punteggio calcolato.", inputs: { iva_2025: a.iva_volume_2025, inps_2025: a.inps_addetti_2025, premialita: a.premialita } };
-
+  const confirmed = money(
+    iv.filter((i) => i.status === "confermato").reduce((n, i) => n + (i.theoretical ?? 0), 0),
+  );
+  const potential = money(
+    iv.filter((i) => i.status !== "non_ammissibile").reduce((n, i) => n + (i.theoretical ?? 0), 0),
+  );
+  const unknownAmount =
+    ["interesse_workplace", "interesse_commerce", "interesse_cloud", "interesse_cyber"].some(
+      (k) => a[k] !== "si" && a[k] !== "no",
+    ) ||
+    iv.some((i) => i.status !== "non_ammissibile" && i.theoretical === null) ||
+    (yes(a["interesse_cloud"]) &&
+      !selected(a["cloud_sistemi"], ["application", "database", "web", "backup"]).length);
+  const capIt = (n: number) =>
+    cap === null || residual === null ? null : money(Math.min(n, cap, residual));
+  const confirmedCapped = capIt(confirmed),
+    potentialCapped = unknownAmount ? null : capIt(potential);
+  const meetsMinimumConfirmed =
+    minimum === null || confirmedCapped === null ? null : confirmedCapped >= minimum;
+  const meetsMinimumPotential =
+    minimum === null || potentialCapped === null ? null : potentialCapped >= minimum;
+  const projectReasons: string[] = [];
+  let projectStatus = worst(gateStatus, diagStatus);
+  if (microForbidden) {
+    projectStatus = "non_ammissibile";
+    projectReasons.push(
+      "Il progetto micro include contributi A/E vietati: rimuovere le richieste non ammesse.",
+    );
+  }
+  if (!iv.some((i) => i.key !== "diagnosi")) {
+    projectStatus =
+      ["interesse_workplace", "interesse_commerce", "interesse_cloud", "interesse_cyber"].every(
+        (k) => a[k] === "no",
+      ) || iv.length > 0
+        ? "non_ammissibile"
+        : worst(projectStatus, "ignoto");
+    projectReasons.push(
+      "Nessun intervento B/C/D/E: la sola diagnosi non è un progetto ammissibile.",
+    );
+  }
+  if (iv.some((i) => i.status === "non_ammissibile")) {
+    projectStatus = "non_ammissibile";
+    projectReasons.push(
+      "Il progetto contiene interventi incompatibili: rivedere la composizione prima dell'invio.",
+    );
+  }
+  if (meetsMinimumPotential === false) {
+    projectStatus = "non_ammissibile";
+    projectReasons.push(
+      "Contributo concedibile dopo massimali e de minimis inferiore a 14.000 EUR.",
+    );
+  }
+  if (meetsMinimumPotential === null || iv.some((i) => i.status === "ignoto"))
+    projectStatus = worst(projectStatus, "ignoto");
+  if (meetsMinimumConfirmed !== true && projectStatus === "confermato")
+    projectStatus = "potenziale";
+  if (iv.some((i) => i.status === "potenziale")) projectStatus = worst(projectStatus, "potenziale");
+  // Nessun preventivo prova l'esecuzione di un intervento né determina la somma forfettaria.
+  const documented = money(evidences.reduce((sum, e) => sum + (nonnegative(e.amount) ?? 0), 0));
+  warnings.push(
+    "Importi delle evidenze = spese/preventivi registrati, non contributo documentato. Il saldo dipende da interventi conformi realizzati e attestati ex post.",
+  );
+  if (sz.status !== "confermato")
+    warnings.push(
+      "Dimensione da verificare: anche i valori per tipologia restano scenari condizionati.",
+    );
+  const score = calculateScore(a, size, sz.status, iv, checklist);
   return {
-    size, sizeStatus: sz.status, sizeReasons: sz.reasons, gates, gateStatus, interventions: iv,
+    version: BANDO_VERSION,
+    projectStatus,
+    projectReasons,
+    size,
+    sizeStatus: sz.status,
+    sizeReasons: sz.reasons,
+    gates,
+    gateStatus,
+    interventions: iv,
     totals: {
-      confirmed, potential, documented, cap,
-      confirmedCapped: capIt(confirmed), potentialCapped: capIt(potential), minimum,
-      meetsMinimumConfirmed: minimum === null ? null : capIt(confirmed) >= minimum,
-      meetsMinimumPotential: minimum === null ? null : capIt(potential) >= minimum,
+      confirmed,
+      potential,
+      documented,
+      cap,
+      residual,
+      confirmedCapped,
+      potentialCapped,
+      minimum,
+      meetsMinimumConfirmed,
+      meetsMinimumPotential,
     },
-    score, warnings,
+    score,
+    warnings,
   };
 }
-
+export function scoreValueAdded(value: number): number {
+  return value <= 35000 || value >= 250000
+    ? 0
+    : value <= 50000
+      ? (35 * (value - 35000)) / 15000
+      : (35 * (250000 - value)) / 200000;
+}
+export function scoreEmployees(n: number): number {
+  return n >= 100 ? 0 : n <= 20 ? n : (20 * (100 - n)) / 80;
+}
+function calculateScore(
+  a: Answers,
+  size: Size | null,
+  sizeStatus: Status,
+  iv: Intervention[],
+  cl: Checklist,
+): Result["score"] {
+  const employees = nonnegative(a["addetti_inps_luglio_2026"], true);
+  const ve = nonnegative(a["iva_ve50_2025"]),
+    vf = nonnegative(a["iva_vf25_2025"]),
+    income = nonnegative(a["reddito_forfettario_2025"]);
+  const oss = nonnegative(a["iva_oss_2025"]),
+    editorialSales = nonnegative(a["editoria_vendite_2025"]),
+    editorialPurchases = nonnegative(a["editoria_acquisti_2025"]);
+  let numerator: number | null = null;
+  if (a["regime_fiscale"] === "forfettario") numerator = income;
+  else if (a["regime_fiscale"] === "iva" && ve !== null && vf !== null) {
+    numerator = ve - vf;
+    if (a["vendite_oss"] === "si") numerator = oss === null ? null : numerator + oss;
+    else if (a["vendite_oss"] !== "no") numerator = null;
+    if (a["integrazione_editoria"] === "si")
+      numerator =
+        numerator === null || editorialSales === null || editorialPurchases === null
+          ? null
+          : numerator + editorialSales - editorialPurchases;
+    else if (a["integrazione_editoria"] !== "no") numerator = null;
+  }
+  const c1 =
+    numerator === null || employees === null
+      ? null
+      : scoreValueAdded(numerator / Math.max(employees, 1));
+  const c2 = employees === null ? null : scoreEmployees(employees);
+  const count = iv.filter((i) => i.key !== "diagnosi" && i.status === "confermato").length;
+  const uncertain = iv.some((i) => i.status !== "confermato");
+  // Griglia ufficiale, G34: 3 o più (micro), diagnosi + 4 o più (piccole/medie).
+  const c3 =
+    sizeStatus !== "confermato" || uncertain || !count
+      ? null
+      : size === "micro"
+        ? Math.min(15, count * 5)
+        : Math.min(15, Math.max(0, (count - 1) * 5));
+  const bonus = (key: string) => (a[key] === "si" ? 10 : a[key] === "no" ? 0 : null);
+  const criteria = [
+    c1,
+    c2,
+    c3,
+    bonus("cert_genere_valida"),
+    bonus("impresa_giovanile"),
+    bonus("cert_ambiente_valida"),
+  ];
+  const support = [...criteria];
+  if (!docOK(cl, "inps_attestazione_luglio_2026")) {
+    support[0] = 0;
+    support[1] = 0;
+  }
+  if (
+    !docOK(cl, a["regime_fiscale"] === "forfettario" ? "redditi_2025" : "iva_modello_2026") ||
+    (a["vendite_oss"] === "si" && !docOK(cl, "iva_oss_2025")) ||
+    (a["integrazione_editoria"] === "si" && !docOK(cl, "attestazione_editoria"))
+  )
+    support[0] = 0;
+  if (!docOK(cl, "cert_genere")) support[3] = 0;
+  if (!docOK(cl, "cert_ambiente")) support[5] = 0;
+  const sum = (xs: (number | null)[]) =>
+    xs.some((x) => x === null) ? null : money(xs.reduce<number>((n, x) => n + (x ?? 0), 0));
+  return {
+    status: "formula_validata",
+    note: "Art. 6: stima 0–100, distinta dai punti sostenuti dalla checklist verificata. Documenti di IVA/INPS/certificazioni assenti annullano i relativi criteri senza integrazione. C3 non determinato se le tipologie non sono verificate. Impresa Giovanile: persone che non hanno compiuto 36 anni alla domanda, con maggioranze previste nell'Appendice 1.",
+    inputs: { numerator, employees, types: count },
+    criteria: criteria.map((x) => (x === null ? null : money(x))),
+    total: sum(criteria),
+    supportedTotal: sum(support),
+  };
+}
 export const STATUS_LABEL: Record<Status, string> = {
-  confermato: "Confermato", potenziale: "Potenziale", non_ammissibile: "Non ammissibile", ignoto: "Ignoto",
+  confermato: "Coerente con i dati dichiarati",
+  potenziale: "Condizionato",
+  non_ammissibile: "Incompatibilità rilevata",
+  ignoto: "Da verificare",
 };
-export const SIZE_LABEL: Record<Size, string> = { micro: "Micro", piccola: "Piccola", media: "Media", grande: "Grande (non PMI)" };
+export const SIZE_LABEL: Record<Size, string> = {
+  micro: "Micro",
+  piccola: "Piccola",
+  media: "Media",
+  grande: "Grande (non PMI)",
+};

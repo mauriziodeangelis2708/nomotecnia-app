@@ -1,4 +1,3 @@
-
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
@@ -33,11 +32,7 @@ export const Route = createFileRoute("/_authenticated/dashboard")({
 });
 
 const clientSchema = z.object({
-  ragione_sociale: z
-    .string()
-    .trim()
-    .min(2, "Ragione sociale obbligatoria")
-    .max(200),
+  ragione_sociale: z.string().trim().min(2, "Ragione sociale obbligatoria").max(200),
   partita_iva: z.string().trim().max(20).optional(),
   comune: z.string().trim().max(100).optional(),
   referente: z.string().trim().max(150).optional(),
@@ -71,18 +66,11 @@ function Dashboard() {
   }
 
   async function deleteAssessment(id: string) {
-    if (
-      !window.confirm(
-        "Vuoi eliminare definitivamente questa valutazione?"
-      )
-    ) {
+    if (!window.confirm("Vuoi eliminare definitivamente questa valutazione?")) {
       return;
     }
 
-    const { error } = await supabase
-      .from("assessments")
-      .delete()
-      .eq("id", id);
+    const { error } = await supabase.from("assessments").delete().eq("id", id);
 
     if (error) {
       toast.error("Errore durante l'eliminazione: " + error.message);
@@ -95,16 +83,12 @@ function Dashboard() {
 
   async function deleteClient(id: string, name: string) {
     const confirmed = window.confirm(
-      `Vuoi eliminare definitivamente il cliente "${name}" e tutte le sue valutazioni? Questa operazione non può essere annullata.`
+      `Vuoi eliminare definitivamente il cliente "${name}" e tutte le sue valutazioni? Questa operazione non può essere annullata.`,
     );
 
     if (!confirmed) return;
 
-    const { data, error } = await supabase
-      .from("clients")
-      .delete()
-      .eq("id", id)
-      .select("id");
+    const { data, error } = await supabase.from("clients").delete().eq("id", id).select("id");
 
     if (error) {
       toast.error("Errore durante l'eliminazione: " + error.message);
@@ -122,10 +106,7 @@ function Dashboard() {
 
   const list = (clients.data ?? []).filter(
     (c) =>
-      !q ||
-      `${c.ragione_sociale} ${c.partita_iva ?? ""}`
-        .toLowerCase()
-        .includes(q.toLowerCase())
+      !q || `${c.ragione_sociale} ${c.partita_iva ?? ""}`.toLowerCase().includes(q.toLowerCase()),
   );
 
   return (
@@ -138,11 +119,7 @@ function Dashboard() {
           </p>
         </div>
 
-        <NewClient
-          onCreated={() =>
-            qc.invalidateQueries({ queryKey: ["clients"] })
-          }
-        />
+        <NewClient onCreated={() => qc.invalidateQueries({ queryKey: ["clients"] })} />
       </div>
 
       <Disclaimer />
@@ -158,13 +135,9 @@ function Dashboard() {
       </div>
 
       {clients.isLoading ? (
-        <p className="text-sm text-muted-foreground">
-          Caricamento…
-        </p>
+        <p className="text-sm text-muted-foreground">Caricamento…</p>
       ) : clients.error ? (
-        <p className="text-sm text-destructive">
-          Errore durante il caricamento dei clienti.
-        </p>
+        <p className="text-sm text-destructive">Errore durante il caricamento dei clienti.</p>
       ) : list.length === 0 ? (
         <div className="rounded-lg border border-dashed bg-card p-10 text-center text-sm text-muted-foreground">
           Nessun cliente. Crea il primo cliente per avviare un assessment.
@@ -172,33 +145,19 @@ function Dashboard() {
       ) : (
         <div className="grid gap-4 md:grid-cols-2">
           {list.map((c) => (
-            <div
-              key={c.id}
-              className="rounded-lg border bg-card p-5"
-            >
+            <div key={c.id} className="rounded-lg border bg-card p-5">
               <div className="flex items-start justify-between gap-3">
                 <div>
-                  <h2 className="font-semibold">
-                    {c.ragione_sociale}
-                  </h2>
+                  <h2 className="font-semibold">{c.ragione_sociale}</h2>
                   <p className="text-xs text-muted-foreground">
-                    {[
-                      c.partita_iva &&
-                        `P.IVA ${c.partita_iva}`,
-                      c.comune,
-                      c.referente,
-                    ]
+                    {[c.partita_iva && `P.IVA ${c.partita_iva}`, c.comune, c.referente]
                       .filter(Boolean)
                       .join(" · ") || "—"}
                   </p>
                 </div>
 
                 <div className="flex flex-wrap gap-2">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => newAssessment(c.id)}
-                  >
+                  <Button size="sm" variant="outline" onClick={() => newAssessment(c.id)}>
                     <Plus className="h-4 w-4" />
                     Assessment
                   </Button>
@@ -206,9 +165,7 @@ function Dashboard() {
                   <Button
                     size="sm"
                     variant="destructive"
-                    onClick={() =>
-                      deleteClient(c.id, c.ragione_sociale)
-                    }
+                    onClick={() => deleteClient(c.id, c.ragione_sociale)}
                   >
                     Elimina cliente
                   </Button>
@@ -217,16 +174,11 @@ function Dashboard() {
 
               <ul className="mt-4 divide-y text-sm">
                 {(c.assessments ?? []).length === 0 && (
-                  <li className="py-2 text-muted-foreground">
-                    Nessun assessment.
-                  </li>
+                  <li className="py-2 text-muted-foreground">Nessun assessment.</li>
                 )}
 
                 {(c.assessments ?? []).map((a) => (
-                  <li
-                    key={a.id}
-                    className="flex items-center justify-between gap-3 py-2"
-                  >
+                  <li key={a.id} className="flex items-center justify-between gap-3 py-2">
                     <Link
                       to="/assessment/$id"
                       params={{ id: a.id }}
@@ -244,9 +196,7 @@ function Dashboard() {
                       <Button
                         size="sm"
                         variant="destructive"
-                        onClick={() =>
-                          deleteAssessment(a.id)
-                        }
+                        onClick={() => deleteAssessment(a.id)}
                       >
                         Elimina
                       </Button>
@@ -262,11 +212,7 @@ function Dashboard() {
   );
 }
 
-function NewClient({
-  onCreated,
-}: {
-  onCreated: () => void;
-}) {
+function NewClient({ onCreated }: { onCreated: () => void }) {
   const [open, setOpen] = useState(false);
   const [f, setF] = useState({
     ragione_sociale: "",
@@ -279,7 +225,7 @@ function NewClient({
     const p = clientSchema.safeParse(f);
 
     if (!p.success) {
-      toast.error(p.error.issues[0].message);
+      toast.error(p.error.issues[0]?.message ?? "Dati non validi");
       return;
     }
 
@@ -290,13 +236,13 @@ function NewClient({
       return;
     }
 
-    const { error } = await supabase
-      .from("clients")
-      .insert({
-        ...p.data,
-        ragione_sociale: p.data.ragione_sociale,
-        created_by: u.user.id,
-      });
+    const { error } = await supabase.from("clients").insert({
+      partita_iva: p.data.partita_iva ?? null,
+      comune: p.data.comune ?? null,
+      referente: p.data.referente ?? null,
+      ragione_sociale: p.data.ragione_sociale,
+      created_by: u.user.id,
+    });
 
     if (error) {
       toast.error(error.message);
@@ -329,18 +275,9 @@ function NewClient({
         </DialogHeader>
 
         <div className="space-y-3">
-          {(
-            [
-              "ragione_sociale",
-              "partita_iva",
-              "comune",
-              "referente",
-            ] as const
-          ).map((k) => (
+          {(["ragione_sociale", "partita_iva", "comune", "referente"] as const).map((k) => (
             <div key={k} className="space-y-1">
-              <Label className="capitalize">
-                {k.replace("_", " ")}
-              </Label>
+              <Label className="capitalize">{k.replace("_", " ")}</Label>
               <Input
                 value={f[k]}
                 onChange={(e) =>
