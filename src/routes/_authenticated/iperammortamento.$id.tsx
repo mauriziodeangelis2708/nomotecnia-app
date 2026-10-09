@@ -348,12 +348,12 @@ function IperammortamentoPage() {
         </p>
         <div className="mt-4 grid gap-5">
           <TriQuestion
-            label="È disponibile o pianificata la perizia tecnica asseverata con analisi tecnica?"
+            label="È già disponibile la perizia tecnica asseverata con analisi tecnica?"
             value={answers.perizia}
             onChange={(v) => set("perizia", v)}
           />
           <TriQuestion
-            label="È disponibile o pianificata la certificazione contabile delle spese?"
+            label="È già disponibile la certificazione contabile delle spese?"
             value={answers.certificazione_contabile}
             onChange={(v) => set("certificazione_contabile", v)}
           />
