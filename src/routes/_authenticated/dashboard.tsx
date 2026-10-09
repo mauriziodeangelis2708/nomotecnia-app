@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/dialog";
 import { Disclaimer } from "@/components/StatusBadge";
 import { dt } from "@/lib/checklist";
-import { Plus, FileText, Search } from "lucide-react";
+import { Plus, FileText, Search, Zap } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
   head: () => ({
@@ -115,7 +115,7 @@ function Dashboard() {
         <div>
           <h1 className="font-display text-3xl">Clienti</h1>
           <p className="text-sm text-muted-foreground">
-            Pre-istruttorie Voucher Digitalizzazione PMI Lazio 2026
+            Avvia una valutazione preliminare per la misura che ti interessa.
           </p>
         </div>
 
@@ -159,7 +159,17 @@ function Dashboard() {
                 <div className="flex flex-wrap gap-2">
                   <Button size="sm" variant="outline" onClick={() => newAssessment(c.id)}>
                     <Plus className="h-4 w-4" />
-                    Assessment
+                    Voucher Lazio
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() =>
+                      nav({ to: "/iperammortamento/$id", params: { id: `new-${c.id}` } })
+                    }
+                  >
+                    <Zap className="h-4 w-4" />
+                    Iperammortamento 2026
                   </Button>
 
                   <Button
@@ -180,8 +190,12 @@ function Dashboard() {
                 {(c.assessments ?? []).map((a) => (
                   <li key={a.id} className="flex items-center justify-between gap-3 py-2">
                     <Link
-                      to="/assessment/$id"
-                      params={{ id: a.id }}
+                      to={
+                        a.title.startsWith("Iperammortamento 2026")
+                          ? "/iperammortamento/$id"
+                          : "/assessment/$id"
+                      }
+                      params={{ id: a.id } as never}
                       className="flex items-center gap-2 hover:text-primary"
                     >
                       <FileText className="h-4 w-4 shrink-0" />
