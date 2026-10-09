@@ -37,105 +37,56 @@ function Dashboard() {
     },
   });
 
- async function newAssessment(clientId: string) {
-  // Cerca una valutazione già esistente per questa azienda
-  const { data: existing, error: searchError } = await supabase
-    .from("assessments")
-    .select("id")
-    .eq("client_id", clientId)
-    .in("status", ["bozza", "in lavorazione"])
-    .order("updated_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  if (searchError) {
-    toast.error(searchError.message);
-    return;
-  }
-
-  // Se esiste, riapre la valutazione salvata
-  if (existing) {
+  function newAssessment(clientId: string) {
+    // Nessuna scrittura nel database: la valutazione viene creata solo premendo Salva.
     nav({
       to: "/assessment/$id",
-      params: { id: existing.id },
+      params: { id: `new-${clientId}` },
     });
-    return;
   }
 
-  // Se non esiste, crea una nuova valutazione
-  const { data: u } = await supabase.auth.getUser();
-
-  if (!u.user) {
-    toast.error("Utente non autenticato");
-    return;
-  }
-
-  const { data, error } = await supabase
-    .from("assessments")
-    .insert({
-      client_id: clientId,
-      created_by: u.user.id,
-    })
-    .select("id")
-    .single();
-
-  if (error) {
-    toast.error(error.message);
-    return;
-  }
-
-  qc.invalidateQueries({ queryKey: ["clients"] });
-
-  nav({
-    to: "/assessment/$id",
-    params: { id: data.id },
-  });
-}
   async function deleteAssessment(id: string) {
-  if (!window.confirm("Vuoi eliminare definitivamente questa valutazione?")) {
-    return;
+    if (!window.confirm("Vuoi eliminare definitivamente questa valutazione?")) return;
+
+    const { error } = await supabase
+      .from("assessments")
+      .delete()
+      .eq("id", id);
+
+    if (error) {
+      toast.error("Errore durante l'eliminazione: " + error.message);
+      return;
+    }
+
+    toast.success("Valutazione eliminata");
+    await qc.invalidateQueries({ queryKey: ["clients"] });
   }
 
-  const { error } = await supabase
-    .from("assessments")
-    .delete()
-    .eq("id", id);
-
-  if (error) {
-    toast.error("Errore durante l'eliminazione: " + error.message);
-    return;
-  }
-
-  toast.success("Valutazione eliminata");
-  await qc.invalidateQueries({ queryKey: ["clients"] });
-}
-  
   async function deleteClient(id: string, name: string) {
-  const confirmed = window.confirm(
-    `Vuoi eliminare definitivamente il cliente "${name}" e tutte le sue valutazioni? Questa operazione non può essere annullata.`
-  );
+    const confirmed = window.confirm(
+      `Vuoi eliminare definitivamente il cliente "${name}" e tutte le sue valutazioni? Questa operazione non può essere annullata.`
+    );
+    if (!confirmed) return;
 
-  if (!confirmed) return;
+    const { data, error } = await supabase
+      .from("clients")
+      .delete()
+      .eq("id", id)
+      .select("id");
 
-  const { data, error } = await supabase
-    .from("clients")
-    .delete()
-    .eq("id", id)
-    .select("id");
+    if (error) {
+      toast.error("Errore durante l'eliminazione: " + error.message);
+      return;
+    }
+    if (!data || data.length === 0) {
+      toast.error("Cliente non eliminato. Verifica i permessi.");
+      return;
+    }
 
-  if (error) {
-    toast.error("Errore durante l'eliminazione: " + error.message);
-    return;
+    toast.success("Cliente e valutazioni eliminati");
+    await qc.invalidateQueries({ queryKey: ["clients"] });
   }
 
-  if (!data || data.length === 0) {
-    toast.error("Cliente non eliminato. Verifica i permessi.");
-    return;
-  }
-
-  toast.success("Cliente e valutazioni eliminati");
-  await qc.invalidateQueries({ queryKey: ["clients"] });
-}
   const list = (clients.data ?? []).filter((c) => !q || `${c.ragione_sociale} ${c.partita_iva ?? ""}`.toLowerCase().includes(q.toLowerCase()));
 
   return (
@@ -164,13 +115,7 @@ function Dashboard() {
                   <p className="text-xs text-muted-foreground">{[c.partita_iva && `P.IVA ${c.partita_iva}`, c.comune, c.referente].filter(Boolean).join(" · ") || "—"}</p>
                 </div>
                 <Button size="sm" variant="outline" onClick={() => newAssessment(c.id)}><Plus className="h-4 w-4" /> Assessment</Button>
-             <Button
-  size="sm"
-  variant="destructive"
-  onClick={() => deleteClient(c.id, c.ragione_sociale)}
->
-  Elimina cliente
-</Button>
+                <Button size="sm" variant="destructive" onClick={() => deleteClient(c.id, c.ragione_sociale)}>Elimina cliente</Button>
               </div>
               <ul className="mt-4 divide-y text-sm">
                 {(c.assessments ?? []).length === 0 && <li className="py-2 text-muted-foreground">Nessun assessment.</li>}
@@ -180,17 +125,9 @@ function Dashboard() {
                       <FileText className="h-4 w-4" /> {a.title}
                     </Link>
                     <div className="flex items-center gap-3">
-  <span className="text-xs text-muted-foreground">
-    {a.status} · {dt(a.updated_at)}
-  </span>
-  <Button
-    size="sm"
-    variant="destructive"
-    onClick={() => deleteAssessment(a.id)}
-  >
-    Elimina
-  </Button>
-</div>
+                      <span className="text-xs text-muted-foreground">{a.status} · {dt(a.updated_at)}</span>
+                      <Button size="sm" variant="destructive" onClick={() => deleteAssessment(a.id)}>Elimina</Button>
+                    </div>
                   </li>
                 ))}
               </ul>
@@ -205,6 +142,7 @@ function Dashboard() {
 function NewClient({ onCreated }: { onCreated: () => void }) {
   const [open, setOpen] = useState(false);
   const [f, setF] = useState({ ragione_sociale: "", partita_iva: "", comune: "", referente: "" });
+
   async function save() {
     const p = clientSchema.safeParse(f);
     if (!p.success) return toast.error(p.error.issues[0].message);
@@ -216,6 +154,7 @@ function NewClient({ onCreated }: { onCreated: () => void }) {
     setF({ ragione_sociale: "", partita_iva: "", comune: "", referente: "" });
     onCreated();
   }
+
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild><Button><Plus className="h-4 w-4" /> Nuovo cliente</Button></DialogTrigger>
