@@ -52,9 +52,9 @@ export function Disclaimer({ className }: { className?: string }) {
       )}
     >
       <strong>Strumento preliminare.</strong> Gli esiti non costituiscono certificazione di
-      ammissibilità né garanzia di concessione. Importi e controlli seguono l’Avviso 2026 e le
-      appendici. Risposte, documenti e condizioni alla concessione devono essere verificati; nessun
-      finanziamento è garantito.
+      ammissibilità né garanzia di concessione. Regole, documenti e condizioni della misura
+      selezionata vanno verificati con l’ente gestore e con i professionisti competenti; nessun
+      contributo o beneficio è garantito.
     </p>
   );
 }
