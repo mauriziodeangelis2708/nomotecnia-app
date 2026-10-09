@@ -66,13 +66,70 @@ function AssessmentPage() {
   const [step, setStep] = useState(0);
 
   useEffect(() => {
-  if (isNew && client.data) {
-    setAnswers({
-      ragione_sociale: client.data.ragione_sociale,
-      partita_iva: client.data.partita_iva,
-    });
+  if (!isNew || !newClientId || !client.data) return;
+
+  let cancelled = false;
+
+  async function loadCompanyData() {
+    const { data: previous, error } = await supabase
+      .from("assessments")
+      .select("answers")
+      .eq("client_id", newClientId!)
+      .order("updated_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (cancelled) return;
+
+    if (error) {
+      toast.error("Errore nel recupero dei dati aziendali");
+      return;
+    }
+
+    const previousAnswers =
+      previous?.answers &&
+      typeof previous.answers === "object" &&
+      !Array.isArray(previous.answers)
+        ? (previous.answers as Record<string, unknown>)
+        : {};
+
+    const reusableKeys = new Set([
+      "ragione_sociale",
+      "partita_iva",
+      "codice_fiscale",
+      "forma_giuridica",
+      "pec",
+      "email",
+      "telefono",
+      "sede_legale_indirizzo",
+      "ateco_codice",
+      "comune_sede",
+    ]);
+
+    const reusable = Object.fromEntries(
+      Object.entries(previousAnswers).filter(
+        ([key, value]) =>
+          reusableKeys.has(key) &&
+          value !== null &&
+          value !== undefined &&
+          value !== ""
+      )
+    );
+
+    setAnswers((current) => ({
+      ...reusable,
+      ...current,
+      ragione_sociale: client.data!.ragione_sociale,
+      partita_iva: client.data!.partita_iva ?? "",
+    } as Answers));
   }
-}, [isNew, client.data]);
+
+  void loadCompanyData();
+
+  return () => {
+    cancelled = true;
+  };
+}, [isNew, newClientId, client.data]);
   useEffect(() => {
     if (a.data) {
       const ans = (a.data.answers as Answers) ?? {};
