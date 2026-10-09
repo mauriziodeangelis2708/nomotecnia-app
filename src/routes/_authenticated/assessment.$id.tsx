@@ -70,7 +70,6 @@ function AssessmentPage() {
 
   async function snapshot() {
     if (!result || !rules.data) return;
-    await save(true);
     const { data: u } = await supabase.auth.getUser();
     const label = prompt("Etichetta valutazione (facoltativa)") ?? "";
     const { error } = await supabase.from("assessment_snapshots").insert({
