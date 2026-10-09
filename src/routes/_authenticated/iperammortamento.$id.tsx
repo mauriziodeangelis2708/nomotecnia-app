@@ -15,7 +15,7 @@ import {
   IPER_VERSION,
   type IperAnswers,
 } from "@/lib/iperammortamento";
-import { ArrowLeft, Save, AlertTriangle, CheckCircle2, CircleHelp } from "lucide-react";
+import { ArrowLeft, Save, AlertTriangle, CircleHelp } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/iperammortamento/$id")({
   head: () => ({
@@ -207,7 +207,7 @@ function IperammortamentoPage() {
             onChange={(v) => set("bene_nuovo", v)}
           />
           <TriQuestion
-            label="Il completamento dell’investimento è previsto entro il 30 settembre 2028?"
+            label="È previsto che l’investimento rientri nel periodo agevolabile dal 1° gennaio 2026 al 30 settembre 2028, secondo i criteri applicabili?"
             value={answers.termine}
             onChange={(v) => set("termine", v)}
           />
@@ -269,6 +269,20 @@ function IperammortamentoPage() {
           )}
           {answers.tipo_bene === "energia" && (
             <>
+              <div className="space-y-2">
+                <Label>Quale tipo di energia produce l’impianto?</Label>
+                <select
+                  className="h-10 w-full max-w-xl rounded-md border bg-background px-3 text-sm"
+                  value={String(answers.tipo_energia ?? "")}
+                  onChange={(e) => set("tipo_energia", e.target.value)}
+                >
+                  <option value="">Seleziona…</option>
+                  <option value="elettrica">Energia elettrica</option>
+                  <option value="termica">Calore di processo</option>
+                  <option value="entrambe">Energia elettrica e calore di processo</option>
+                  <option value="non_so">Non lo so</option>
+                </select>
+              </div>
               <TriQuestion
                 label="L’energia prodotta è destinata all’autoconsumo della struttura produttiva?"
                 value={answers.autoconsumo}
@@ -280,11 +294,34 @@ function IperammortamentoPage() {
                 value={answers.impianto_ammesso}
                 onChange={(v) => set("impianto_ammesso", v)}
               />
-              <TriQuestion
-                label="La producibilità attesa è stata verificata rispetto al limite del 105% del fabbisogno, secondo il decreto?"
-                value={answers.dimensionamento}
-                onChange={(v) => set("dimensionamento", v)}
-              />
+              {(answers.tipo_energia === "elettrica" || answers.tipo_energia === "entrambe") && (
+                <TriQuestion
+                  label="Un tecnico ha verificato il limite del 105% per la produzione elettrica usando i consumi dell’esercizio precedente e le conversioni previste dal decreto?"
+                  help="Il limite non si applica indistintamente agli impianti termici. Il calcolo regolamentare può includere consumi equivalenti e fattori di conversione; non usare una semplice stima dei kWh come verifica definitiva."
+                  value={answers.dimensionamento}
+                  onChange={(v) => set("dimensionamento", v)}
+                />
+              )}
+              {(answers.tipo_energia === "termica" || answers.tipo_energia === "entrambe") && (
+                <>
+                  <TriQuestion
+                    label="Il calore prodotto è destinato esclusivamente al calore di processo?"
+                    value={answers.calore_processo}
+                    onChange={(v) => set("calore_processo", v)}
+                  />
+                  <TriQuestion
+                    label="Il calore prodotto non è cedibile a terzi?"
+                    value={answers.calore_non_cessibile}
+                    onChange={(v) => set("calore_non_cessibile", v)}
+                  />
+                  <TriQuestion
+                    label="L’impianto termico è alimentato nelle modalità ammesse dal decreto?"
+                    help="Per il calore di processo, l’elettrificazione deve essere alimentata da energia elettrica rinnovabile autoprodotta e autoconsumata, oppure coperta da un contratto di fornitura di energia rinnovabile conforme."
+                    value={answers.fonte_termica_ammessa}
+                    onChange={(v) => set("fonte_termica_ammessa", v)}
+                  />
+                </>
+              )}
               <TriQuestion
                 label="Ubicazione, POD e collegamento alla struttura produttiva sono stati verificati?"
                 value={answers.sito_pod}
@@ -295,21 +332,11 @@ function IperammortamentoPage() {
                 value={answers.accumulo}
                 onChange={(v) => set("accumulo", v)}
               />
-              <NumberQuestion
-                label="Fabbisogno annuo della struttura (kWh), se disponibile"
-                value={answers.fabbisogno_kwh}
-                onChange={(v) => set("fabbisogno_kwh", v)}
-              />
-              <NumberQuestion
-                label="Producibilità annua stimata dell’impianto (kWh), se disponibile"
-                value={answers.producibilita_kwh}
-                onChange={(v) => set("producibilita_kwh", v)}
-              />
             </>
           )}
           <NumberQuestion
-            label="Costo agevolabile stimato, al netto di altri contributi sugli stessi costi (€)"
-            help="Facoltativo. La maggiorazione calcolata sotto è soltanto una stima della deduzione aggiuntiva teorica, non del risparmio fiscale."
+            label="Costo agevolabile stimato per una singola annualità, al netto degli altri contributi (€)"
+            help="Facoltativo. Se gli investimenti sono distribuiti su più anni, inserisci il costo della sola annualità considerata. La maggiorazione è una stima teorica, non il risparmio fiscale."
             value={answers.costo_ammissibile}
             onChange={(v) => set("costo_ammissibile", v)}
           />
@@ -340,11 +367,10 @@ function IperammortamentoPage() {
         <p className="mt-3 rounded-md bg-muted p-3 text-sm text-muted-foreground">
           Procedura: comunicazione preventiva per ciascuna struttura produttiva; dopo esito positivo
           GSE, conferma entro 60 giorni e acconto minimo del 20% per ciascun bene; comunicazione di
-          completamento dopo interconnessione e, di norma, entro il 15 novembre 2028. Sono previste
-          inoltre comunicazioni annuali entro il 20 gennaio e il 30 giugno. La guida GSE consultata,
-          datata 21 luglio 2026, segnalava che le sezioni di completamento e periodiche sarebbero
-          state rilasciate con funzionalità successive: controllare il portale GSE e le istruzioni
-          aggiornate prima di operare.
+          completamento dopo l’interconnessione dei beni IV/V e, in ogni caso, entro il 15 novembre
+          2028. Per gli impianti FER, il completamento corrisponde alla fine dei lavori. Sono
+          inoltre previste comunicazioni periodiche entro il 20 gennaio e il 30 giugno. Verificare
+          sempre modelli e istruzioni correnti nella sezione GSE prima dell’invio.
         </p>
         <div className="mt-4 grid gap-5">
           <TriQuestion
@@ -436,9 +462,9 @@ function IperammortamentoPage() {
         </div>
         <p className="mt-2 font-medium">
           {result.status === "ostacolo"
-            ? "Ostacolo dichiarato: serve verifica prima di procedere"
+            ? "Possibile ostacolo dichiarato: serve una verifica prima di procedere"
             : result.status === "coerente"
-              ? "Dati inseriti preliminarmente coerenti"
+              ? "Nessun ostacolo dichiarato nelle risposte: ammissibilità da verificare"
               : "Valutazione incompleta: servono verifiche o informazioni"}
         </p>
         <p className="mt-1 text-sm text-muted-foreground">{result.note}</p>
@@ -474,6 +500,14 @@ function IperammortamentoPage() {
               rel="noreferrer"
             >
               Decreto attuativo
+            </a>
+            <a
+              className="underline"
+              href="https://www.gse.it/servizi-per-te/imprese/nuovo-piano-transizione-5-0/come-accedere"
+              target="_blank"
+              rel="noreferrer"
+            >
+              Procedura aggiornata GSE
             </a>
             <a
               className="underline"
@@ -567,7 +601,6 @@ function NumberQuestion({
 
 function ResultIcon({ status }: { status: string }) {
   if (status === "ostacolo") return <AlertTriangle className="h-5 w-5 text-destructive" />;
-  if (status === "coerente") return <CheckCircle2 className="h-5 w-5 text-primary" />;
   return <CircleHelp className="h-5 w-5 text-muted-foreground" />;
 }
 

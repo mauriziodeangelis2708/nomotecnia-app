@@ -9,6 +9,10 @@ export interface IperAnswers {
   termine?: string;
   esclusione_446?: string;
   tipo_bene?: string;
+  tipo_energia?: string;
+  calore_processo?: string;
+  calore_non_cessibile?: string;
+  fonte_termica_ammessa?: string;
   categoria_allegato?: string;
   interconnessione?: string;
   requisiti_tecnici?: string;
@@ -75,7 +79,24 @@ export function assessIperammortamento(a: IperAnswers) {
   } else if (kind === "energia") {
     requiredYes("autoconsumo", "Impianto destinato all’autoconsumo della struttura produttiva");
     requiredYes("impianto_ammesso", "Tecnologia e componenti conformi ai requisiti della misura");
-    requiredYes("dimensionamento", "Dimensionamento entro i limiti di producibilità previsti");
+    const energyKind = a.tipo_energia;
+    if (!["elettrica", "termica", "entrambe"].includes(String(energyKind))) {
+      missing.push("Tipologia di energia prodotta e relativa verifica tecnica");
+    }
+    if (energyKind === "elettrica" || energyKind === "entrambe") {
+      requiredYes(
+        "dimensionamento",
+        "Produzione elettrica entro il limite del 105%, calcolato secondo il decreto",
+      );
+    }
+    if (energyKind === "termica" || energyKind === "entrambe") {
+      requiredYes("calore_processo", "Calore destinato esclusivamente al processo produttivo");
+      requiredYes("calore_non_cessibile", "Calore non cedibile a terzi");
+      requiredYes(
+        "fonte_termica_ammessa",
+        "Alimentazione termica conforme alle condizioni del decreto",
+      );
+    }
     if (a.sito_pod !== "si")
       missing.push("Ubicazione, POD e collegamento alla struttura produttiva");
     if (a.accumulo !== "si" && a.accumulo !== "no")
