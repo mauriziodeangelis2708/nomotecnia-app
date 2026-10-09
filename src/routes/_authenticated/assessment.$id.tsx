@@ -14,7 +14,7 @@ import {
   type Status,
   type Size,
 } from "@/lib/engine";
-import { isIntegerQuestion, STEPS } from "@/lib/questions";
+import { getGeCoWebFormMissing, isIntegerQuestion, STEPS } from "@/lib/questions";
 import { CHECKLIST, DOC_STATUS, dt, eur } from "@/lib/checklist";
 import { QuestionField } from "@/components/QuestionField";
 import { ResultView } from "@/components/ResultView";
@@ -196,6 +196,7 @@ function AssessmentPage() {
         : null,
     [answers, rules.data, ev.data, checklist],
   );
+  const geCoWebMissing = useMemo(() => getGeCoWebFormMissing(answers), [answers]);
 
   async function save(silent = false) {
     if (saving || !rules.data || rules.error) return;
@@ -504,6 +505,34 @@ function AssessmentPage() {
         </TabsContent>
 
         <TabsContent value="esito" className="mt-4">
+          <section className="mb-4 rounded-lg border bg-card p-4" aria-live="polite">
+            <h2 className="font-semibold">Preparazione del formulario GeCoWEB</h2>
+            {geCoWebMissing.length ? (
+              <>
+                <p className="mt-1 text-sm">
+                  Mancano {geCoWebMissing.length} dati o controlli richiesti per preparare il
+                  formulario. L’esito di ammissibilità sotto non significa che la domanda sia
+                  completa.
+                </p>
+                <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-muted-foreground">
+                  {geCoWebMissing.slice(0, 8).map((item) => (
+                    <li key={item}>{item}</li>
+                  ))}
+                </ul>
+                {geCoWebMissing.length > 8 && (
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    Altri {geCoWebMissing.length - 8} campi da completare nel passaggio “Dati per il
+                    formulario GeCoWEB” o “Voci di costo GeCoWEB”.
+                  </p>
+                )}
+              </>
+            ) : (
+              <p className="mt-1 text-sm text-muted-foreground">
+                I dati raccolti risultano compilati. Ricontrolla ogni campo nel formulario ufficiale
+                GeCoWEB: NomotecnIA non lo genera, non lo firma e non lo invia.
+              </p>
+            )}
+          </section>
           {result && <ResultView r={result} rules={rules.data!.map} />}
         </TabsContent>
 

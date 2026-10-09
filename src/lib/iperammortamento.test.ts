@@ -2,6 +2,31 @@ import { describe, expect, it } from "vitest";
 import { assessIperammortamento, calculateIperUplift } from "./iperammortamento";
 
 const coherentBase = {
+  denominazione: "Impresa di prova",
+  partita_iva: "00000000000",
+  codice_fiscale: "00000000000",
+  forma_giuridica: "S.r.l.",
+  data_costituzione: "2020-01-01",
+  data_iscrizione_registro: "2020-02-01",
+  sede_legale_indirizzo: "Via di prova 1",
+  pec: "test@example.invalid",
+  email: "test@example.invalid",
+  telefono: "0000000000",
+  firmatario_tipo: "Legale rappresentante",
+  firmatario_nome: "Persona di prova",
+  firmatario_cf: "00000000000",
+  referente_nome: "Referente di prova",
+  referente_email: "test@example.invalid",
+  referente_telefono: "00390000000000",
+  struttura_nome: "Sede produttiva di prova",
+  struttura_indirizzo: "Via di prova 1",
+  struttura_comune: "Roma",
+  struttura_provincia: "RM",
+  struttura_cap: "00100",
+  struttura_sezione_catastale: "NP",
+  struttura_foglio: "1",
+  struttura_particella: "1",
+  struttura_subalterno: "NP",
   italia: "si",
   procedura_crisi: "no",
   sanzioni_231: "no",
@@ -13,9 +38,20 @@ const coherentBase = {
   categoria_allegato: "si",
   interconnessione: "si",
   requisiti_tecnici: "si",
+  beni_ivv_json: JSON.stringify([
+    {
+      categoria: "IV / categoria di prova",
+      completamento: "2027-01-01",
+      interconnessione: "2027-01-02",
+      bene_complesso: "No",
+      costo_netto: "1000",
+      coefficiente: "10",
+    },
+  ]),
   altri_aiuti: "no",
   perizia: "si",
   certificazione_contabile: "si",
+  dichiarazioni_gse: "si",
 };
 
 describe("pre-assessment Iperammortamento 2026", () => {
@@ -62,6 +98,20 @@ describe("pre-assessment Iperammortamento 2026", () => {
     const result = assessIperammortamento({
       ...coherentBase,
       tipo_bene: "energia",
+      impianti_fer_json: JSON.stringify([
+        {
+          fonte: "Biomassa",
+          potenza: "10",
+          completamento: "2027-01-01",
+          entrata_esercizio: "2027-02-01",
+          costo_netto: "1000",
+          coefficiente: "10",
+        },
+      ]),
+      pod: "IT001E00000000",
+      producibilita_kwh: 100,
+      fabbisogno_kwh: 100,
+      fabbisogno_termico_equivalente: 100,
       tipo_energia: "termica",
       autoconsumo: "si",
       impianto_ammesso: "si",
@@ -81,6 +131,20 @@ describe("pre-assessment Iperammortamento 2026", () => {
     const result = assessIperammortamento({
       ...coherentBase,
       tipo_bene: "energia",
+      impianti_fer_json: JSON.stringify([
+        {
+          fonte: "Biomassa",
+          potenza: "10",
+          completamento: "2027-01-01",
+          entrata_esercizio: "2027-02-01",
+          costo_netto: "1000",
+          coefficiente: "10",
+        },
+      ]),
+      pod: "IT001E00000000",
+      producibilita_kwh: 100,
+      fabbisogno_kwh: 100,
+      fabbisogno_termico_equivalente: 100,
       tipo_energia: "termica",
       autoconsumo: "si",
       impianto_ammesso: "si",
@@ -104,5 +168,60 @@ describe("pre-assessment Iperammortamento 2026", () => {
     expect(result.missing).toContain(
       "Conferma entro 60 giorni dall’esito positivo e acconto del 20% per ciascun bene",
     );
+  });
+
+  it("non segnala un esito completo se mancano anagrafica e scheda GSE", () => {
+    const result = assessIperammortamento({
+      italia: "si",
+      procedura_crisi: "no",
+      sanzioni_231: "no",
+      sicurezza_durc: "si",
+      bene_nuovo: "si",
+      termine: "si",
+      esclusione_446: "no",
+      tipo_bene: "allegato_iv",
+      categoria_allegato: "si",
+      interconnessione: "si",
+      requisiti_tecnici: "si",
+      altri_aiuti: "no",
+      perizia: "si",
+      certificazione_contabile: "si",
+    });
+    expect(result.status).toBe("da_verificare");
+    expect(result.missing).toContain("Denominazione operatore GSE");
+    expect(result.missing).toContain(
+      "Almeno una scheda bene Allegato IV/V da compilare per il GSE",
+    );
+  });
+
+  it("supporta contemporaneamente beni IV/V e investimenti FER", () => {
+    const result = assessIperammortamento({
+      ...coherentBase,
+      tipo_bene: "misto",
+      requisiti_tecnici: "si",
+      funzione_software: "si",
+      autoconsumo: "si",
+      impianto_ammesso: "si",
+      tipo_energia: "elettrica",
+      dimensionamento: "si",
+      sito_pod: "si",
+      accumulo: "no",
+      interconnessione: "si",
+      categoria_allegato: "si",
+      impianti_fer_json: JSON.stringify([
+        {
+          fonte: "Fotovoltaico",
+          potenza: "10",
+          completamento: "2027-01-01",
+          entrata_esercizio: "2027-02-01",
+          costo_netto: "1000",
+          coefficiente: "10",
+        },
+      ]),
+      pod: "IT001E00000000",
+      producibilita_kwh: 100,
+      fabbisogno_kwh: 100,
+    });
+    expect(result.status).toBe("coerente");
   });
 });

@@ -14,6 +14,7 @@ export interface Question {
   label: string;
   type: QType;
   help?: string;
+  maxLength?: number;
   options?: { value: string; label: string }[];
   showIf?: (a: Answers) => boolean;
 }
@@ -706,11 +707,13 @@ scoreStep.questions = () => [
     "Modello IVA 2026, periodo 2025: VE50 Volume d'affari (EUR)",
     is("regime_fiscale", "iva"),
   ),
-  nq(
-    "iva_vf25_2025",
-    "Modello IVA 2026, periodo 2025: VF25 imponibile Totale Acquisti (EUR)",
-    is("regime_fiscale", "iva"),
-  ),
+  {
+    id: "iva_vf25_2025",
+    label: "Modello IVA 2026, periodo 2025: VF25 imponibile Totale Acquisti (EUR)",
+    type: "number",
+    showIf: is("regime_fiscale", "iva"),
+    help: "Attenzione: l’Avviso e la regola del criterio 1 indicano il rigo VF25; la guida GeCoWEB contiene una discordanza redazionale e riporta VE25 in un punto. Prima dell’invio, verificare il campo mostrato nel formulario o chiedere conferma a Lazio Innova.",
+  },
   nq(
     "reddito_forfettario_2025",
     "Reddito imponibile impresa 2025 (EUR)",
@@ -782,6 +785,259 @@ STEPS.push({
     ),
   ],
 });
+
+// Campi del Formulario GeCoWEB raccolti separatamente dalle verifiche di
+// ammissibilità: NomotecnIA prepara i dati, ma non sostituisce il formulario.
+STEPS.push({
+  id: "formulario_gecoweb",
+  title: "Dati per il formulario GeCoWEB",
+  intro:
+    "Compila o conferma i dati richiesti dal formulario ufficiale. Questi campi servono a preparare la domanda e non vengono inviati a GeCoWEB da NomotecnIA.",
+  questions: () => [
+    {
+      id: "gecoweb_dimensione",
+      label: "Classe dimensionale da selezionare in GeCoWEB",
+      type: "select",
+      options: [
+        { value: "micro", label: "Microimpresa" },
+        { value: "piccola", label: "Piccola impresa" },
+        { value: "media", label: "Media impresa" },
+      ],
+      help: "Confermare secondo la definizione UE, includendo imprese associate/collegate e operazioni straordinarie.",
+    },
+    {
+      id: "gecoweb_caratteristiche_impresa",
+      label: "Caratteristiche del soggetto proponente (fino a 20.000 caratteri)",
+      type: "textarea",
+      maxLength: 20000,
+      help: "Descrivere attività, ricavi e dimensione, addetti e tipologia, ciclo produttivo/servizi, rapporti rilevanti, organizzazione e dotazioni digitali attuali.",
+    },
+    {
+      id: "gecoweb_note_anagrafica",
+      label:
+        "Note o rettifiche ai dati anagrafici precompilati dal Registro Imprese (se necessarie)",
+      type: "textarea",
+      help: "La piattaforma GeCoWEB recupera i dati dal Registro Imprese e consente di segnalare eventuali aggiornamenti in questo campo.",
+    },
+    {
+      id: "gecoweb_acquisizione_sede_lazio",
+      label:
+        "Acquisizione della sede operativa nel Lazio (se da acquisire; fino a 20.000 caratteri)",
+      type: "textarea",
+      maxLength: 20000,
+      showIf: is("sede_operativa_lazio", "no"),
+      help: "Indicare motivi e funzione della sede, ubicazione/caratteristiche, spazi, addetti, beni strumentali, tempi e fattibilità. Se la sede è già attiva, indicare che il campo non è applicabile.",
+    },
+    {
+      id: "gecoweb_legale_rappresentante",
+      label: "Legale rappresentante che sottoscriverà la domanda",
+      type: "text",
+    },
+    {
+      id: "gecoweb_referente_nome",
+      label: "Referente operativo del progetto — nome e cognome",
+      type: "text",
+    },
+    { id: "gecoweb_referente_ruolo", label: "Referente operativo — ruolo", type: "text" },
+    { id: "gecoweb_referente_email", label: "Referente operativo — email", type: "text" },
+    { id: "gecoweb_referente_telefono", label: "Referente operativo — telefono", type: "text" },
+    { id: "gecoweb_titolo_progetto", label: "Titolo del progetto", type: "text" },
+    { id: "gecoweb_acronimo", label: "Acronimo del progetto (se previsto)", type: "text" },
+    {
+      id: "gecoweb_durata_mesi",
+      label: "Durata del progetto (mesi, entro il limite dell’Avviso)",
+      type: "number",
+    },
+    {
+      id: "gecoweb_bollo_esente",
+      label: "Esenzione dall’imposta di bollo?",
+      type: "select",
+      options: [
+        { value: "no", label: "No, serve la marca da bollo" },
+        { value: "si", label: "Sì, indicare la fattispecie" },
+      ],
+    },
+    {
+      id: "gecoweb_bollo_id",
+      label: "Marca da bollo — identificativo di 14 cifre",
+      type: "text",
+      showIf: is("gecoweb_bollo_esente", "no"),
+    },
+    {
+      id: "gecoweb_bollo_data",
+      label: "Marca da bollo — data di emissione (YYYY-MM-DD)",
+      type: "text",
+      showIf: is("gecoweb_bollo_esente", "no"),
+    },
+    {
+      id: "gecoweb_bollo_esenzione",
+      label: "Fattispecie normativa di esenzione dall’imposta di bollo",
+      type: "textarea",
+      showIf: is("gecoweb_bollo_esente", "si"),
+    },
+    {
+      id: "gecoweb_descrizione_sintetica",
+      label: "Descrizione sintetica del progetto (massimo 250 caratteri; campo pubblico)",
+      type: "textarea",
+      maxLength: 250,
+      help: "Indicare tipologie di intervento, contributo richiesto e miglioramenti attesi per la competitività.",
+    },
+    {
+      id: "gecoweb_sede_indirizzo",
+      label: "Indirizzo della sede operativa da geolocalizzare",
+      type: "text",
+    },
+    {
+      id: "gecoweb_sede_coordinate",
+      label: "Coordinate del punto mappa (latitudine, longitudine; se già rilevate)",
+      type: "text",
+      help: "GeCoWEB geolocalizza la sede tramite il proprio campo GIS e selezione sulla mappa; NomotecnIA raccoglie solo il riferimento e non acquisisce la mappa.",
+    },
+    {
+      id: "gecoweb_descrizione_progetto",
+      label: "Descrizione del progetto (fino a 20.000 caratteri)",
+      type: "textarea",
+      maxLength: 20000,
+      help: "Per ciascuna tipologia descrivere sistemi/soluzioni da acquisire e benefici concreti attesi sulla competitività.",
+    },
+    {
+      id: "gecoweb_punteggio_totale",
+      label: "Punteggio totale da riportare in GeCoWEB (0–100)",
+      type: "number",
+    },
+    {
+      id: "gecoweb_punteggio_c1",
+      label: "Punteggio criterio 1 — valore aggiunto per addetto (0–35)",
+      type: "number",
+    },
+    {
+      id: "gecoweb_punteggio_c2",
+      label: "Punteggio criterio 2 — numero addetti (0–20)",
+      type: "number",
+    },
+    {
+      id: "gecoweb_punteggio_c3",
+      label: "Punteggio criterio 3 — articolazione del progetto (0–15)",
+      type: "number",
+    },
+    {
+      id: "gecoweb_punteggio_genere",
+      label: "Punteggio — parità di genere (0 o 10)",
+      type: "number",
+    },
+    {
+      id: "gecoweb_punteggio_giovanile",
+      label: "Punteggio — impresa giovanile (0 o 10)",
+      type: "number",
+    },
+    {
+      id: "gecoweb_punteggio_ambientale",
+      label: "Punteggio — sostenibilità ambientale (0 o 10)",
+      type: "number",
+    },
+    {
+      id: "gecoweb_numerazione_punteggi_verificata",
+      label: "Hai confrontato punteggi e numerazione dei criteri con il formulario GeCoWEB aperto?",
+      type: "tri",
+      help: "La guida GeCoWEB 2026 e l’Avviso pubblicato riportano numerazioni diverse per i criteri premiali. Inserire i punteggi nei campi corrispondenti alle etichette effettivamente visualizzate nel portale e chiedere chiarimento a Lazio Innova se non coincidono.",
+    },
+  ],
+});
+
+STEPS.push({
+  id: "voci_costo_gecoweb",
+  title: "Voci di costo GeCoWEB",
+  intro:
+    "GeCoWEB richiede una linea di costo per ogni Tipologia di Intervento. Riporta l’importo forfettario della tabella ufficiale; solo Digital Workplace usa l’importo unitario moltiplicato per il numero di postazioni. Il portale aggiunge automaticamente il 20% di costi del personale: non sommarlo a questi importi.",
+  questions: () => {
+    const selectedCloud = (system: string) => (a: Answers) =>
+      a["interesse_cloud"] === "si" &&
+      Array.isArray(a["cloud_sistemi"]) &&
+      (a["cloud_sistemi"] as string[]).includes(system);
+    return [
+      {
+        id: "gecoweb_costo_diagnosi",
+        label: "A — Diagnosi Digitale: importo forfettario da inserire (€)",
+        type: "number",
+        showIf: is("diagnosi_prevista", "si"),
+        help: "Importo fisso secondo classe dimensionale: micro non ammessa; piccola/media importi distinti. Verificare la tabella ufficiale aggiornata.",
+      },
+      {
+        id: "gecoweb_costo_workplace",
+        label: "B — Digital Workplace: importo complessivo da inserire (€)",
+        type: "number",
+        showIf: is("interesse_workplace", "si"),
+        help: "Importo unitario × numero postazioni; massimo una postazione per addetto. Non aggiungere il 20% del personale.",
+      },
+      {
+        id: "gecoweb_costo_commerce",
+        label: "C — Digital Commerce & Engagement: importo forfettario (€)",
+        type: "number",
+        showIf: is("interesse_commerce", "si"),
+        help: "Importo fisso secondo classe dimensionale. Verificare la tabella ufficiale aggiornata.",
+      },
+      ...[
+        ["application", "D.1 — Application server"],
+        ["database", "D.2 — Database server"],
+        ["web", "D.3 — Web server"],
+        ["backup", "D.4 — Database back up"],
+      ].map(([key, label]) => ({
+        id: `gecoweb_costo_cloud_${key}`,
+        label: `${label}: importo forfettario (€)`,
+        type: "number" as const,
+        showIf: selectedCloud(key!),
+      })),
+      {
+        id: "gecoweb_costo_cyber",
+        label: "E — Cyber Security: importo forfettario (€)",
+        type: "number",
+        showIf: is("interesse_cyber", "si"),
+        help: "Importo fisso secondo classe dimensionale. Verificare la tabella ufficiale aggiornata.",
+      },
+      {
+        id: "gecoweb_importi_verificati",
+        label:
+          "Gli importi sono stati confrontati con la tabella delle somme forfettarie ufficiale per dimensione e intervento?",
+        type: "tri",
+        help: "NomotecnIA non calcola né certifica le somme forfettarie. Ogni riga nel portale deve riportare la descrizione “Voucher Digitalizzazione PMI”.",
+      },
+    ];
+  },
+});
+
+const GECO_OPTIONAL_FIELDS = new Set([
+  "gecoweb_note_anagrafica",
+  "gecoweb_acronimo",
+  "gecoweb_sede_coordinate",
+]);
+
+export function getGeCoWebFormMissing(a: Answers): string[] {
+  const steps = STEPS.filter((step) =>
+    ["formulario_gecoweb", "voci_costo_gecoweb"].includes(step.id),
+  );
+  const missing: string[] = [];
+  for (const step of steps) {
+    for (const q of step.questions({} as RuleMap)) {
+      if (GECO_OPTIONAL_FIELDS.has(q.id) || (q.showIf && !q.showIf(a))) continue;
+      const value = a[q.id];
+      if (
+        value === undefined ||
+        value === null ||
+        value === "" ||
+        (typeof value === "string" && !value.trim())
+      ) {
+        missing.push(q.label);
+      }
+    }
+  }
+  if (a["gecoweb_numerazione_punteggi_verificata"] !== "si") {
+    missing.push("Confronto dei punteggi e delle etichette con il formulario GeCoWEB");
+  }
+  if (a["gecoweb_importi_verificati"] !== "si") {
+    missing.push("Confronto delle voci di costo con la tabella forfettaria ufficiale");
+  }
+  return [...new Set(missing)];
+}
 
 extend("procedura", [
   tq("progetto_realizzato", "Progetto già realizzato (controllare anche le date effettive)?"),
