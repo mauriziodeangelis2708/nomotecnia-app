@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -25,10 +25,14 @@ export const Route = createFileRoute("/_authenticated/assessment/$id")({
 
 function AssessmentPage() {
   const { id } = Route.useParams();
+  const nav = useNavigate();
+  const isNew = id.startsWith("new-");
+  const newClientId = isNew ? id.slice(4) : null;
   const qc = useQueryClient();
   const rules = useRules();
   const a = useQuery({
     queryKey: ["assessment", id],
+    enabled: !isNew,
     queryFn: async () => {
       const { data, error } = await supabase.from("assessments").select("*, clients(*)").eq("id", id).single();
       if (error) throw error;
@@ -37,14 +41,38 @@ function AssessmentPage() {
   });
   const ev = useQuery({
     queryKey: ["evidences", id],
+    enabled: !isNew,
     queryFn: async () => (await supabase.from("evidences").select("*").eq("assessment_id", id).order("created_at", { ascending: false })).data ?? [],
   });
   const [answers, setAnswers] = useState<Answers>({});
+  const client = useQuery({
+  queryKey: ["client", newClientId],
+  enabled: isNew && !!newClientId,
+  queryFn: async () => {
+    const { data, error } = await supabase
+      .from("clients")
+      .select("*")
+      .eq("id", newClientId!)
+      .single();
+
+    if (error) throw error;
+    return data;
+  },
+});
   const [checklist, setChecklist] = useState<Record<string, { status: string; note?: string }>>({});
   const [title, setTitle] = useState("");
   const [dirty, setDirty] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [step, setStep] = useState(0);
 
+  useEffect(() => {
+  if (isNew && client.data) {
+    setAnswers({
+      ragione_sociale: client.data.ragione_sociale,
+      partita_iva: client.data.partita_iva,
+    });
+  }
+}, [isNew, client.data]);
   useEffect(() => {
     if (a.data) {
       const ans = (a.data.answers as Answers) ?? {};
@@ -60,15 +88,86 @@ function AssessmentPage() {
   );
 
   async function save(silent = false) {
-    const status = result ? (result.gateStatus === "non_ammissibile" ? "non ammissibile" : "in lavorazione") : "bozza";
-    const { error } = await supabase.from("assessments").update({ answers: answers as Json, checklist: checklist as Json, title, status }).eq("id", id);
-    if (error) return toast.error(error.message);
+  if (saving) return;
+  setSaving(true);
+  try {
+  const status = result
+    ? (result.gateStatus === "non_ammissibile"
+        ? "non ammissibile"
+        : "in lavorazione")
+    : "bozza";
+
+  if (isNew) {
+    if (!newClientId || !client.data) {
+      toast.error("Azienda non identificata");
+      return;
+    }
+
+    const { data: u } = await supabase.auth.getUser();
+
+    if (!u.user) {
+      toast.error("Utente non autenticato");
+      return;
+    }
+
+    const { data, error } = await supabase
+      .from("assessments")
+      .insert({
+        client_id: newClientId,
+        created_by: u.user.id,
+        answers: answers as Json,
+        checklist: checklist as Json,
+        title,
+        status,
+      })
+      .select("id")
+      .single();
+
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+
     setDirty(false);
     qc.invalidateQueries({ queryKey: ["clients"] });
-    if (!silent) toast.success("Salvato");
+    toast.success("Assessment creato e salvato");
+
+    nav({
+      to: "/assessment/$id",
+      params: { id: data.id },
+      replace: true,
+    });
+
+    return;
   }
 
+  const { error } = await supabase
+    .from("assessments")
+    .update({
+      answers: answers as Json,
+      checklist: checklist as Json,
+      title,
+      status,
+    })
+    .eq("id", id);
+
+  if (error) {
+    toast.error(error.message);
+    return;
+  }
+
+  setDirty(false);
+  qc.invalidateQueries({ queryKey: ["clients"] });
+
+  if (!silent) toast.success("Salvato");
+  } finally {
+    setSaving(false);
+  }
+}
+  
   async function snapshot() {
+    if (isNew) return toast.error("Salva prima il questionario");
+    if (dirty) return toast.error("Salva prima le modifiche al questionario");
     if (!result || !rules.data) return;
     const { data: u } = await supabase.auth.getUser();
     const label = prompt("Etichetta valutazione (facoltativa)") ?? "";
@@ -85,7 +184,7 @@ function AssessmentPage() {
   function exportJson() {
     const blob = new Blob([JSON.stringify({
       tool: "NomotecnIA | Lazio Digital Assessment", disclaimer: "Strumento preliminare, non certificazione di ammissibilità.",
-      exported_at: new Date().toISOString(), client: a.data?.clients, assessment: { id, title, answers, checklist },
+      exported_at: new Date().toISOString(), client: isNew ? client.data : a.data?.clients, assessment: { id, title, answers, checklist },
       result, evidences: ev.data, rules: rules.data?.list,
     }, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
@@ -94,8 +193,8 @@ function AssessmentPage() {
     URL.revokeObjectURL(url);
   }
 
-  if (a.isLoading || rules.isLoading) return <p className="text-sm text-muted-foreground">Caricamento…</p>;
-  if (a.error || !a.data) return <p className="text-sm text-destructive">Assessment non trovato o accesso negato.</p>;
+  if (rules.isLoading || (isNew ? client.isLoading : a.isLoading)) return <p className="text-sm text-muted-foreground">Caricamento…</p>;
+  if (isNew ? (client.error || !client.data) : (a.error || !a.data)) return <p className="text-sm text-destructive">Assessment o azienda non trovati oppure accesso negato.</p>;
 
   const set = (k: string, v: unknown) => { setAnswers((p) => ({ ...p, [k]: v })); setDirty(true); };
   const cur = STEPS[step];
@@ -107,13 +206,13 @@ function AssessmentPage() {
       <div className="no-print flex flex-wrap items-center justify-between gap-3">
         <div className="min-w-0">
           <Link to="/dashboard" className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"><ArrowLeft className="h-3 w-3" /> Clienti</Link>
-          <h1 className="font-display text-2xl">{a.data.clients?.ragione_sociale}</h1>
+          <h1 className="font-display text-2xl">{isNew ? client.data?.ragione_sociale : a.data?.clients?.ragione_sociale}</h1>
           <Input className="mt-1 h-8 max-w-md text-sm" value={title} onChange={(e) => { setTitle(e.target.value); setDirty(true); }} />
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button onClick={() => save()} variant={dirty ? "default" : "outline"}><Save className="h-4 w-4" /> {dirty ? "Salva" : "Salvato"}</Button>
-          <Button variant="outline" onClick={snapshot}><History className="h-4 w-4" /> Registra valutazione</Button>
-          <Button variant="outline" asChild><Link to="/report/$id" params={{ id }}><FileDown className="h-4 w-4" /> Report PDF</Link></Button>
+          <Button disabled={saving} onClick={() => save()} variant={isNew || dirty ? "default" : "outline"}><Save className="h-4 w-4" /> {saving ? "Salvataggio…" : isNew || dirty ? "Salva" : "Salvato"}</Button>
+          <Button disabled={isNew || dirty} variant="outline" onClick={snapshot}><History className="h-4 w-4" /> Registra valutazione</Button>
+          {!isNew && <Button variant="outline" asChild><Link to="/report/$id" params={{ id }}><FileDown className="h-4 w-4" /> Report PDF</Link></Button>}
           <Button variant="outline" onClick={exportJson}><Download className="h-4 w-4" /> JSON</Button>
         </div>
       </div>
@@ -124,9 +223,9 @@ function AssessmentPage() {
           <TabsTrigger value="wizard">Questionario</TabsTrigger>
           <TabsTrigger value="esito">Esito</TabsTrigger>
           <TabsTrigger value="documenti">Documenti</TabsTrigger>
-          <TabsTrigger value="evidenze">Evidenze</TabsTrigger>
-          <TabsTrigger value="note">Note</TabsTrigger>
-          <TabsTrigger value="storico">Storico</TabsTrigger>
+          <TabsTrigger disabled={isNew} value="evidenze">Evidenze</TabsTrigger>
+          <TabsTrigger disabled={isNew} value="note">Note</TabsTrigger>
+          <TabsTrigger disabled={isNew} value="storico">Storico</TabsTrigger>
         </TabsList>
 
         <TabsContent value="wizard" className="mt-4">
@@ -151,7 +250,7 @@ function AssessmentPage() {
               <div className="mt-8 flex justify-between">
                 <Button variant="ghost" disabled={step === 0} onClick={() => setStep(step - 1)}><ChevronLeft className="h-4 w-4" /> Indietro</Button>
                 {step < STEPS.length - 1
-                  ? <Button onClick={() => { if (dirty) save(true); setStep(step + 1); }}>Avanti <ChevronRight className="h-4 w-4" /></Button>
+                  ? <Button onClick={() => setStep(step + 1)}>Avanti <ChevronRight className="h-4 w-4" /></Button>
                   : <Button onClick={() => save()}>Salva questionario</Button>}
               </div>
             </div>
@@ -180,9 +279,9 @@ function AssessmentPage() {
           <p className="mt-2 text-xs text-muted-foreground">Ricorda di salvare dopo le modifiche.</p>
         </TabsContent>
 
-        <TabsContent value="evidenze" className="mt-4"><Evidences id={id} list={ev.data ?? []} interventions={(result?.interventions ?? []).map((i) => ({ key: i.key, label: i.label }))} /></TabsContent>
-        <TabsContent value="note" className="mt-4"><Notes id={id} /></TabsContent>
-        <TabsContent value="storico" className="mt-4"><Snapshots id={id} /></TabsContent>
+        <TabsContent value="evidenze" className="mt-4">{!isNew && <Evidences id={id} list={ev.data ?? []} interventions={(result?.interventions ?? []).map((i) => ({ key: i.key, label: i.label }))} />}</TabsContent>
+        <TabsContent value="note" className="mt-4">{!isNew && <Notes id={id} />}</TabsContent>
+        <TabsContent value="storico" className="mt-4">{!isNew && <Snapshots id={id} />}</TabsContent>
       </Tabs>
     </div>
   );
