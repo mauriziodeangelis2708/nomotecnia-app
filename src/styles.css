@@ -104,22 +104,119 @@
 }
 
 @layer base {
-  * { border-color: var(--color-border); }
+  * {
+    border-color: var(--color-border);
+  }
   body {
     background-color: var(--color-background);
     color: var(--color-foreground);
     font-family: var(--font-sans);
   }
-  h1, h2, h3 { letter-spacing: -0.01em; }
+  h1,
+  h2,
+  h3 {
+    letter-spacing: -0.01em;
+  }
 }
 
-@utility font-display { font-family: var(--font-display); }
-@utility tabular { font-variant-numeric: tabular-nums; font-family: var(--font-mono); }
+@utility font-display {
+  font-family: var(--font-display);
+}
+@utility tabular {
+  font-variant-numeric: tabular-nums;
+  font-family: var(--font-mono);
+}
 
 @media print {
-  .no-print { display: none !important; }
-  body { background: white; }
-  .print-page { box-shadow: none !important; border: none !important; }
+  .no-print {
+    display: none !important;
+  }
+  body {
+    background: white;
+  }
+  .print-page {
+    box-shadow: none !important;
+    border: none !important;
+  }
 }
 /* Rebuild NomotecnIA - Supabase configuration */
 /* Rebuild NomotecnIA - nuovo Supabase production - 08/10/2026 */
+
+/* Responsive assessment commands and paginated reports. */
+.report-document {
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+.report-document dt,
+.report-document dd {
+  min-width: 0;
+}
+.report-document table {
+  width: 100%;
+  table-layout: fixed;
+}
+@media (max-width: 639px) {
+  .assessment-actions > *,
+  .report-actions > * {
+    flex: 1 1 100%;
+    width: 100%;
+  }
+  .assessment-actions button,
+  .report-actions button {
+    min-height: 44px;
+    height: auto;
+    white-space: normal;
+  }
+}
+@media print {
+  @page {
+    size: A4;
+    margin: 14mm 12mm;
+  }
+  html,
+  body {
+    background: white !important;
+    color: black !important;
+  }
+  main {
+    padding: 0 !important;
+  }
+  .print-page {
+    padding: 0 !important;
+    max-width: none !important;
+    border: 0 !important;
+    box-shadow: none !important;
+  }
+  .report-document {
+    font-size: 10pt;
+    line-height: 1.4;
+  }
+  .report-document h1 {
+    font-size: 19pt;
+  }
+  .report-document h2 {
+    font-size: 13pt;
+  }
+  .report-document h2,
+  .report-document h3,
+  .report-document dt {
+    break-after: avoid;
+  }
+  .report-document tr,
+  .report-document .report-answer {
+    break-inside: avoid;
+  }
+  .report-document p,
+  .report-document li {
+    orphans: 3;
+    widows: 3;
+  }
+  .report-document a {
+    color: inherit;
+    text-decoration: underline;
+  }
+  .report-document * {
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+}

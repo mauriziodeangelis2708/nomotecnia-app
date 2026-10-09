@@ -15,7 +15,7 @@ import {
   IPER_VERSION,
   type IperAnswers,
 } from "@/lib/iperammortamento";
-import { ArrowLeft, Save, AlertTriangle, CircleHelp, Plus, Trash2 } from "lucide-react";
+import { ArrowLeft, FileDown, Save, AlertTriangle, CircleHelp, Plus, Trash2 } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/iperammortamento/$id")({
   head: () => ({
@@ -197,7 +197,7 @@ function IperammortamentoPage() {
     setDirty(true);
   }
 
-  async function save() {
+  async function save(openReport = false) {
     if (saving) return;
     setSaving(true);
     try {
@@ -229,7 +229,11 @@ function IperammortamentoPage() {
         setDirty(false);
         await qc.invalidateQueries({ queryKey: ["clients"] });
         toast.success("Pre-assessment salvato");
-        nav({ to: "/iperammortamento/$id", params: { id: data.id }, replace: true });
+        nav({
+          to: openReport ? "/report/$id" : "/iperammortamento/$id",
+          params: { id: data.id },
+          replace: true,
+        });
         return;
       }
       const { error } = await supabase
@@ -239,10 +243,14 @@ function IperammortamentoPage() {
           status:
             result.status === "ostacolo" ? "criticità da verificare" : "pre-assessment in corso",
         })
-        .eq("id", assessmentId ?? id);
+        .eq("id", assessmentId ?? id)
+        .select("id")
+        .single();
       if (error) throw error;
       setDirty(false);
       await qc.invalidateQueries({ queryKey: ["clients"] });
+      await qc.invalidateQueries({ queryKey: ["report", assessmentId ?? id] });
+      if (openReport) void nav({ to: "/report/$id", params: { id: assessmentId ?? id } });
       toast.success("Pre-assessment salvato");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Salvataggio non riuscito");
@@ -273,10 +281,23 @@ function IperammortamentoPage() {
           <h1 className="font-display text-3xl">Iperammortamento 2026</h1>
           <p className="mt-1 text-sm text-muted-foreground">{companyName || "Nuova valutazione"}</p>
         </div>
-        <Button onClick={() => void save()} disabled={saving || (!isNew && !dirty)}>
-          <Save className="mr-2 h-4 w-4" />
-          {saving ? "Salvataggio…" : "Salva"}
-        </Button>
+        <div className="assessment-actions flex w-full flex-wrap gap-2 sm:w-auto">
+          <Button onClick={() => void save()} disabled={saving || (!isNew && !dirty)}>
+            <Save className="mr-2 h-4 w-4" />
+            {saving ? "Salvataggio…" : "Salva"}
+          </Button>
+          <Button
+            variant="outline"
+            disabled={saving}
+            onClick={() => {
+              if (isNew || dirty) void save(true);
+              else void nav({ to: "/report/$id", params: { id: assessmentId ?? id } });
+            }}
+          >
+            <FileDown className="h-4 w-4" />
+            {isNew || dirty ? "Salva e apri report" : "Report PDF"}
+          </Button>
+        </div>
       </div>
 
       <Disclaimer />

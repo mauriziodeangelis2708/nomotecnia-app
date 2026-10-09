@@ -243,9 +243,9 @@ function Dashboard() {
         <div className="grid gap-4 md:grid-cols-2">
           {list.map((c) => (
             <div key={c.id} className="rounded-lg border bg-card p-5">
-              <div className="flex items-start justify-between gap-3">
+              <div className="flex min-w-0 flex-col gap-3 xl:flex-row xl:justify-between">
                 <div>
-                  <h2 className="font-semibold">{c.ragione_sociale}</h2>
+                  <h2 className="break-words font-semibold">{c.ragione_sociale}</h2>
                   <p className="text-xs text-muted-foreground">
                     {[c.partita_iva && `P.IVA ${c.partita_iva}`, c.comune, c.referente]
                       .filter(Boolean)
@@ -285,7 +285,7 @@ function Dashboard() {
                 )}
 
                 {(c.assessments ?? []).map((a) => (
-                  <li key={a.id} className="flex items-center justify-between gap-3 py-2">
+                  <li key={a.id} className="flex min-w-0 flex-col items-start gap-3 py-3">
                     <Link
                       to={
                         a.title.startsWith("Iperammortamento 2026")
@@ -293,17 +293,23 @@ function Dashboard() {
                           : "/assessment/$id"
                       }
                       params={{ id: a.id } as never}
-                      className="flex items-center gap-2 hover:text-primary"
+                      className="flex min-w-0 items-center gap-2 break-words hover:text-primary"
                     >
                       <FileText className="h-4 w-4 shrink-0" />
                       {a.title}
                     </Link>
 
-                    <div className="flex items-center gap-3">
+                    <div className="flex w-full flex-wrap items-center gap-3">
                       <span className="text-xs text-muted-foreground">
                         {a.status} · {dt(a.updated_at)}
                       </span>
 
+                      <Button size="sm" variant="outline" asChild>
+                        <Link to="/report/$id" params={{ id: a.id }}>
+                          <FileDown className="h-4 w-4" />
+                          Report PDF
+                        </Link>
+                      </Button>
                       <Button
                         size="sm"
                         variant="destructive"

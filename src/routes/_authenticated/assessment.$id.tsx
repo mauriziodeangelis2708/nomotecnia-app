@@ -198,7 +198,7 @@ function AssessmentPage() {
   );
   const geCoWebMissing = useMemo(() => getGeCoWebFormMissing(answers), [answers]);
 
-  async function save(silent = false) {
+  async function save(silent = false, openReport = false) {
     if (saving || !rules.data || rules.error) return;
     const invalid = STEPS.flatMap((step) => step.questions(rules.data!.map)).filter(
       (q) =>
@@ -256,7 +256,7 @@ function AssessmentPage() {
         toast.success("Assessment creato e salvato");
 
         nav({
-          to: "/assessment/$id",
+          to: openReport ? "/report/$id" : "/assessment/$id",
           params: { id: data.id },
           replace: true,
         });
@@ -272,7 +272,9 @@ function AssessmentPage() {
           title: title.trim() || "Valutazione preliminare",
           status,
         })
-        .eq("id", id);
+        .eq("id", id)
+        .select("id")
+        .single();
 
       if (error) {
         toast.error(error.message);
@@ -282,6 +284,8 @@ function AssessmentPage() {
       setDirty(false);
       qc.invalidateQueries({ queryKey: ["clients"] });
 
+      await qc.invalidateQueries({ queryKey: ["report", id] });
+      if (openReport) nav({ to: "/report/$id", params: { id } });
       if (!silent) toast.success("Salvato");
     } catch {
       toast.error("Salvataggio non riuscito. Le modifiche restano nel questionario.");
@@ -396,7 +400,7 @@ function AssessmentPage() {
             }}
           />
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="assessment-actions flex w-full flex-wrap gap-2 sm:w-auto">
           <Button
             disabled={saving}
             onClick={() => save()}
@@ -408,13 +412,17 @@ function AssessmentPage() {
           <Button disabled={isNew || dirty} variant="outline" onClick={snapshot}>
             <History className="h-4 w-4" /> Registra valutazione
           </Button>
-          {!isNew && !dirty && (
-            <Button variant="outline" asChild>
-              <Link to="/report/$id" params={{ id }}>
-                <FileDown className="h-4 w-4" /> Report PDF
-              </Link>
-            </Button>
-          )}
+          <Button
+            variant="outline"
+            disabled={saving}
+            onClick={() => {
+              if (isNew || dirty) void save(false, true);
+              else void nav({ to: "/report/$id", params: { id } });
+            }}
+          >
+            <FileDown className="h-4 w-4" />
+            {isNew || dirty ? "Salva e apri report" : "Report PDF"}
+          </Button>
           <Button variant="outline" onClick={exportJson}>
             <Download className="h-4 w-4" /> JSON
           </Button>
@@ -428,7 +436,7 @@ function AssessmentPage() {
       )}
 
       <Tabs defaultValue="wizard">
-        <TabsList className="flex-wrap">
+        <TabsList className="h-auto w-full flex-wrap justify-start gap-1">
           <TabsTrigger value="wizard">Questionario</TabsTrigger>
           <TabsTrigger value="esito">Esito</TabsTrigger>
           <TabsTrigger value="documenti">Documenti</TabsTrigger>

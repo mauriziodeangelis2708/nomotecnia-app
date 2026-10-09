@@ -62,7 +62,7 @@ function Layout() {
         </div>
       </aside>
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="no-print flex items-center justify-between border-b bg-card px-4 py-3 md:hidden">
+        <header className="no-print flex flex-wrap items-center justify-between gap-2 border-b bg-card px-4 py-3 md:hidden">
           <Brand sub={false} />
           <div className="flex gap-2">
             <Button asChild size="sm" variant="ghost">
