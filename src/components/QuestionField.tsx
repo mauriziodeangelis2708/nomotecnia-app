@@ -28,7 +28,7 @@ export function QuestionField({
       {q.type === "text" && (
         <Input
           value={(value as string) ?? ""}
-          maxLength={300}
+          maxLength={q.maxLength ?? 300}
           onChange={(e) => onChange(e.target.value)}
         />
       )}
@@ -46,7 +46,7 @@ export function QuestionField({
       {q.type === "textarea" && (
         <Textarea
           rows={3}
-          maxLength={4000}
+          maxLength={q.maxLength ?? 4000}
           value={(value as string) ?? ""}
           onChange={(e) => onChange(e.target.value)}
         />
