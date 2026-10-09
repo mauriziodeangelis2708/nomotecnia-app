@@ -6,13 +6,13 @@ import { ShieldCheck } from "lucide-react";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "NomotecnIA | Lazio Digital Assessment — Area riservata" },
+      { title: "NomotecnIA Assessment Bandi — Area riservata" },
       {
         name: "description",
         content:
-          "Area riservata ai soci autorizzati per la pre-istruttoria del Voucher Digitalizzazione PMI Lazio 2026.",
+          "Area riservata ai soci autorizzati per assessment preliminari di bandi e agevolazioni.",
       },
-      { property: "og:title", content: "NomotecnIA | Lazio Digital Assessment" },
+      { property: "og:title", content: "NomotecnIA Assessment Bandi" },
       { property: "og:description", content: "Area riservata ai soci autorizzati." },
     ],
   }),
@@ -30,15 +30,14 @@ function Index() {
       </header>
       <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col justify-center px-6 pb-24">
         <p className="text-sm uppercase tracking-[0.2em] text-sidebar-primary">
-          Voucher Digitalizzazione PMI Lazio 2026
+          Bandi e agevolazioni
         </p>
         <h1 className="mt-4 max-w-3xl font-display text-4xl font-medium leading-tight md:text-6xl">
           Pre-istruttoria strutturata, prudente, tracciabile.
         </h1>
         <p className="mt-6 max-w-2xl text-base opacity-80">
-          Strumento interno per i soci autorizzati: domande a cascata, esiti coerenti con i dati
-          dichiarati, condizioni da verificare e incompatibilità rilevate. Regole ufficiali 2026
-          versionate, con fonti e limiti della valutazione.
+          Strumento interno per i soci autorizzati: percorsi distinti per ogni misura, controlli
+          preliminari, condizioni da verificare e fonti normative versionate.
         </p>
         <div className="mt-10 flex flex-wrap items-center gap-4">
           <Button asChild size="lg">
