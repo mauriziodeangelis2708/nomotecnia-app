@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/dialog";
 import { Disclaimer } from "@/components/StatusBadge";
 import { dt } from "@/lib/checklist";
-import { Plus, FileText, Search, Zap } from "lucide-react";
+import { Plus, FileText, Search, Zap, FileDown } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
   head: () => ({
@@ -42,6 +42,7 @@ function Dashboard() {
   const qc = useQueryClient();
   const nav = useNavigate();
   const [q, setQ] = useState("");
+  const [exporting, setExporting] = useState(false);
 
   const clients = useQuery({
     queryKey: ["clients"],
@@ -109,6 +110,92 @@ function Dashboard() {
       !q || `${c.ragione_sociale} ${c.partita_iva ?? ""}`.toLowerCase().includes(q.toLowerCase()),
   );
 
+  async function exportCsv() {
+    setExporting(true);
+    try {
+      const { data, error } = await supabase
+        .from("clients")
+        .select(
+          "id, ragione_sociale, partita_iva, comune, referente, created_at, updated_at, assessments(id, title, status, created_at, updated_at, answers, checklist, assessment_notes(id, section, body, author_id, created_at), evidences(id, kind, title, description, reference, intervention, amount, author_id, created_at), assessment_snapshots(id, label, answers, result, rules_version, author_id, created_at))",
+        )
+        .order("updated_at", { ascending: false });
+
+      if (error) throw error;
+
+      const headers = [
+        "ID cliente",
+        "Ragione sociale",
+        "Partita IVA",
+        "Comune",
+        "Referente",
+        "Cliente creato il",
+        "Cliente aggiornato il",
+        "ID assessment",
+        "Titolo assessment",
+        "Stato assessment",
+        "Assessment creato il",
+        "Assessment aggiornato il",
+        "Risposte (JSON)",
+        "Checklist (JSON)",
+        "Note (JSON)",
+        "Evidenze (JSON)",
+        "Storico assessment (JSON)",
+      ];
+
+      function cell(value: unknown) {
+        let text =
+          value === null || value === undefined
+            ? ""
+            : typeof value === "object"
+              ? JSON.stringify(value)
+              : String(value);
+        if (/^[=+\-@]/.test(text.trimStart())) text = `'${text}`;
+        return `"${text.replaceAll('"', '""')}"`;
+      }
+
+      const rows = (data ?? []).flatMap((client) => {
+        const assessments = client.assessments ?? [];
+        const records = assessments.length ? assessments : [null];
+        return records.map((assessment) => [
+          client.id,
+          client.ragione_sociale,
+          client.partita_iva,
+          client.comune,
+          client.referente,
+          client.created_at,
+          client.updated_at,
+          assessment?.id,
+          assessment?.title,
+          assessment?.status,
+          assessment?.created_at,
+          assessment?.updated_at,
+          assessment?.answers,
+          assessment?.checklist,
+          assessment?.assessment_notes ?? [],
+          assessment?.evidences ?? [],
+          assessment?.assessment_snapshots ?? [],
+        ]);
+      });
+
+      const csv = "\ufeff" + [headers, ...rows].map((row) => row.map(cell).join(";")).join("\r\n");
+      const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `nomotecnia-dati-${new Date().toISOString().slice(0, 10)}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+      toast.success(`CSV esportato: ${data?.length ?? 0} clienti`);
+    } catch (error) {
+      toast.error(
+        `Esportazione CSV non riuscita: ${error instanceof Error ? error.message : "errore"}`,
+      );
+    } finally {
+      setExporting(false);
+    }
+  }
+
   return (
     <div className="mx-auto max-w-6xl space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-4">
@@ -119,7 +206,17 @@ function Dashboard() {
           </p>
         </div>
 
-        <NewClient onCreated={() => qc.invalidateQueries({ queryKey: ["clients"] })} />
+        <div className="flex flex-wrap gap-2">
+          <Button
+            variant="outline"
+            onClick={exportCsv}
+            disabled={exporting || clients.isLoading || !!clients.error || !clients.data?.length}
+          >
+            <FileDown className="h-4 w-4" />
+            {exporting ? "Preparazione CSV…" : "Esporta CSV"}
+          </Button>
+          <NewClient onCreated={() => qc.invalidateQueries({ queryKey: ["clients"] })} />
+        </div>
       </div>
 
       <Disclaimer />
