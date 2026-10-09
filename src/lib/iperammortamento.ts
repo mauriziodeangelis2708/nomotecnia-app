@@ -36,6 +36,42 @@ export interface IperAnswers {
   fabbisogno_kwh?: number;
   producibilita_kwh?: number;
   note?: string;
+  denominazione?: string;
+  partita_iva?: string;
+  codice_fiscale?: string;
+  forma_giuridica?: string;
+  data_costituzione?: string;
+  data_iscrizione_registro?: string;
+  sede_legale_indirizzo?: string;
+  sede_legale_comune?: string;
+  sede_legale_provincia?: string;
+  sede_legale_cap?: string;
+  pec?: string;
+  email?: string;
+  telefono?: string;
+  firmatario_tipo?: string;
+  firmatario_nome?: string;
+  firmatario_cf?: string;
+  referente_nome?: string;
+  referente_email?: string;
+  referente_telefono?: string;
+  struttura_nome?: string;
+  struttura_indirizzo?: string;
+  struttura_comune?: string;
+  struttura_provincia?: string;
+  struttura_cap?: string;
+  struttura_sezione_catastale?: string;
+  struttura_foglio?: string;
+  struttura_particella?: string;
+  struttura_subalterno?: string;
+  beni_ivv_json?: string;
+  impianti_fer_json?: string;
+  dichiarazione_investimento_fer?: string;
+  pratica_nptr?: string;
+  conferma_data_esito?: string;
+  conferma_data_invio?: string;
+  conferma_totale_acconti?: number;
+  documenti_disponibili?: string;
 }
 export type IperStatus = "ostacolo" | "da_verificare" | "coerente";
 
@@ -52,6 +88,53 @@ export function assessIperammortamento(a: IperAnswers) {
   const blockers: string[] = [];
   const checks: string[] = [];
   const missing: string[] = [];
+  const has = (key: string) => String(a[key] ?? "").trim().length > 0;
+  const requiredFields: [string, string][] = [
+    ["denominazione", "Denominazione operatore GSE"],
+    ["partita_iva", "Partita IVA dell’operatore GSE"],
+    ["codice_fiscale", "Codice fiscale dell’operatore GSE"],
+    ["forma_giuridica", "Tipologia operatore GSE / forma giuridica"],
+    ["data_costituzione", "Data di costituzione dell’impresa"],
+    ["data_iscrizione_registro", "Data di iscrizione al Registro Imprese"],
+    ["sede_legale_indirizzo", "Indirizzo della sede legale dell’operatore"],
+    ["pec", "PEC dell’impresa"],
+    ["email", "Email dell’impresa"],
+    ["telefono", "Telefono dell’impresa"],
+    ["firmatario_tipo", "Ruolo del firmatario della comunicazione GSE"],
+    ["firmatario_nome", "Nome e cognome del firmatario GSE"],
+    ["firmatario_cf", "Codice fiscale del firmatario GSE"],
+    ["referente_nome", "Referente GSE da contattare"],
+    ["referente_email", "Email del referente GSE"],
+    ["referente_telefono", "Cellulare del referente GSE"],
+    ["struttura_nome", "Denominazione della struttura produttiva"],
+    ["struttura_indirizzo", "Indirizzo della struttura produttiva"],
+    ["struttura_comune", "Comune della struttura produttiva"],
+    ["struttura_provincia", "Provincia della struttura produttiva"],
+    ["struttura_cap", "CAP della struttura produttiva"],
+    ["struttura_sezione_catastale", "Sezione catastale della struttura (o NP)"],
+    ["struttura_foglio", "Foglio catastale della struttura"],
+    ["struttura_particella", "Particella catastale della struttura"],
+    ["struttura_subalterno", "Sub prevalente catastale della struttura (o NP)"],
+  ];
+  for (const [key, label] of requiredFields) if (!has(key)) missing.push(label);
+  if (has("data_costituzione") && has("data_iscrizione_registro")) {
+    const constitution = String(a["data_costituzione"]);
+    const registration = String(a["data_iscrizione_registro"]);
+    const today = new Date().toISOString().slice(0, 10);
+    if (
+      !isISODate(constitution) ||
+      !isISODate(registration) ||
+      registration < constitution ||
+      registration > today
+    ) {
+      missing.push(
+        "Date di costituzione/iscrizione da verificare: l’iscrizione deve essere tra costituzione e compilazione GSE",
+      );
+    }
+  }
+  if (a["dichiarazioni_gse"] !== "si") {
+    missing.push("Dichiarazioni DSAN GSE da verificare e confermare nel portale ufficiale");
+  }
 
   const criticalYes = (key: string, label: string) => {
     if (a[key] === "si") blockers.push(label);
@@ -77,9 +160,10 @@ export function assessIperammortamento(a: IperAnswers) {
   );
 
   const kind = a.tipo_bene;
-  if (!["allegato_iv", "allegato_v", "energia"].includes(String(kind))) {
+  if (!["allegato_iv", "allegato_v", "beni_iv_v", "energia", "misto"].includes(String(kind))) {
     missing.push("Categoria dell’investimento");
-  } else if (kind === "energia") {
+  }
+  if (kind === "energia" || kind === "misto") {
     requiredYes("autoconsumo", "Impianto destinato all’autoconsumo della struttura produttiva");
     requiredYes("impianto_ammesso", "Tecnologia e componenti conformi ai requisiti della misura");
     const energyKind = a.tipo_energia;
@@ -104,7 +188,8 @@ export function assessIperammortamento(a: IperAnswers) {
       missing.push("Ubicazione, POD e collegamento alla struttura produttiva");
     if (a.accumulo !== "si" && a.accumulo !== "no")
       missing.push("Presenza e configurazione degli eventuali sistemi di accumulo");
-  } else {
+  }
+  if (kind === "allegato_iv" || kind === "allegato_v" || kind === "beni_iv_v" || kind === "misto") {
     requiredYes(
       "categoria_allegato",
       "Bene ricompreso nella categoria pertinente dell’Allegato IV o V",
@@ -113,14 +198,162 @@ export function assessIperammortamento(a: IperAnswers) {
       "interconnessione",
       "Interconnessione al sistema di produzione o alla rete di fornitura",
     );
-    if (kind === "allegato_iv") {
+    if (kind === "allegato_iv" || kind === "beni_iv_v" || kind === "misto") {
       requiredYes("requisiti_tecnici", "Caratteristiche tecniche previste per il bene materiale");
-    } else {
+    }
+    if (kind === "allegato_v" || kind === "beni_iv_v" || kind === "misto") {
       requiredYes(
         "funzione_software",
         "Software funzionale ai processi digitali/operativi contemplati dall’Allegato V",
       );
     }
+  }
+
+  const ivvRows = safeRows(a.beni_ivv_json);
+  const ferRows = safeRows(a.impianti_fer_json);
+  if (kind === "allegato_iv" || kind === "allegato_v" || kind === "beni_iv_v" || kind === "misto") {
+    if (!ivvRows.length)
+      missing.push("Almeno una scheda bene Allegato IV/V da compilare per il GSE");
+    ivvRows.forEach((row, index) => {
+      for (const key of [
+        "categoria",
+        "completamento",
+        "interconnessione",
+        "bene_complesso",
+        "costo_netto",
+        "coefficiente",
+      ]) {
+        if (!String(row[key] ?? "").trim())
+          missing.push(`Bene IV/V ${index + 1}: campo ${key} richiesto dal GSE`);
+      }
+      if (row["bene_complesso"] === "Sì" && !String(row["descrizione_complesso"] ?? "").trim()) {
+        missing.push(`Bene IV/V ${index + 1}: descrizione del bene complesso`);
+      }
+      const start = "2026-01-01";
+      const end = "2028-09-30";
+      const completion = String(row["completamento"] ?? "");
+      const interconnection = String(row["interconnessione"] ?? "");
+      if (completion && (completion < start || completion > end))
+        missing.push(
+          `Bene IV/V ${index + 1}: data di completamento fuori dal periodo 01/01/2026–30/09/2028`,
+        );
+      if (
+        interconnection &&
+        (interconnection < start ||
+          interconnection > end ||
+          (completion && interconnection < completion))
+      )
+        missing.push(
+          `Bene IV/V ${index + 1}: data di interconnessione da verificare rispetto al completamento e al periodo ammesso`,
+        );
+      const cost = Number(row["costo_netto"]);
+      if (row["costo_netto"] && (!Number.isFinite(cost) || cost < 0))
+        missing.push(`Bene IV/V ${index + 1}: costo netto non numerico o negativo`);
+      const coefficient = Number(row["coefficiente"]);
+      if (
+        row["coefficiente"] &&
+        (!Number.isFinite(coefficient) || coefficient < 0 || coefficient > 100)
+      )
+        missing.push(
+          `Bene IV/V ${index + 1}: coefficiente di ammortamento da verificare (percentuale)`,
+        );
+    });
+  }
+  if (kind === "energia" || kind === "misto") {
+    if (!ferRows.length) missing.push("Almeno una scheda impianto FER da compilare per il GSE");
+    ferRows.forEach((row, index) => {
+      for (const key of [
+        "fonte",
+        "potenza",
+        "completamento",
+        "entrata_esercizio",
+        "costo_netto",
+        "coefficiente",
+      ]) {
+        if (!String(row[key] ?? "").trim())
+          missing.push(`Impianto FER ${index + 1}: campo ${key} richiesto dal GSE`);
+      }
+      const start = "2026-01-01";
+      const end = "2028-09-30";
+      const completion = String(row["completamento"] ?? "");
+      const operation = String(row["entrata_esercizio"] ?? "");
+      if (completion && (completion < start || completion > end))
+        missing.push(
+          `Impianto FER ${index + 1}: data di completamento fuori dal periodo 01/01/2026–30/09/2028`,
+        );
+      if (
+        operation &&
+        (operation < start || operation > end || (completion && operation < completion))
+      )
+        missing.push(`Impianto FER ${index + 1}: data di entrata in funzione da verificare`);
+      const cost = Number(row["costo_netto"]);
+      if (row["costo_netto"] && (!Number.isFinite(cost) || cost < 0))
+        missing.push(`Impianto FER ${index + 1}: costo netto non numerico o negativo`);
+      const coefficient = Number(row["coefficiente"]);
+      if (
+        row["coefficiente"] &&
+        (!Number.isFinite(coefficient) || coefficient < 0 || coefficient > 100)
+      )
+        missing.push(
+          `Impianto FER ${index + 1}: coefficiente di ammortamento da verificare (percentuale)`,
+        );
+    });
+    if (!has("pod")) missing.push("Codice POD della struttura produttiva");
+    if (a.producibilita_kwh === undefined)
+      missing.push("Producibilità complessiva degli impianti FER (kWh)");
+    if (a.fabbisogno_kwh === undefined)
+      missing.push("Consumo elettrico annuo della struttura (kWh)");
+    if (
+      (a.tipo_energia === "termica" || a.tipo_energia === "entrambe") &&
+      a["fabbisogno_termico_equivalente"] === undefined
+    ) {
+      missing.push("Fabbisogno elettrico equivalente dei consumi termici, se applicabile");
+    }
+    if (
+      ferRows.filter((row) =>
+        String(row["fonte"] ?? "")
+          .toLowerCase()
+          .includes("accumulo"),
+      ).length > 1
+    ) {
+      missing.push("Il GSE consente al massimo un sistema di accumulo per comunicazione");
+    }
+  }
+
+  if (a.fase_gse === "conferma") {
+    const allRows = [...ivvRows, ...ferRows];
+    if (!allRows.length)
+      missing.push("Schede dei beni preventivati da confermare o dichiarare decaduti");
+    allRows.forEach((row, index) => {
+      const prefix = `Bene/impianto ${index + 1} — conferma GSE`;
+      const state = String(row["stato_bene"] ?? "");
+      if (!state) missing.push(`${prefix}: stato confermato/decaduto`);
+      if (state.toLowerCase() === "decaduto") return;
+      if (!state) return;
+      if (!["confermato", "decaduto"].includes(state.toLowerCase())) {
+        missing.push(`${prefix}: valore stato non riconosciuto`);
+      }
+      if (!String(row["leasing"] ?? "").trim())
+        missing.push(`${prefix}: indicare se è stato usato il leasing`);
+      if (
+        String(row["leasing"] ?? "").toLowerCase() === "sì" ||
+        String(row["leasing"] ?? "").toLowerCase() === "si"
+      ) {
+        if (!String(row["importo_leasing"] ?? "").trim())
+          missing.push(`${prefix}: importo leasing`);
+      } else {
+        for (const key of [
+          "data_ultima_quota_acconto",
+          "importo_ultima_quota_acconto",
+          "acconto_totale",
+        ]) {
+          if (!String(row[key] ?? "").trim())
+            missing.push(`${prefix}: campo ${key} per l’acconto del 20%`);
+        }
+      }
+      if (!String(row["fatture"] ?? "").trim())
+        missing.push(`${prefix}: riferimenti alle fatture/documenti di acquisto`);
+    });
   }
 
   if (a.altri_aiuti === "si") {
@@ -183,6 +416,24 @@ export function assessIperammortamento(a: IperAnswers) {
     stage,
     note: "Pre-assessment basato sulle risposte inserite. Non determina l’ammissibilità e non sostituisce le verifiche del GSE, la perizia tecnica o il parere fiscale.",
   };
+}
+
+function safeRows(value: unknown): Record<string, unknown>[] {
+  if (typeof value !== "string") return [];
+  try {
+    const parsed: unknown = JSON.parse(value);
+    return Array.isArray(parsed)
+      ? parsed.filter((row): row is Record<string, unknown> => !!row && typeof row === "object")
+      : [];
+  } catch {
+    return [];
+  }
+}
+
+function isISODate(value: string) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const date = new Date(`${value}T00:00:00.000Z`);
+  return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value;
 }
 
 export const IPER_VERSION =
