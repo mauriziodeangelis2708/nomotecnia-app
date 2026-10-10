@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useResumeSession } from "@/hooks/use-resume-session";
 import { Brand } from "@/components/Brand";
 import { Button } from "@/components/ui/button";
 import { ShieldCheck } from "lucide-react";
@@ -20,6 +21,7 @@ export const Route = createFileRoute("/")({
 });
 
 function Index() {
+  useResumeSession();
   return (
     <div className="flex min-h-screen flex-col bg-ink text-ink-foreground">
       <header className="mx-auto flex w-full max-w-5xl items-center justify-between px-6 py-6">

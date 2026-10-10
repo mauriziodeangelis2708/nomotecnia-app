@@ -4,6 +4,7 @@ import { z } from "zod";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable/index";
+import { useResumeSession } from "@/hooks/use-resume-session";
 import { Brand } from "@/components/Brand";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -27,6 +28,7 @@ const schema = z.object({
 });
 
 function AuthPage() {
+  useResumeSession();
   const nav = useNavigate();
   const [mode, setMode] = useState<"in" | "up">("in");
   const [email, setEmail] = useState("");
@@ -100,6 +102,8 @@ function AuthPage() {
             <Label htmlFor="email">Email</Label>
             <Input
               id="email"
+              name="email"
+              autoComplete="username"
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
@@ -109,14 +113,22 @@ function AuthPage() {
             <Label htmlFor="pw">Password</Label>
             <Input
               id="pw"
+              name="password"
+              autoComplete={mode === "in" ? "current-password" : "new-password"}
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
             />
           </div>
           <Button type="submit" className="w-full" disabled={busy}>
-            {mode === "in" ? "Accedi" : "Registrati"}
+            {mode === "in" ? "Accedi e resta connesso" : "Registrati"}
           </Button>
+          {mode === "in" && (
+            <p className="text-sm text-muted-foreground">
+              L’accesso viene ricordato in questo browser, anche con Google. Per disconnetterti usa
+              Esci.
+            </p>
+          )}
           <Button type="button" variant="outline" className="w-full" onClick={google}>
             Continua con Google
           </Button>
