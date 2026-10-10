@@ -4,6 +4,7 @@ import { z } from "zod";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable/index";
+import { setRememberMe } from "@/integrations/supabase/session-storage";
 import { useResumeSession } from "@/hooks/use-resume-session";
 import { Brand } from "@/components/Brand";
 import { Button } from "@/components/ui/button";
@@ -33,6 +34,7 @@ function AuthPage() {
   const [mode, setMode] = useState<"in" | "up">("in");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [remember, setRemember] = useState(false);
   const [busy, setBusy] = useState(false);
 
   async function submit(e: React.FormEvent) {
@@ -42,6 +44,7 @@ function AuthPage() {
       toast.error(p.error.issues[0]?.message ?? "Dati non validi");
       return;
     }
+    setRememberMe(mode === "in" && remember);
     setBusy(true);
     if (mode === "in") {
       const { error } = await supabase.auth.signInWithPassword(p.data);
@@ -68,6 +71,7 @@ function AuthPage() {
   }
 
   async function google() {
+    setRememberMe(mode === "in" && remember);
     const r = await lovable.auth.signInWithOAuth("google", {
       redirect_uri: window.location.origin + "/auth",
     });
@@ -121,13 +125,20 @@ function AuthPage() {
             />
           </div>
           <Button type="submit" className="w-full" disabled={busy}>
-            {mode === "in" ? "Accedi e resta connesso" : "Registrati"}
+            {mode === "in" ? "Accedi" : "Registrati"}
           </Button>
           {mode === "in" && (
-            <p className="text-sm text-muted-foreground">
-              L’accesso viene ricordato in questo browser, anche con Google. Per disconnetterti usa
-              Esci.
-            </p>
+            <label className="flex min-h-11 cursor-pointer items-center gap-3 text-sm">
+              <input
+                type="checkbox"
+                name="remember"
+                checked={remember}
+                disabled={busy}
+                onChange={(e) => setRemember(e.target.checked)}
+                className="h-5 w-5 accent-primary"
+              />
+              Resta connesso
+            </label>
           )}
           <Button type="button" variant="outline" className="w-full" onClick={google}>
             Continua con Google
