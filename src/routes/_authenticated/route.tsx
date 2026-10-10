@@ -11,6 +11,14 @@ export const Route = createFileRoute("/_authenticated")({
   beforeLoad: async () => {
     const { data, error } = await supabase.auth.getUser();
     if (error || !data.user) throw redirect({ to: "/auth" });
+    const { data: roles, error: roleError } = await supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", data.user.id);
+    if (roleError) throw roleError;
+    // Metadata controls only the waiting screen, never permissions.
+    if (!roles?.length && data.user.user_metadata["access_requested"] !== "socio")
+      throw redirect({ to: "/portal" });
     return { user: data.user };
   },
   component: Layout,

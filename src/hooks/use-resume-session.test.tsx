@@ -21,6 +21,11 @@ describe("restoring a saved login", () => {
     act(() => emit("INITIAL_SESSION", { user: { id: "test" } }));
     expect(mocks.navigate).toHaveBeenCalledWith({ to: "/dashboard", replace: true });
   });
+  it("restores customer sessions into the customer portal", () => {
+    renderHook(() => useResumeSession("/portal"));
+    act(() => emit("INITIAL_SESSION", { user: { id: "customer" } }));
+    expect(mocks.navigate).toHaveBeenCalledWith({ to: "/portal", replace: true });
+  });
   it("keeps the login available when there is no valid session", () => {
     renderHook(() => useResumeSession());
     act(() => emit("INITIAL_SESSION", null));

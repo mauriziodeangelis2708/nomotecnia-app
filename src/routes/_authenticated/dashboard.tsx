@@ -14,6 +14,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { ReceivedAssessments } from "@/components/ReceivedAssessments";
 import { Disclaimer } from "@/components/StatusBadge";
 import { dt } from "@/lib/checklist";
 import { Plus, FileText, Search, Zap, FileDown } from "lucide-react";
@@ -220,6 +221,7 @@ function Dashboard() {
       </div>
 
       <Disclaimer />
+      <ReceivedAssessments />
 
       <div className="relative max-w-sm">
         <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />

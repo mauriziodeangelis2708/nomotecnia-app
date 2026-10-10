@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 
 // Navigation only: the authenticated route and database policies still verify access.
 // INITIAL_SESSION waits for Supabase to restore/refresh its persisted session.
-export function useResumeSession() {
+export function useResumeSession(destination: "/dashboard" | "/portal" = "/dashboard") {
   const navigate = useNavigate();
   const [hasSession, setHasSession] = useState(false);
   useEffect(() => {
@@ -15,6 +15,6 @@ export function useResumeSession() {
   }, []);
   // Keep navigation outside the auth callback to avoid holding its refresh lock.
   useEffect(() => {
-    if (hasSession) void navigate({ to: "/dashboard", replace: true });
-  }, [hasSession, navigate]);
+    if (hasSession) void navigate({ to: destination, replace: true });
+  }, [hasSession, navigate, destination]);
 }

@@ -167,6 +167,72 @@ export type Database = {
         }
         Relationships: []
       }
+      customer_submissions: {
+        Row: {
+          answers: Json
+          assessment_id: string | null
+          client_id: string | null
+          company: string
+          correction_request: string | null
+          correction_requested_at: string | null
+          created_at: string
+          id: string
+          owner_id: string
+          scheme: string
+          sender_email: string
+          state: string
+          submitted_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          answers?: Json
+          assessment_id?: string | null
+          client_id?: string | null
+          company: string
+          correction_request?: string | null
+          correction_requested_at?: string | null
+          created_at?: string
+          id?: string
+          owner_id: string
+          scheme: string
+          sender_email: string
+          state?: string
+          submitted_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          answers?: Json
+          assessment_id?: string | null
+          client_id?: string | null
+          company?: string
+          correction_request?: string | null
+          correction_requested_at?: string | null
+          created_at?: string
+          id?: string
+          owner_id?: string
+          scheme?: string
+          sender_email?: string
+          state?: string
+          submitted_at?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customer_submissions_assessment_id_fkey"
+            columns: ["assessment_id"]
+            isOneToOne: true
+            referencedRelation: "assessments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "customer_submissions_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       evidences: {
         Row: {
           amount: number | null
@@ -317,6 +383,10 @@ export type Database = {
         Returns: boolean
       }
       can_access_client: { Args: { _client_id: string }; Returns: boolean }
+      customer_submission_action: {
+        Args: { _action: string; _id?: string; _payload?: Json }
+        Returns: string
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]

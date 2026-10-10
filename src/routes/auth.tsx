@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { z } from "zod";
 import { toast } from "sonner";
@@ -12,11 +12,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 export const Route = createFileRoute("/auth")({
+  validateSearch: (search: Record<string, unknown>): { access?: "client" | "socio" } => ({
+    access: search["access"] === "client" ? "client" : "socio",
+  }),
   head: () => ({
     meta: [
-      { title: "Accesso soci — NomotecnIA" },
-      { name: "description", content: "Accesso riservato ai soci autorizzati NomotecnIA." },
-      { property: "og:title", content: "Accesso soci — NomotecnIA" },
+      { title: "Accesso — NomotecnIA" },
+      { name: "description", content: "Accesso clienti e soci NomotecnIA." },
+      { property: "og:title", content: "Accesso — NomotecnIA" },
       { property: "og:description", content: "Accesso riservato ai soci autorizzati." },
     ],
   }),
@@ -29,7 +32,10 @@ const schema = z.object({
 });
 
 function AuthPage() {
-  useResumeSession();
+  const { access } = Route.useSearch();
+  const customer = access === "client";
+  const destination = customer ? "/portal" : "/dashboard";
+  useResumeSession(destination);
   const nav = useNavigate();
   const [mode, setMode] = useState<"in" | "up">("in");
   const [email, setEmail] = useState("");
@@ -53,11 +59,14 @@ function AuthPage() {
         toast.error("Credenziali non valide");
         return;
       }
-      nav({ to: "/dashboard" });
+      nav({ to: destination });
     } else {
       const { error } = await supabase.auth.signUp({
         ...p.data,
-        options: { emailRedirectTo: `${window.location.origin}/dashboard` },
+        options: {
+          emailRedirectTo: `${window.location.origin}/dashboard`,
+          data: { access_requested: customer ? "client" : "socio" },
+        },
       });
       setBusy(false);
       if (error) {
@@ -65,7 +74,9 @@ function AuthPage() {
         return;
       }
       toast.success(
-        "Registrazione inviata. Conferma l'email; l'accesso ai dati richiede l'autorizzazione di un amministratore.",
+        customer
+          ? "Registrazione inviata. Conferma la tua email per entrare e compilare il tuo assessment."
+          : "Registrazione inviata. Conferma l’email; l’accesso soci richiede l’autorizzazione di un amministratore.",
       );
     }
   }
@@ -73,14 +84,14 @@ function AuthPage() {
   async function google() {
     setRememberMe(mode === "in" && remember);
     const r = await lovable.auth.signInWithOAuth("google", {
-      redirect_uri: window.location.origin + "/auth",
+      redirect_uri: window.location.origin + "/auth?access=" + (customer ? "client" : "socio"),
     });
     if (r.error) {
       toast.error("Accesso Google non riuscito");
       return;
     }
     if (r.redirected) return;
-    nav({ to: "/dashboard" });
+    nav({ to: destination });
   }
 
   return (
@@ -88,10 +99,14 @@ function AuthPage() {
       <div className="hidden flex-col justify-between bg-ink p-10 text-ink-foreground md:flex">
         <Brand />
         <p className="max-w-sm font-display text-2xl leading-snug">
-          Area riservata ai soci autorizzati.
+          {customer
+            ? "Compila e invia i dati della tua azienda."
+            : "Area riservata ai soci autorizzati."}
         </p>
         <p className="text-xs opacity-60">
-          Nessun dato è esposto pubblicamente. Ogni accesso è soggetto ad autorizzazione.
+          {customer
+            ? "Dopo la conferma email puoi accedere alle tue pratiche. La valutazione è riservata ai soci NomotecnIA."
+            : "Accesso soci soggetto ad autorizzazione dell’amministratore."}
         </p>
       </div>
       <div className="flex items-center justify-center p-6">
@@ -99,8 +114,26 @@ function AuthPage() {
           <div className="md:hidden">
             <Brand />
           </div>
+          <div className="flex flex-wrap gap-2">
+            <Button asChild type="button" variant={customer ? "outline" : "default"}>
+              <Link to="/auth" search={{ access: "socio" }}>
+                Accesso soci
+              </Link>
+            </Button>
+            <Button asChild type="button" variant={customer ? "default" : "outline"}>
+              <Link to="/auth" search={{ access: "client" }}>
+                Accesso clienti
+              </Link>
+            </Button>
+          </div>
           <h1 className="text-2xl font-semibold">
-            {mode === "in" ? "Accedi" : "Richiedi accesso"}
+            {mode === "in"
+              ? customer
+                ? "Accesso clienti"
+                : "Accesso riservato soci"
+              : customer
+                ? "Registrazione clienti"
+                : "Richiedi accesso soci"}
           </h1>
           <div className="space-y-2">
             <Label htmlFor="email">Email</Label>
@@ -148,7 +181,11 @@ function AuthPage() {
             className="text-sm text-primary underline-offset-4 hover:underline"
             onClick={() => setMode(mode === "in" ? "up" : "in")}
           >
-            {mode === "in" ? "Non hai un account? Richiedi accesso" : "Hai già un account? Accedi"}
+            {mode === "in"
+              ? customer
+                ? "Non hai un account? Registrati"
+                : "Non hai un account? Richiedi accesso"
+              : "Hai già un account? Accedi"}
           </button>
         </form>
       </div>
