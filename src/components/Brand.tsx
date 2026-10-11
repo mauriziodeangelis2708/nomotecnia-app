@@ -7,7 +7,7 @@ export function Brand({ className, sub = true }: { className?: string; sub?: boo
         Nomotecn<span className="text-primary">IA</span>
       </div>
       {sub && (
-        <div className="text-[11px] uppercase tracking-[0.18em] opacity-70">Assessment Bandi</div>
+        <div className="text-[11px] uppercase tracking-[0.18em] opacity-70">Assessment</div>
       )}
     </div>
   );

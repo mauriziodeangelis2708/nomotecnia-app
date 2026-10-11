@@ -20,7 +20,7 @@ import { ArrowLeft, FileDown, Save, AlertTriangle, CircleHelp, Plus, Trash2 } fr
 export const Route = createFileRoute("/_authenticated/iperammortamento/$id")({
   head: () => ({
     meta: [
-      { title: "Iperammortamento 2026 — NomotecnIA Assessment Bandi" },
+      { title: "Iperammortamento 2026 — NomotecnIA Assessment" },
       { name: "description", content: "Pre-assessment dell’Iperammortamento 2026." },
     ],
   }),
