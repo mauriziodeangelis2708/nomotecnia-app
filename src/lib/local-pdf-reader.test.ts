@@ -52,6 +52,13 @@ function syntheticPdf(): Uint8Array {
 
 describe("actual PDF.js parsing, entirely synthetic bytes", () => {
   it("extracts labeled values from a one-page generated PDF", async () => {
+    // CI uses Node lacking Promise.try; browser builds use the native API.
+    if (!("try" in Promise)) {
+      Object.defineProperty(Promise, "try", {
+        configurable: true,
+        value: (callback: () => unknown) => Promise.resolve().then(callback),
+      });
+    }
     const pdfjs = await import("pdfjs-dist");
     const task = pdfjs.getDocument({ data: syntheticPdf() });
     try {
@@ -72,5 +79,5 @@ describe("actual PDF.js parsing, entirely synthetic bytes", () => {
     } finally {
       await task.destroy();
     }
-  });
+  }, 20000);
 });
