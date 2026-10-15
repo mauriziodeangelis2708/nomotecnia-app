@@ -33,7 +33,8 @@ Do not treat this as production security approval.
    two members and one non-member; never reuse customer credentials.
 2. Bootstrap the staging admin role explicitly through a trusted operator
    from Supabase dashboard, not from the client or an anonymous SQL endpoint.
-   No such staging user has been created by this work.
+   Four disposable Auth accounts were subsequently created and removed during the
+   successful API test documented in docs/staging-rls-automated-test.md.
 3. Verify RLS for each authenticated identity through the browser/API, including:
    anonymous denial; non-member denial; member own-client CRUD; member denial
    on other member's clients; admin access; authorization for notes, evidence,
@@ -66,3 +67,15 @@ Do not claim otherwise.
 
 Project secrets, login passwords, or API keys must not be added to the
 GitHub repository, the documentation, or conversations.
+
+## Subsequent live API validation — 15 October 2026, 17:44 UTC
+
+Run 38779433108, attempt 2: all four-user Auth/RLS checks passed.
+A SELECT policy defect blocking clients INSERT ... RETURNING was corrected
+only in staging; see docs/staging-only-clients-returning-fix.sql.
+Post-run SQL counts confirmed zero synthetic users and zero fixture records
+in clients, assessments, notes, evidences, snapshots, roles and profiles.
+Security Advisors returned no lints. GitHub environment staging-rls stores
+the two staging secrets and permits only the development branch.
+Temporary push trigger removed after the test; no automatic executions.
+Full browser UI/customer portal/Cloudflare deployment remain unverified.
