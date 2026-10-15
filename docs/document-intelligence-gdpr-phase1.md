@@ -2,7 +2,7 @@
 
 **Stato tecnico 15 ottobre 2026: laboratorio PDF LOCALE, disabilitato di default e NON rilasciato ai clienti.**
 
-- La demo predefinita usa soltanto dati fittizi: visura, IVA 2026 per il 2025 e attestazione INPS luglio 2026.
+- Il laboratorio NON compare nell'applicazione ordinaria. Solo nel test con flag attivo viene mostrata una demo con dati fittizi: visura, IVA 2026 per il 2025 e attestazione INPS luglio 2026.
 - La lettura PDF, tramite libreria pdfjs-dist 6.4.299 e worker locale, richiede un flag esplicito VITE_ENABLE_DOCUMENT_PDF_LAB=true in un ambiente di test. L'app online resta invariata.
 - Nessun upload PDF a server, nessuna AI esterna, nessun OCR e nessun salvataggio dell'originale. I dati testuali rimangono transitori nel browser.
 - Il parser impone 8 MB, 45 pagine e 240.000 caratteri; i PDF immagine e protetti da password non sono gestiti.
