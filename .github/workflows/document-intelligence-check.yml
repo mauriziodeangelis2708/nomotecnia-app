@@ -36,3 +36,32 @@ jobs:
           if ! git diff --quiet -- bun.lock; then
             echo "::warning::bun.lock changed after dependency install. Regenerate and commit lockfile before merge."
           fi
+
+  align-draft-lockfile:
+    needs: check
+    if: github.event_name == 'push' && github.ref == 'refs/heads/feature/document-intelligence-sandbox-20261015'
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - name: Generate dependency lock from validated manifest
+        run: bun install
+      - name: Commit only dependency lockfile on isolated feature branch
+        run: |
+          if git diff --quiet -- bun.lock; then
+            echo "Lockfile already aligned"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- bun.lock
+          git diff --cached --stat
+          git commit -m "chore: align bun.lock for PDF.js draft dependency"
+          git push origin HEAD:refs/heads/feature/document-intelligence-sandbox-20261015
