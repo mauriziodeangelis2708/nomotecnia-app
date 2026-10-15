@@ -51,15 +51,18 @@ SQL documentato in docs/staging-only-clients-returning-fix.sql.
 Ambiente staging-rls creato, con entrambi i segreti salvati solo nell'ambiente
 e regola che consente soltanto feature/document-intelligence-sandbox-20261015.
 Nessun segreto a livello repository e nessuna modifica a main/produzione.
-La variabile repository ENABLE_STAGING_RLS_TESTS è stata rimessa a false
-al termine del collaudo.
+La variabile repository ENABLE_STAGING_RLS_TESTS è stata impostata a true.
+Il tentativo di rimetterla a false ha richiesto una nuova verifica identità
+GitHub e non è stato completato. Per impedire nuove esecuzioni automatiche,
+il trigger push temporaneo è stato rimosso dal workflow al termine del test.
+Resta soltanto workflow_dispatch, con ramo ed environment vincolati.
 
 Il workflow non era registrato per avvio manuale, essendo assente da main.
 È stato avviato con un push limitato al file del workflow e al ramo sviluppo,
 sempre subordinato alla variabile di abilitazione. Nessun merge in main.
-Per un nuovo collaudo autorizzato: abilitare la variabile, modificare il file
-del workflow nel solo ramo sviluppo oppure rieseguire il run, quindi
-rimettere la variabile a false.
+Per un nuovo collaudo autorizzato: rieseguire il run esistente sul commit
+verificato oppure predisporre un nuovo avvio supervisionato sul solo ramo
+sviluppo. Il file corrente non si avvia su push.
 
 Superati login/ruoli, isolamento SELECT, divieti di modifica/cancellazione
 incrociata, cambio proprietario/cliente, autoattribuzione admin, scritture
