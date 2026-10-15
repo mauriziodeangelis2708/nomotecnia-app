@@ -36,16 +36,12 @@ function money(raw: string): number | null {
   if (!/^\d[\d.,]*$/.test(compact)) return null;
   if (!/^(?:\d{1,3}(?:\.\d{3})+|\d+)(?:,\d{1,2})?$/.test(compact)) return null;
   const n = Number(compact.replace(/\./g, "").replace(",", "."));
-  return Number.isSafeInteger(Math.round(n * 100)) && n >= 0 && n <= 1_000_000_000_000
-    ? n
-    : null;
+  return Number.isSafeInteger(Math.round(n * 100)) && n >= 0 && n <= 1_000_000_000_000 ? n : null;
 }
 
 function integer(raw: string): number | null {
   const n = Number(raw.trim());
-  return /^\d+$/.test(raw.trim()) && Number.isSafeInteger(n) && n >= 0 && n < 1_000_000
-    ? n
-    : null;
+  return /^\d+$/.test(raw.trim()) && Number.isSafeInteger(n) && n >= 0 && n < 1_000_000 ? n : null;
 }
 
 export function previewDocumentPages(
@@ -78,7 +74,10 @@ export function previewDocumentPages(
   ) {
     const found: DocumentProposal[] = [];
     for (const p of validPages) {
-      const lines = p.text.replace(/\r/g, "").split("\n").map((line) => line.trim());
+      const lines = p.text
+        .replace(/\r/g, "")
+        .split("\n")
+        .map((line) => line.trim());
       for (let i = 0; i < lines.length; i++) {
         const line = lines[i]!;
         const m = line.match(regex);
@@ -104,18 +103,35 @@ export function previewDocumentPages(
     capture("ragione_sociale", "Ragione sociale", /^denominazione\s*:\s*(.{2,120})$/i, (v) => v);
     capture("partita_iva", "Partita IVA", /^partita\s+iva\s*:\s*(\d{11})$/i, (v) => v);
     capture(
-      "ateco_codice", "Codice ATECO",
+      "ateco_codice",
+      "Codice ATECO",
       /^(?:codice\s+)?ateco(?:\s+prevalente)?\s*:\s*(\d{2}(?:[.]\d{1,2}){0,2})$/i,
       (v) => v,
     );
     capture("sede_legale_indirizzo", "Sede legale", /^sede\s+legale\s*:\s*(.{5,180})$/i, (v) => v);
   } else if (kind === "iva") {
-    capture("iva_ve50_2025", "VE50 volume d'affari 2025", /^ve50(?:\s+volume\s+d.affari)?\s*:\s*([\d., ]+)$/i, money);
-    capture("iva_vf25_2025", "VF25 imponibile acquisti 2025", /^vf25(?:\s+imponibile(?:\s+totale\s+acquisti)?)?\s*:\s*([\d., ]+)$/i, money);
+    capture(
+      "iva_ve50_2025",
+      "VE50 volume d'affari 2025",
+      /^ve50(?:\s+volume\s+d.affari)?\s*:\s*([\d., ]+)$/i,
+      money,
+    );
+    capture(
+      "iva_vf25_2025",
+      "VF25 imponibile acquisti 2025",
+      /^vf25(?:\s+imponibile(?:\s+totale\s+acquisti)?)?\s*:\s*([\d., ]+)$/i,
+      money,
+    );
   } else {
-    capture("addetti_inps_luglio_2026", "Forza aziendale luglio 2026", /^forza\s+aziendale\s*:\s*(\d+)$/i, integer);
+    capture(
+      "addetti_inps_luglio_2026",
+      "Forza aziendale luglio 2026",
+      /^forza\s+aziendale\s*:\s*(\d+)$/i,
+      integer,
+    );
   }
-  if (proposals.length === 0) warnings.push("Nessun campo univoco riconosciuto: compilazione manuale.");
+  if (proposals.length === 0)
+    warnings.push("Nessun campo univoco riconosciuto: compilazione manuale.");
   return { kind, proposals, warnings };
 }
 
@@ -126,7 +142,8 @@ export function previewSyntheticDocument(text: string, kind: DemoDocumentKind): 
 
 /** Completely fictitious identifiers and values; do not use customer documents in the lab. */
 export const SYNTHETIC_EXAMPLES: Record<DemoDocumentKind, string> = {
-  visura: "VISURA CAMERALE — DOCUMENTO FITTIZIO\nDenominazione: AZIENDA DEMO SRL\nPartita IVA: 00000000000\nATECO prevalente: 62.10.00\nSede legale: Via Esempio 1, Viterbo",
+  visura:
+    "VISURA CAMERALE — DOCUMENTO FITTIZIO\nDenominazione: AZIENDA DEMO SRL\nPartita IVA: 00000000000\nATECO prevalente: 62.10.00\nSede legale: Via Esempio 1, Viterbo",
   iva: "DICHIARAZIONE IVA 2026 — DOCUMENTO FITTIZIO\nPeriodo d'imposta 2025\nVE50: 500.000\nVF25: 100.000",
   inps: "ATTESTAZIONE DELLA DENUNCIA CONTRIBUTIVA — DOCUMENTO FITTIZIO\nLuglio 2026\nForza Aziendale: 8",
 };

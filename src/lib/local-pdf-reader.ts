@@ -54,12 +54,14 @@ export function pdfItemsToLines(items: readonly PdfTextItem[]): string[] {
 }
 
 function looksLikePdf(header: Uint8Array): boolean {
-  return header.length >= 5 &&
+  return (
+    header.length >= 5 &&
     header[0] === 0x25 &&
     header[1] === 0x50 &&
     header[2] === 0x44 &&
     header[3] === 0x46 &&
-    header[4] === 0x2d;
+    header[4] === 0x2d
+  );
 }
 
 /**
@@ -68,7 +70,8 @@ function looksLikePdf(header: Uint8Array): boolean {
  * The PDF worker is bundled as a first-party asset (?url), not a CDN.
  */
 export async function extractLocalPdfText(file: File): Promise<DocumentPage[]> {
-  if (typeof window === "undefined") throw new LocalPdfError("Funzione disponibile solo nel browser.");
+  if (typeof window === "undefined")
+    throw new LocalPdfError("Funzione disponibile solo nel browser.");
   if (file.size < 5 || file.size > MAX_PDF_BYTES) {
     throw new LocalPdfError("PDF non valido o superiore a 8 MB.");
   }
@@ -98,7 +101,10 @@ export async function extractLocalPdfText(file: File): Promise<DocumentPage[]> {
       const p = await pdf.getPage(n);
       const content = await p.getTextContent();
       const items = content.items
-        .filter((item): item is Extract<typeof item, { str: string }> => "str" in item && typeof item.str === "string")
+        .filter(
+          (item): item is Extract<typeof item, { str: string }> =>
+            "str" in item && typeof item.str === "string",
+        )
         .map((item) => ({
           str: item.str,
           transform: item.transform,
@@ -107,7 +113,9 @@ export async function extractLocalPdfText(file: File): Promise<DocumentPage[]> {
       const text = pdfItemsToLines(items).join("\n");
       textLength += text.length;
       if (textLength > MAX_PDF_TEXT) {
-        throw new LocalPdfError("PDF troppo esteso: massimo 240.000 caratteri; seleziona un estratto.");
+        throw new LocalPdfError(
+          "PDF troppo esteso: massimo 240.000 caratteri; seleziona un estratto.",
+        );
       }
       pages.push({ page: n, text });
       p.cleanup();

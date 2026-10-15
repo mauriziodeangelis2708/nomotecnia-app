@@ -9,7 +9,7 @@ import {
 import type { Answers } from "@/lib/engine";
 import { Button } from "@/components/ui/button";
 
-const PDF_LAB_ENABLED = import.meta.env['VITE_ENABLE_DOCUMENT_PDF_LAB'] === "true";
+const PDF_LAB_ENABLED = import.meta.env["VITE_ENABLE_DOCUMENT_PDF_LAB"] === "true";
 
 export function DocumentPrefillSandbox({
   answers,
@@ -29,13 +29,19 @@ export function DocumentPrefillSandbox({
   const generation = useRef(0);
   const fileInput = useRef<HTMLInputElement>(null);
 
-  useEffect(() => () => { generation.current++; }, []);
+  useEffect(
+    () => () => {
+      generation.current++;
+    },
+    [],
+  );
   const preview = useMemo(
     () => previewDocumentPages(pages ?? [{ page: 1, text }], kind),
     [kind, pages, text],
   );
   const eligible = preview.proposals.filter(
-    (candidate) => answers[candidate.field] === undefined ||
+    (candidate) =>
+      answers[candidate.field] === undefined ||
       answers[candidate.field] === null ||
       answers[candidate.field] === "",
   );
@@ -82,10 +88,13 @@ export function DocumentPrefillSandbox({
   function apply() {
     const approved = eligible.filter((item) => selected[item.field]);
     if (!approved.length) return;
-    if (!window.confirm(
-      "Confermi i valori selezionati? Verranno inseriti SOLO nei campi vuoti dell'assessment. " +
-      "La pratica resterà da salvare e nessun documento sarà marcato verificato.",
-    )) return;
+    if (
+      !window.confirm(
+        "Confermi i valori selezionati? Verranno inseriti SOLO nei campi vuoti dell'assessment. " +
+          "La pratica resterà da salvare e nessun documento sarà marcato verificato.",
+      )
+    )
+      return;
     onApply(approved);
     setSelected({});
   }
@@ -95,8 +104,8 @@ export function DocumentPrefillSandbox({
       <h2 className="font-semibold">Document Intelligence — laboratorio riservato</h2>
       <p className="mt-1 text-sm text-muted-foreground">
         Prototipo con controllo umano. Di base accetta solo esempi sintetici; non usa AI esterna,
-        non invia dati fuori dal browser e non memorizza PDF. Non incollare dati reali nel laboratorio.
-        Le proposte non attestano validità o autenticità dei documenti.
+        non invia dati fuori dal browser e non memorizza PDF. Non incollare dati reali nel
+        laboratorio. Le proposte non attestano validità o autenticità dei documenti.
       </p>
       <div className="mt-4 space-y-2">
         <label htmlFor="sandbox-kind" className="block text-sm font-medium">
@@ -124,7 +133,10 @@ export function DocumentPrefillSandbox({
                 onChange={(e) => setSyntheticOnly(e.target.checked)}
                 className="mt-0.5"
               />
-              <span>Confermo che userò esclusivamente PDF inventati per test, senza dati reali di persone o aziende.</span>
+              <span>
+                Confermo che userò esclusivamente PDF inventati per test, senza dati reali di
+                persone o aziende.
+              </span>
             </label>
             <input
               id="sandbox-file"
@@ -152,7 +164,10 @@ export function DocumentPrefillSandbox({
             <textarea
               id="sandbox-text"
               value={text}
-              onChange={(event) => { setText(event.target.value); setSelected({}); }}
+              onChange={(event) => {
+                setText(event.target.value);
+                setSelected({});
+              }}
               className="min-h-40 w-full rounded-md border bg-background p-3 font-mono text-xs"
               maxLength={20000}
               spellCheck={false}
@@ -161,22 +176,36 @@ export function DocumentPrefillSandbox({
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => { clearFile(); setText(SYNTHETIC_EXAMPLES[kind]); }}
+                onClick={() => {
+                  clearFile();
+                  setText(SYNTHETIC_EXAMPLES[kind]);
+                }}
               >
                 Ripristina esempio
               </Button>
               <Button
                 type="button"
                 variant="ghost"
-                onClick={() => { clearFile(); setText(""); }}
+                onClick={() => {
+                  clearFile();
+                  setText("");
+                }}
               >
                 Svuota testo
               </Button>
             </div>
           </>
         )}
-        {busy && <p role="status" className="text-sm">Lettura PDF locale in corso…</p>}
-        {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
+        {busy && (
+          <p role="status" className="text-sm">
+            Lettura PDF locale in corso…
+          </p>
+        )}
+        {error && (
+          <p role="alert" className="text-sm text-destructive">
+            {error}
+          </p>
+        )}
       </div>
       <div className="mt-4">
         <h3 className="mb-2 text-sm font-semibold">
@@ -199,30 +228,40 @@ export function DocumentPrefillSandbox({
                     className="mt-1"
                     disabled={occupied || busy}
                     checked={!!selected[candidate.field] && !occupied}
-                    onChange={(e) => setSelected((s) => ({ ...s, [candidate.field]: e.target.checked }))}
+                    onChange={(e) =>
+                      setSelected((s) => ({ ...s, [candidate.field]: e.target.checked }))
+                    }
                   />
-                  <span className="font-medium">{candidate.label}: {String(candidate.value)}</span>
+                  <span className="font-medium">
+                    {candidate.label}: {String(candidate.value)}
+                  </span>
                 </label>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  Campo {candidate.field} · pagina {candidate.sourcePage} · riga {candidate.sourceLine}
+                  Campo {candidate.field} · pagina {candidate.sourcePage} · riga{" "}
+                  {candidate.sourceLine}
                 </p>
                 <p className="mt-1 break-words text-xs text-muted-foreground">
                   Fonte locale: {candidate.sourceExcerpt}
                 </p>
                 {different && (
                   <p className="mt-1 text-xs text-destructive">
-                    Campo già valorizzato: confronto obbligatorio, nessuna sovrascrittura automatica.
+                    Campo già valorizzato: confronto obbligatorio, nessuna sovrascrittura
+                    automatica.
                   </p>
                 )}
                 {occupied && !different && (
-                  <p className="mt-1 text-xs text-muted-foreground">Valore già presente nell'assessment.</p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Valore già presente nell'assessment.
+                  </p>
                 )}
               </li>
             );
           })}
         </ul>
         {preview.warnings.map((warning, i) => (
-          <p key={i} role="status" className="mt-2 text-sm text-destructive">{warning}</p>
+          <p key={i} role="status" className="mt-2 text-sm text-destructive">
+            {warning}
+          </p>
         ))}
         <Button
           type="button"
@@ -233,8 +272,8 @@ export function DocumentPrefillSandbox({
           Conferma campi selezionati nella bozza
         </Button>
         <p className="mt-2 text-xs text-muted-foreground">
-          I dati restano da controllare sull'originale. Nessuna evidenza diventa “verificata”,
-          e nessuna modifica viene salvata senza usare il comando Salva della pratica.
+          I dati restano da controllare sull'originale. Nessuna evidenza diventa “verificata”, e
+          nessuna modifica viene salvata senza usare il comando Salva della pratica.
         </p>
       </div>
     </section>
