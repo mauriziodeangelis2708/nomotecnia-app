@@ -33,6 +33,11 @@ function Index() {
         <p className="text-sm uppercase tracking-[0.2em] text-sidebar-primary">
           Valutazioni per la tua impresa
         </p>
+        {import.meta.env["VITE_NOMOTECNIA_STAGING"] === "true" && (
+          <p className="mt-4 max-w-2xl rounded border border-amber-500 p-3 text-sm">
+            Ambiente di collaudo isolato. Solo dati sintetici; il portale clienti è disabilitato.
+          </p>
+        )}
         <h1 className="mt-4 max-w-3xl font-display text-4xl font-medium leading-tight md:text-6xl">
           Conosci la tua impresa. Valuta le possibilità.
         </h1>
@@ -46,11 +51,13 @@ function Index() {
               Accesso riservato soci
             </Link>
           </Button>
-          <Button asChild size="lg" variant="secondary">
-            <Link to="/auth" search={{ access: "client" }}>
-              Accesso clienti
-            </Link>
-          </Button>
+          {import.meta.env["VITE_NOMOTECNIA_STAGING"] !== "true" && (
+            <Button asChild size="lg" variant="secondary">
+              <Link to="/auth" search={{ access: "client" }}>
+                Accesso clienti
+              </Link>
+            </Button>
+          )}
           <span className="flex items-center gap-2 text-sm opacity-70">
             <ShieldCheck className="h-4 w-4" /> Area soci su autorizzazione
           </span>

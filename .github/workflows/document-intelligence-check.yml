@@ -3,6 +3,13 @@ on:
   pull_request:
     paths:
       - "src/lib/document-prefill-demo*"
+      - "src/lib/staging-gate*"
+      - "src/server.ts"
+      - "src/routes/auth.tsx"
+      - "src/routes/index.tsx"
+      - "scripts/prepare-full-staging.mjs"
+      - "scripts/verify-staging-rls.mjs"
+      - ".github/workflows/deploy-full-staging.yml"
       - "staging/**"
       - "wrangler.pdf-staging.jsonc"
       - "src/lib/local-pdf-reader*"
@@ -54,6 +61,17 @@ jobs:
             echo "::error::Production identifiers found in PDF staging bundle"
             exit 1
           fi
+      - name: Test staging gate (fail-closed access)
+        run: bunx vitest run src/lib/staging-gate.test.ts
+      - name: Build real app against synthetic staging configuration
+        env:
+          VITE_NOMOTECNIA_STAGING: "true"
+          VITE_ENABLE_DOCUMENT_PDF_LAB: "true"
+          VITE_SUPABASE_URL: "https://vknvadzsjuixcuwegxto.supabase.co"
+          VITE_SUPABASE_PUBLISHABLE_KEY: "sb_publishable_CI_BUILD_PLACEHOLDER_ONLY"
+        run: |
+          bun run build
+          node scripts/prepare-full-staging.mjs
       - name: Frozen lockfile validation
         run: |
           git diff --exit-code -- bun.lock
