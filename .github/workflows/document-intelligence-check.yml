@@ -28,6 +28,8 @@ jobs:
         run: bun install
       - name: Typecheck
         run: bunx tsc --noEmit
+      - name: Lint new document-reading modules
+        run: bunx eslint src/lib/document-prefill-demo.ts src/lib/document-prefill-demo.test.ts src/lib/local-pdf-reader.ts src/lib/local-pdf-reader.test.ts src/components/DocumentPrefillSandbox.tsx
       - name: Unit tests
         run: bun run test
       - uses: actions/setup-node@v4
@@ -37,11 +39,10 @@ jobs:
         run: node scripts/verify-synthetic-pdf.mjs
       - name: Production build
         run: bun run build
-      - name: Lockfile alignment warning
+      - name: Frozen lockfile validation
         run: |
-          if ! git diff --quiet -- bun.lock; then
-            echo "::warning::bun.lock changed after dependency install. Regenerate and commit lockfile before merge."
-          fi
+          git diff --exit-code -- bun.lock
+          bun install --frozen-lockfile
 
   align-draft-lockfile:
     needs: check
