@@ -547,7 +547,25 @@ function AssessmentPage() {
         </TabsContent>
 
         <TabsContent value="documenti" className="mt-4">
-          {me.data?.isAdmin && <DocumentPrefillSandbox />}
+          {me.data?.isAdmin && (
+            <DocumentPrefillSandbox
+              answers={answers}
+              onApply={(proposals) => {
+                setAnswers((previous) => {
+                  const updated: Answers = { ...previous };
+                  for (const proposal of proposals) {
+                    if (
+                      updated[proposal.field] === undefined ||
+                      updated[proposal.field] === null ||
+                      updated[proposal.field] === ""
+                    ) updated[proposal.field] = proposal.value;
+                  }
+                  return updated;
+                });
+                setDirty(true);
+              }}
+            />
+          )}
           <div className="rounded-lg border bg-card">
             {CHECKLIST.map((d) => {
               const c = checklist[d.key] ?? { status: "mancante" };
