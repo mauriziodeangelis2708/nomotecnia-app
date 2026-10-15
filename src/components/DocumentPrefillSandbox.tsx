@@ -9,7 +9,7 @@ import {
 import type { Answers } from "@/lib/engine";
 import { Button } from "@/components/ui/button";
 
-const PDF_LAB_ENABLED = import.meta.env.VITE_ENABLE_DOCUMENT_PDF_LAB === "true";
+const PDF_LAB_ENABLED = import.meta.env['VITE_ENABLE_DOCUMENT_PDF_LAB'] === "true";
 
 export function DocumentPrefillSandbox({
   answers,
