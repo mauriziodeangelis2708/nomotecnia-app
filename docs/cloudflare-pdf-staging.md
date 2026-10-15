@@ -62,3 +62,37 @@ o URL di produzione può essere usato come fallback.
 **Stato iniziale:** codice e controllo CI preparati sul ramo di sviluppo.
 Non indicare il Worker come online finché una pubblicazione effettiva e test HTTP
 non sono documentati.
+
+## Deploy da GitHub senza esporre credenziali
+
+Il workflow GitHub `.github/workflows/deploy-pdf-staging.yml` è **opt-in**.
+Quando il repository non contiene la variabile `ENABLE_PDF_STAGING_DEPLOY=true`,
+il deploy è disabilitato e **non può modificare Cloudflare**. Il workflow usa
+esclusivamente il ramo `feature/document-intelligence-sandbox-20261015`
+e il file `wrangler.pdf-staging.jsonc`.
+
+Per un deploy autorizzato:
+- Creare in GitHub Actions un Environment denominato `pdf-staging`,
+  preferibilmente con revisione richiesta prima del deployment.
+- Impostare **solo in quell'Environment** i secret
+  `CF_STAGING_ACCOUNT_ID`, `CF_STAGING_API_TOKEN` e
+  `PDF_STAGING_PASSWORD` (minimo 18 caratteri).
+- Usare un API token Cloudflare limitato all'account corretto e alle
+  autorizzazioni minime per creare/gestire **nomotecnia-pdf-staging**.
+  Dopo la prima creazione restringere ulteriormente lo scope al singolo Worker,
+  se supportato, per evitare modifiche al Worker operativo.
+- Impostare **in Repository variables** `ENABLE_PDF_STAGING_DEPLOY=true`.
+  Un successivo commit sul ramo laboratorio attiverà il workflow; eventuali
+  approvazioni dell'Environment saranno comunque rispettate.
+- Il primo deploy carica una versione che risponde **503** finché il secret
+  non esiste. La fase successiva imposta il password secret su Cloudflare
+  e il Worker risponderà 401 senza autenticazione.
+- Prima di distribuire i PDF di prova verificare che non ci siano binding
+  Supabase, KV, D1, R2 o route del Worker di produzione nella nuova configurazione.
+
+**Non** trasferire Cloudflare API token e password nella conversazione o
+in un file del repository. Inserirli nei Secret di GitHub.
+
+Fonti ufficiali:
+https://developers.cloudflare.com/workers/ci-cd/external-cicd/github-actions/
+https://developers.cloudflare.com/workers/authorization/workers/
