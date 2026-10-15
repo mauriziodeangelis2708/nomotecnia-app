@@ -277,8 +277,8 @@ export function DocumentPrefillSandbox({
         </p>
         <p className="mt-2 text-xs text-muted-foreground">
           Per stimare il punteggio Lazio occorre inoltre compilare e verificare il regime fiscale,
-          le eventuali vendite OSS e integrazioni editoriali, le certificazioni e la checklist.
-          La lettura del PDF non rende automaticamente completa o ammissibile la domanda.
+          le eventuali vendite OSS e integrazioni editoriali, le certificazioni e la checklist. La
+          lettura del PDF non rende automaticamente completa o ammissibile la domanda.
         </p>
       </div>
     </section>

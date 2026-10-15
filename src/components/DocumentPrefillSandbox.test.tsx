@@ -18,9 +18,7 @@ describe("Document Intelligence: conferma operatore", () => {
     expect(onApply).not.toHaveBeenCalled();
     expect(prompt).not.toHaveBeenCalled();
 
-    fireEvent.click(
-      screen.getByRole("checkbox", { name: "Conferma VE50 volume d'affari 2025" }),
-    );
+    fireEvent.click(screen.getByRole("checkbox", { name: "Conferma VE50 volume d'affari 2025" }));
     expect(apply).toBeEnabled();
     fireEvent.click(apply);
     expect(prompt).toHaveBeenCalledTimes(1);
@@ -38,12 +36,8 @@ describe("Document Intelligence: conferma operatore", () => {
     fireEvent.change(screen.getByLabelText("Tipologia documento"), {
       target: { value: "inps" },
     });
-    fireEvent.click(
-      screen.getByRole("checkbox", { name: "Conferma Forza aziendale luglio 2026" }),
-    );
-    fireEvent.click(
-      screen.getByRole("button", { name: "Conferma campi selezionati nella bozza" }),
-    );
+    fireEvent.click(screen.getByRole("checkbox", { name: "Conferma Forza aziendale luglio 2026" }));
+    fireEvent.click(screen.getByRole("button", { name: "Conferma campi selezionati nella bozza" }));
     expect(onApply).not.toHaveBeenCalled();
   });
 
@@ -73,9 +67,7 @@ describe("Document Intelligence: conferma operatore", () => {
     fireEvent.change(screen.getByLabelText("Tipologia documento"), {
       target: { value: "iva" },
     });
-    fireEvent.click(
-      screen.getByRole("checkbox", { name: "Conferma VE50 volume d'affari 2025" }),
-    );
+    fireEvent.click(screen.getByRole("checkbox", { name: "Conferma VE50 volume d'affari 2025" }));
     expect(apply).toBeEnabled();
 
     fireEvent.change(screen.getByLabelText("Testo di prova (solo nel browser)"), {
