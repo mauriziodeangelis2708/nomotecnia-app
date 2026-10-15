@@ -547,7 +547,7 @@ function AssessmentPage() {
         </TabsContent>
 
         <TabsContent value="documenti" className="mt-4">
-          {me.data?.isAdmin && (
+          {me.data?.isAdmin && import.meta.env["VITE_ENABLE_DOCUMENT_PDF_LAB"] === "true" && (
             <DocumentPrefillSandbox
               answers={answers}
               onApply={(proposals) => {
