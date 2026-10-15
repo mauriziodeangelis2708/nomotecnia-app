@@ -1,0 +1,38 @@
+name: Document intelligence draft checks
+on:
+  pull_request:
+    paths:
+      - "src/lib/document-prefill-demo*"
+      - "src/lib/local-pdf-reader*"
+      - "src/components/DocumentPrefillSandbox.tsx"
+      - "src/routes/_authenticated/assessment.$id.tsx"
+      - "package.json"
+      - "bun.lock"
+      - ".github/workflows/document-intelligence-check.yml"
+  push:
+    branches:
+      - feature/document-intelligence-sandbox-20261015
+permissions:
+  contents: read
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - name: Install packages (draft dependency validation)
+        run: bun install
+      - name: Typecheck
+        run: bunx tsc --noEmit
+      - name: Unit tests
+        run: bun run test
+      - name: Production build
+        run: bun run build
+      - name: Lockfile alignment warning
+        run: |
+          if ! git diff --quiet -- bun.lock; then
+            echo "::warning::bun.lock changed after dependency install. Regenerate and commit lockfile before merge."
+          fi
