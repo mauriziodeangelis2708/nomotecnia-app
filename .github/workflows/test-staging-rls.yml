@@ -1,6 +1,13 @@
 name: Test staging RLS with disposable Auth users
 on:
   workflow_dispatch:
+  # Bootstrap on the development branch without registering a workflow on main.
+  # Disable ENABLE_STAGING_RLS_TESTS after the supervised test run.
+  push:
+    branches:
+      - feature/document-intelligence-sandbox-20261015
+    paths:
+      - .github/workflows/test-staging-rls.yml
 
 permissions:
   contents: read
