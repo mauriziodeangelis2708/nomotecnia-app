@@ -1,3 +1,4 @@
+import { evaluateDossier, type DossierResult } from "./lazio-dossier";
 // Valutazione preliminare pura: nessun esito equivale a concessione Lazio Innova.
 import {
   BANDO_VERSION,
@@ -37,6 +38,7 @@ export interface Intervention extends Check {
 export type Checklist = Record<string, { status: string; note?: string }>;
 export interface Result {
   version: string;
+  dossier: DossierResult;
   projectStatus: Status;
   projectReasons: string[];
   size: Size | null;
@@ -132,6 +134,38 @@ export function classOf(ula: number, fatt: number, attivo: number): Size {
   return "grande";
 }
 export function classifySize(a: Answers): { size: Size | null; status: Status; reasons: string[] } {
+  if (!["si", "no"].includes(String(a["operazioni_straordinarie"])))
+    return {
+      size: null,
+      status: "ignoto",
+      reasons: ["Operazioni straordinarie: risposta mancante o incerta."],
+    };
+  if (!["si", "no"].includes(String(a["partecipazione_pubblica_rilevante"])))
+    return {
+      size: null,
+      status: "ignoto",
+      reasons: [
+        "Verificare partecipazione/controllo pubblico rilevante ed eccezioni PMI (MOD pp.29–30).",
+      ],
+    };
+  if (a["partecipazione_pubblica_rilevante"] === "si") {
+    if (a["eccezione_pubblica"] === "no")
+      return {
+        size: null,
+        status: "non_ammissibile",
+        reasons: ["Partecipazione pubblica rilevante senza eccezione PMI."],
+      };
+    if (
+      a["eccezione_pubblica"] !== "si" ||
+      !text(a["eccezione_pubblica_motivo"]) ||
+      a["eccezione_pubblica_verificata"] !== "si"
+    )
+      return {
+        size: null,
+        status: "ignoto",
+        reasons: ["Eccezione al controllo pubblico da documentare e verificare."],
+      };
+  }
   const assoc = a["ha_associate_collegate"];
   if (assoc !== "si" && assoc !== "no")
     return {
@@ -293,7 +327,20 @@ export function evaluate(
     ];
   }
   gates.push(registro);
-  add("durc", "Regolarità contributiva alla domanda e al saldo", a["durc_regolare"]);
+  add("durc", "Regolarità contributiva alla data della domanda", a["durc_regolare"]);
+  if (yes(a["progetto_realizzato"])) {
+    add(
+      "documento_expost",
+      "Relazione/diagnosi ex post e firme digitali verificate",
+      docOK(checklist, "modello_expost") && yes(a["firme_expost_verificate"]) ? "si" : undefined,
+    );
+    if (size === "piccola" || size === "media")
+      add(
+        "documento_exante",
+        "Diagnosi ex ante verificata",
+        docOK(checklist, "modello1_exante") ? "si" : undefined,
+      );
+  }
   // Il semplice stato di difficoltà UE NON è un'autonoma causa di esclusione nell'Appendice 2.
   const procedure = triCheck(
     "procedure",
@@ -427,10 +474,7 @@ export function evaluate(
       status:
         concession === null || deadline === null || completed === null || balance === null
           ? "ignoto"
-          : completed > deadline ||
-              balance < completed ||
-              completed < concession ||
-              completed > deadline
+          : completed > deadline || balance < completed || completed > deadline
             ? "non_ammissibile"
             : balance > deadline
               ? "ignoto"
@@ -473,17 +517,18 @@ export function evaluate(
         submitDay === null || (size !== "micro" && diagnosis === null)
           ? null
           : Math.max(submitDay, diagnosis ?? submitDay);
+      const completed = isoDay(a["data_conclusione"]);
       checks.push({
         key: `${key}_date`,
         label: "Avvio effettivo dopo domanda/diagnosi",
         status:
           started === null || reference === null
             ? "ignoto"
-            : started <= reference
+            : started <= reference || (completed !== null && started > completed)
               ? "non_ammissibile"
               : "confermato",
         reasons: [
-          "Indicare la prima adozione/acquisto dei componenti. La diagnosi può precedere la domanda; tutti gli altri interventi devono essere successivi alla data più recente.",
+          "Indicare la prima adozione/acquisto dei componenti. La diagnosi può precedere la domanda; tutti gli altri interventi devono essere successivi alla data più recente e non successivi alla conclusione.",
         ],
         ruleKeys: [],
       });
@@ -684,6 +729,29 @@ export function evaluate(
           reasons: a["commerce_tipo"] === "saas" ? ["Semplice SaaS escluso."] : [],
           ruleKeys: [],
         },
+        ...(yes(a["commerce_sostituzione"])
+          ? [
+              ((): Check => {
+                const previous = isoDay(a["commerce_precedente_data"]);
+                const submitted = timestamp(a["domanda_timestamp"]);
+                const limit = submitted === null ? null : calendarMonths(romeDay(submitted), -36);
+                return {
+                  key: "commerce_eta_precedente",
+                  label: "Soluzione sostituita realizzata oltre tre anni prima della domanda",
+                  status:
+                    previous === null || limit === null
+                      ? "ignoto"
+                      : previous < limit
+                        ? "confermato"
+                        : "non_ammissibile",
+                  reasons: [
+                    "La sostituzione integrale deve riguardare una soluzione realizzata oltre tre anni prima della domanda.",
+                  ],
+                  ruleKeys: [],
+                };
+              })(),
+            ]
+          : []),
         duration("commerce_durata_mesi"),
         ...TECH_CHECKS["commerce"]!.map(([k, l]) => check(k, l)),
         ...common("commerce"),
@@ -785,8 +853,18 @@ export function evaluate(
     iv.some((i) => i.status !== "non_ammissibile" && i.theoretical === null) ||
     (yes(a["interesse_cloud"]) &&
       !selected(a["cloud_sistemi"], ["application", "database", "web", "backup"]).length);
+  const granted = nonnegative(a["contributo_concesso"]);
   const capIt = (n: number) =>
-    cap === null || residual === null ? null : money(Math.min(n, cap, residual));
+    cap === null || residual === null
+      ? null
+      : money(
+          Math.min(
+            n,
+            cap,
+            residual,
+            yes(a["progetto_realizzato"]) && granted !== null ? granted : Infinity,
+          ),
+        );
   const confirmedCapped = capIt(confirmed),
     potentialCapped = unknownAmount ? null : capIt(potential);
   const meetsMinimumConfirmed =
@@ -841,6 +919,13 @@ export function evaluate(
   const score = calculateScore(a, size, sz.status, iv, checklist);
   return {
     version: BANDO_VERSION,
+    dossier: evaluateDossier(a, checklist, {
+      size,
+      score,
+      projectStatus,
+      interventions: iv,
+      potentialCapped,
+    }),
     projectStatus,
     projectReasons,
     size,
@@ -923,7 +1008,7 @@ function calculateScore(
     c3,
     bonus("cert_genere_valida"),
     bonus("impresa_giovanile"),
-    bonus("cert_ambiente_valida"),
+    yes(a["cert_ambiente_srg"]) ? null : bonus("cert_ambiente_valida"),
   ];
   const support = [...criteria];
   if (!docOK(cl, "inps_attestazione_luglio_2026")) {
@@ -936,13 +1021,20 @@ function calculateScore(
     (a["integrazione_editoria"] === "si" && !docOK(cl, "attestazione_editoria"))
   )
     support[0] = 0;
+  if (!docOK(cl, "impresa_giovanile") || !docOK(cl, "visura") || !text(a["giovani_assetto"]))
+    support[4] = 0;
   if (!docOK(cl, "cert_genere")) support[3] = 0;
   if (!docOK(cl, "cert_ambiente")) support[5] = 0;
   const sum = (xs: (number | null)[]) =>
     xs.some((x) => x === null) ? null : money(xs.reduce<number>((n, x) => n + (x ?? 0), 0));
   return {
-    status: "formula_validata",
-    note: "Art. 6: stima 0–100, distinta dai punti sostenuti dalla checklist verificata. Documenti di IVA/INPS/certificazioni assenti annullano i relativi criteri senza integrazione. C3 non determinato se le tipologie non sono verificate. Impresa Giovanile: persone che non hanno compiuto 36 anni alla domanda, con maggioranze previste nell'Appendice 1.",
+    status:
+      (employees === 0 && !docOK(cl, "inps_attestazione_luglio_2026")) ||
+      (a["vendite_oss"] === "si" && !docOK(cl, "iva_oss_2025")) ||
+      (a["integrazione_editoria"] === "si" && !docOK(cl, "attestazione_editoria"))
+        ? "da_verificare"
+        : "formula_validata",
+    note: "Art. 6: stima 0–100, distinta dai punti sostenuti dalla checklist verificata. Documenti di IVA/INPS/certificazioni assenti annullano i relativi criteri senza integrazione. C3 non determinato se le tipologie non sono verificate. I punti sostenuti sono una stima prudenziale, non un punteggio definitivo; per OSS/editoria non documentata e zero dipendenti verificare il trattamento con Lazio Innova. Bonus giovani sostenuto solo con assetto descritto, visura e checklist verificati. Impresa Giovanile: persone che non hanno compiuto 36 anni alla domanda, con maggioranze previste nell'Appendice 1.",
     inputs: { numerator, employees, types: count },
     criteria: criteria.map((x) => (x === null ? null : money(x))),
     total: sum(criteria),

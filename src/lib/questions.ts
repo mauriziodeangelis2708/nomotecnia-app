@@ -1,3 +1,4 @@
+import { DOSSIER_STEPS, geCoConsistency } from "./lazio-dossier";
 import {
   GENERAL_CHECKS,
   TECH_CHECKS,
@@ -228,7 +229,8 @@ export const STEPS: Step[] = [
     title: "Diagnosi digitale",
     info: (a) => {
       const s = sizeOf(a);
-      if (s === "micro") return "Micro impresa: la diagnosi digitale non è ammissibile.";
+      if (s === "micro")
+        return "Micro impresa: il contributo per la diagnosi non è ammesso; una diagnosi privata può sostituire la relazione Modello 2.";
       if (s === "piccola" || s === "media")
         return "Piccola/media impresa: la diagnosi digitale è obbligatoria.";
       return "Dimensione non ancora determinata: completare la sezione Dimensione PMI.";
@@ -999,7 +1001,7 @@ STEPS.push({
         label:
           "Gli importi sono stati confrontati con la tabella delle somme forfettarie ufficiale per dimensione e intervento?",
         type: "tri",
-        help: "NomotecnIA non calcola né certifica le somme forfettarie. Ogni riga nel portale deve riportare la descrizione “Voucher Digitalizzazione PMI”.",
+        help: "NomotecnIA calcola una stima e confronta le voci con la tabella ufficiale; non certifica il contributo. Ogni riga nel portale deve riportare la descrizione “Voucher Digitalizzazione PMI”.",
       },
     ];
   },
@@ -1036,7 +1038,7 @@ export function getGeCoWebFormMissing(a: Answers): string[] {
   if (a["gecoweb_importi_verificati"] !== "si") {
     missing.push("Confronto delle voci di costo con la tabella forfettaria ufficiale");
   }
-  return [...new Set(missing)];
+  return [...new Set([...missing, ...geCoConsistency(a, { size: classifySize(a).size })])];
 }
 
 extend("procedura", [
@@ -1121,3 +1123,6 @@ extend("procedura", [
     is("domanda_inviata", "si"),
   ),
 ]);
+
+STEPS.splice(3, 0, DOSSIER_STEPS[0]!);
+STEPS.push(...DOSSIER_STEPS.slice(1));

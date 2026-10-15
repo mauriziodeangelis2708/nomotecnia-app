@@ -1,6 +1,7 @@
 import type { RuleMap } from "./engine";
 
-export const BANDO_VERSION = "Lazio Voucher PMI 2026 · G12616/18-09-2026 · verificato 09-10-2026";
+export const BANDO_VERSION =
+  "Lazio Voucher PMI 2026 · G12616/18-09-2026 · audit documentale 14-10-2026";
 export const BANDO_URL =
   "https://www.lazioinnova.it/app/uploads/2026/09/Avviso-Pubblico-Voucher-digitalizzazione-PMI-2026.pdf";
 export const NUMERIC_RULES: Record<string, number> = {

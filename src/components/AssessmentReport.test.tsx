@@ -56,6 +56,27 @@ describe("Report della singola valutazione", () => {
     expect(screen.getByText("Descrizione completa")).toBeInTheDocument();
     expect(screen.getAllByText("Non compilato").length).toBeGreaterThan(0);
   });
+  it("include nel report Lazio fascicolo, discrepanze ufficiali e risposte dei modelli", () => {
+    render(
+      <AssessmentReport
+        assessment={{
+          ...base,
+          answers: {
+            modello_metodo: "KPI e inventario verificati",
+            progetto_realizzato: "si",
+            expost_giudizio: "Confronto finale con evidenze",
+          },
+        }}
+        rules={OFFICIAL_RULES}
+      />,
+    );
+    expect(screen.getByText("Completezza della domanda")).toBeInTheDocument();
+    expect(screen.getAllByText("Atto di impegno").length).toBeGreaterThan(0);
+    expect(screen.getByText("Prontezza per il saldo")).toBeInTheDocument();
+    expect(screen.getByText("KPI e inventario verificati")).toBeInTheDocument();
+    expect(screen.getByText("Confronto finale con evidenze")).toBeInTheDocument();
+    expect(screen.getByText(/SRG 880088:24 è citata/)).toBeInTheDocument();
+  });
   it("report Iper incompleto non usa mai il motore Lazio e non inventa importi", () => {
     render(
       <AssessmentReport

@@ -14,6 +14,10 @@ import {
 import { OFFICIAL_RULES, GENERAL_CHECKS, TECH_CHECKS, COMMON_TECH_CHECKS } from "./bando";
 const docs: Checklist = Object.fromEntries(
   [
+    "visura",
+    "impresa_giovanile",
+    "modello_expost",
+    "modello1_exante",
     "polizza_o_modello3",
     "modello2_exante",
     "precedenti_voucher",
@@ -31,6 +35,8 @@ const micro: Answers = {
   conflitti_interesse: "no",
   ha_associate_collegate: "no",
   operazioni_straordinarie: "no",
+  partecipazione_pubblica_rilevante: "no",
+  giovani_assetto: "Assetto societario e date verificati",
   ula_2024: 5,
   ula_2025: 5,
   fatturato_2024: 500000,
@@ -457,6 +463,7 @@ describe("Punteggio e termini", () => {
 describe("Date effettive e confronto con fuso italiano", () => {
   const realized = {
     progetto_realizzato: "si",
+    firme_expost_verificate: "si",
     domanda_timestamp: "2026-10-09T13:00:00+02:00",
     data_concessione: "2026-11-15",
     data_conclusione: "2027-05-15",

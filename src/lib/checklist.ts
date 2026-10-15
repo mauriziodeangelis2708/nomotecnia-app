@@ -1,4 +1,14 @@
 export const CHECKLIST = [
+  {
+    key: "dichiarazione_zero_dipendenti",
+    label: "Zero dipendenti: dichiarazione semplice richiesta da GeCoWEB",
+  },
+  { key: "qualifiche_esperti", label: "Qualifiche, indipendenza e firme dei professionisti" },
+  { key: "atto_impegno", label: "Atto di impegno firmato, ricevuta e perfezionamento" },
+  { key: "contratti_saldo", label: "Contratti validi, componenti e pagamenti dovuti al saldo" },
+  { key: "cup_fatture", label: "CUP su fatture / riconducibilità e integrazioni" },
+  { key: "saldo_pec", label: "Richiesta R firmata e ricevuta PEC di invio saldo" },
+  { key: "trasparenza", label: "Poster A3, sito, loghi e pubblicità del progetto" },
   { key: "visura", label: "Visura: sede operativa Lazio, attività e assetto societario" },
   { key: "bilancio_2025", label: "Bilancio / dichiarazione 2025" },
   {

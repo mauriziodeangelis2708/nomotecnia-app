@@ -28,12 +28,13 @@ export function BandoGuide() {
       </p>
       <p>
         Art. 7: Atto di Impegno reso disponibile entro 5 giorni dalla concessione. Restituzione
-        firmata entro 15 giorni dalla PEC; 40 per piccole/medie con diagnosi ex ante. Solo su invito
-        si applicano gli ulteriori 10 giorni. Diagnosi non oltre 3 mesi prima della domanda e prima
-        degli altri interventi. Conclusione e richiesta saldo completa entro 6 mesi dalla
-        pubblicazione della concessione sul BUR. Invito a regolarizzare la richiesta: ulteriori 30
-        giorni, senza proroga automatica. Erogazione in un’unica soluzione a saldo, con modello 1/2
-        ex post e modello 4 ove necessario.
+        firmata: l’Avviso indica 15 giorni dalla PEC, la modulistica 10 per le micro; verificare il
+        termine nella comunicazione dell’ente. Per piccole/medie: 40 giorni con diagnosi ex ante.
+        Solo su invito si applicano gli ulteriori 10 giorni. Diagnosi non oltre 3 mesi prima della
+        domanda e prima degli altri interventi. Conclusione e richiesta saldo completa entro 6 mesi
+        dalla pubblicazione della concessione sul BUR. Invito a regolarizzare la richiesta:
+        ulteriori 30 giorni, senza proroga automatica. Erogazione in un’unica soluzione a saldo, con
+        modello 1/2 ex post e modello 4 ove necessario.
       </p>
       <p>
         Artt. 8–10: variazioni non aumentano contributo o componenti concessi. Difformità,

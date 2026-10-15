@@ -10,7 +10,7 @@ export function ResultView({ r, rules }: { r: Result; rules: RuleMap; compact?: 
     <div className="space-y-6">
       <div className="rounded-lg border bg-card p-4 text-sm space-y-2">
         <div>
-          Progetto complessivo: <StatusBadge status={r.projectStatus} />
+          Compatibilità preliminare: <StatusBadge status={r.projectStatus} />
         </div>
         {r.projectReasons.map((reason) => (
           <p key={reason}>{reason}</p>
@@ -123,6 +123,35 @@ export function ResultView({ r, rules }: { r: Result; rules: RuleMap; compact?: 
         ))}
       </Section>
 
+      {r.dossier && (
+        <section className="space-y-4" aria-label="Verifiche della pratica">
+          {r.dossier.stages.map((stage) => (
+            <div key={stage.label} className="rounded-lg border bg-card p-4 break-words">
+              <h3 className="font-semibold">{stage.label}</h3>
+              <p className="mt-1 text-sm">
+                {stage.ready
+                  ? "Controlli previsti completati sui dati dichiarati; resta la verifica dell’ente."
+                  : `Da completare o verificare: ${stage.issues.length} punti`}
+              </p>
+              {stage.issues.length > 0 && (
+                <ul className="mt-2 list-disc space-y-1 pl-5 text-sm">
+                  {stage.issues.map((issue) => (
+                    <li key={issue}>{issue}</li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          ))}
+          <div className="rounded-lg border border-warn/30 bg-warn-soft p-4">
+            <h3 className="font-semibold">Discordanze dei documenti ufficiali</h3>
+            <ul className="mt-2 list-disc space-y-2 pl-5 text-sm">
+              {r.dossier.discrepancies.map((item) => (
+                <li key={item}>{item}</li>
+              ))}
+            </ul>
+          </div>
+        </section>
+      )}
       <BandoGuide />
       {r.warnings.length > 0 && (
         <ul className="list-disc space-y-1 rounded-lg border border-warn/30 bg-warn-soft p-4 pl-8 text-sm">
