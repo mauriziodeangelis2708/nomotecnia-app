@@ -75,3 +75,18 @@ Questo piano è una checklist tecnica/organizzativa, non un parere legale e non 
 - L'associazione del documento alla Partita IVA della pratica è ricontrollata prima di modificare la bozza. Mancanza del dato richiede conferma manuale, mentre incongruenze esplicite bloccano.
 - L'importazione di VE50/VF25 è impedita quando il regime fiscale della pratica è esplicitamente forfettario.
 - Nessuno di questi controlli sostituisce il confronto con i documenti originali o un controllo normativo; non rendono i documenti verificati e non abilitano l'uso di dati reali nella versione di prova.
+
+## Corpus sintetico basato su modelli pubblici (solo dati inventati)
+
+Il 15 ottobre 2026 sono stati preparati sette PDF di collaudo chiaramente marcati come FACSIMILE: visura camerale (2 pagine), modello IVA 2026 (2 pagine, righe VE50 e VF25 con imponibile e imposta in due colonne), attestazione INPS luglio 2026 (1 pagina), visura con P.IVA discordante, IVA con periodo 2024, INPS con doppia forza aziendale e PDF scansito privo di testo. Non sono documenti fiscali veri e non contengono informazioni riconducibili a clienti.
+
+Fonti web usate **solo per l'organizzazione dei campi**, non per estrarre dati di aziende o persone reali:
+
+- Registro Imprese - informazioni delle visure: https://www.registroimprese.it/visura-camerale-ordinaria-storica-e-certificato
+- Modello IVA/2026, periodo d'imposta 2025 - esempio di quadro VE e VF: https://www.informazionefiscale.it/IMG/pdf/dichiarazione_iva_2026.pdf (copia pubblica del modello approvato Agenzia delle Entrate)
+- Istruzioni IVA/2026, VF25 **colonna 1 imponibile**, VF25 colonna 2 imposta: https://www.informazionefiscale.it/IMG/pdf/istruzioni_modello_iva_2026_agenzia_delle_entrate.pdf
+- INPS, guida all'esposizione della forza aziendale: https://www.inps.it/content/dam/inps-site/it/scorporati/circolari-e-messaggi/2003/07/Circolare_1580/Allegati/705_Circolare-numero-137-del-28-7-2003_Allegato-n-1.pdf
+
+**Condizione importante:** il parser estrae VF25 colonna 1 da una riga a due importi solo se trova anche l'intestazione di colonna «IMPONIBILE IMPOSTA». Se manca, il campo resta da compilare manualmente. La correttezza legale del singolo documento non viene attestata automaticamente.
+
+I PDF generati costituiscono un pacchetto di test a parte e non sono documenti reali caricati in produzione. Una verifica in browser reale con PDF sintetici resta necessaria prima del rilascio.

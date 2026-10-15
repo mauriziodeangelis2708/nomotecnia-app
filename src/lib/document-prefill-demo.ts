@@ -26,7 +26,10 @@ export interface DocumentPreview {
 export const DOCUMENT_TEXT_LIMIT = 240000;
 const DOCUMENT_MARKERS: Record<DemoDocumentKind, RegExp[]> = {
   visura: [/visura\s+camerale|visura\s+ordinaria/i],
-  iva: [/dichiarazione\s+iva\s+2026/i, /(?:periodo|anno)\s+(?:d.imposta\s+)?2025/i],
+  iva: [
+    /(?:dichiarazione\s+iva\s+2026|mod\.?\s+iva\s+2026)/i,
+    /(?:periodo|anno)\s+(?:d.imposta\s*:?\s*)?2025\b/i,
+  ],
   inps: [/attestazione\s+della\s+denuncia\s+contributiva/i, /luglio\s+2026/i],
 };
 
@@ -62,7 +65,7 @@ export function previewDocumentPages(
   // Fail closed on contradictory fiscal or INPS periods within one uploaded file.
   // These documents require human examination before any imported value is trusted.
   if (
-    (kind === "iva" && /(?:periodo|anno)\s+(?:d.imposta\s+)?2024\b/i.test(whole)) ||
+    (kind === "iva" && /(?:periodo|anno)\s+(?:d.imposta\s*:?\s*)?20(?!25)\d{2}\b/i.test(whole)) ||
     (kind === "inps" && /luglio\s+20(?!26)\d{2}\b/i.test(whole))
   ) {
     return {
@@ -83,6 +86,8 @@ export function previewDocumentPages(
     label: string,
     regex: RegExp,
     parse: (raw: string) => string | number | null,
+    alternativeRegex?: RegExp,
+    allowAlternative = false,
   ) {
     const found: DocumentProposal[] = [];
     for (const p of validPages) {
@@ -92,8 +97,10 @@ export function previewDocumentPages(
         .map((line) => line.trim());
       for (let i = 0; i < lines.length; i++) {
         const line = lines[i]!;
-        const m = line.match(regex);
+        const m = line.match(regex) ?? (allowAlternative ? line.match(alternativeRegex!) : null);
         if (!m || !m[1]) continue;
+        // In the VF25 two-column layout both amounts must be well-formed.
+        if (m[2] && money(m[2]) === null) continue;
         const parsed = parse(m[1].trim());
         if (parsed === null || parsed === "") continue;
         found.push({
@@ -133,6 +140,8 @@ export function previewDocumentPages(
       "VF25 imponibile acquisti 2025",
       /^vf25(?:\s+imponibile(?:\s+totale\s+acquisti)?)?\s*(?::|\s)\s*([\d., ]+)$/i,
       money,
+      /^vf25\s+totale\s+acquisti\s+e\s+importazioni\s+(\d[\d.,]*)\s+(\d[\d.,]*)$/i,
+      /\bimponibile\s+imposta\b/i.test(whole),
     );
   } else {
     capture(

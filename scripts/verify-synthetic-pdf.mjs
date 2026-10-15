@@ -77,6 +77,14 @@ const scenarios = [
     expected: { iva_ve50_2025: 500000, iva_vf25_2025: 100000 }, page: 2,
   },
   {
+    title: "IVA 2026 facsimile con VF25 imponibile/imposta in colonne", kind: "iva",
+    pdf: [
+      ["MOD. IVA 2026 - FACSIMILE INVENTATO", "Periodo d imposta: 2025"],
+      ["IMPONIBILE IMPOSTA", "VE50 Volume d affari 500.000,00", "VF25 Totale acquisti e importazioni 100.000,00 22.000,00"],
+    ],
+    expected: { iva_ve50_2025: 500000, iva_vf25_2025: 100000 }, page: 2,
+  },
+  {
     title: "INPS a due pagine", kind: "inps",
     pdf: [
       ["ATTESTAZIONE DELLA DENUNCIA CONTRIBUTIVA - FACSIMILE", "Luglio 2026"],
@@ -112,6 +120,7 @@ const invalid = [
   { name: "INPS anno sbagliato", kind: "inps", pdf: [["ATTESTAZIONE DELLA DENUNCIA CONTRIBUTIVA", "Luglio 2025", "Forza Aziendale: 18"]] },
   { name: "INPS dati contraddittori", kind: "inps", pdf: [["ATTESTAZIONE DELLA DENUNCIA CONTRIBUTIVA", "Luglio 2026", "Forza Aziendale: 8"], ["Forza Aziendale: 12"]] },
   { name: "IVA senza periodo", kind: "iva", pdf: [["DICHIARAZIONE IVA 2026", "VE50: 100.000", "VF25: 20.000"]] },
+  { name: "VF25 con due colonne prive di intestazione", kind: "iva", pdf: [["MOD. IVA 2026", "Periodo d imposta: 2025", "VF25 Totale acquisti e importazioni 100.000,00 22.000,00"]] },
   { name: "PDF vuoto", kind: "iva", pdf: [[]] },
 ];
 for (const scenario of invalid) {

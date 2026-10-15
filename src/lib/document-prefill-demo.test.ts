@@ -110,6 +110,39 @@ describe("conservative document preview: local data, human review only", () => {
     expect(ambiguous.proposals).toHaveLength(0);
   });
 
+  it("reads IVA 2026 model header and VF25 imponibile in a two-column table", () => {
+    const r = previewDocumentPages(
+      [
+        { page: 1, text: "MOD. IVA 2026\nPeriodo d imposta: 2025" },
+        {
+          page: 2,
+          text: "IMPONIBILE IMPOSTA\nVE50 Volume d affari 500.000,00\nVF25 Totale acquisti e importazioni 100.000,00 22.000,00",
+        },
+      ],
+      "iva",
+    );
+    expect(r.proposals.map((p) => [p.field, p.value, p.sourcePage])).toEqual([
+      ["iva_ve50_2025", 500000, 2],
+      ["iva_vf25_2025", 100000, 2],
+    ]);
+  });
+
+  it("does not infer VF25 column 1 if the column headers are missing", () => {
+    const r = previewSyntheticDocument(
+      "MOD. IVA 2026\nPeriodo d imposta: 2025\nVF25 Totale acquisti e importazioni 100.000,00 22.000,00",
+      "iva",
+    );
+    expect(r.proposals).toHaveLength(0);
+  });
+
+  it("blocks incompatible fiscal year in the web-inspired IVA layout", () => {
+    const r = previewSyntheticDocument(
+      "MOD. IVA 2026\nPeriodo d imposta: 2024\nIMPONIBILE IMPOSTA\nVF25 Totale acquisti e importazioni 100.000,00 22.000,00",
+      "iva",
+    );
+    expect(r.proposals).toHaveLength(0);
+  });
+
   it("does not infer employee counts from unrelated rows", () => {
     const r = previewSyntheticDocument(
       SYNTHETIC_EXAMPLES.inps.replace("Forza Aziendale: 8", "Totale lavoratori: 8"),
