@@ -10,9 +10,9 @@ on:
       - "scripts/verify-synthetic-pdf.mjs"
       - "bun.lock"
       - ".github/workflows/document-intelligence-check.yml"
-  push:
-    branches:
-      - feature/document-intelligence-sandbox-20261015
+concurrency:
+  group: document-intelligence-pr-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
 permissions:
   contents: read
 jobs:
