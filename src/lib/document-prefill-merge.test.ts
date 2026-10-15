@@ -44,11 +44,8 @@ describe("controlled local document prefill", () => {
     expect(r.blocked).toEqual(["addetti_inps_luglio_2026"]);
   });
 
-  it("rejects absent provenance, invalid numbers and rejects unknown fields", () => {
-    const bad = {
-      ...candidate("iva_vf25_2025", 10000),
-      sourcePage: 0,
-    };
+  it("rejects absent provenance, invalid numbers and unknown fields", () => {
+    const bad = { ...candidate("iva_vf25_2025", 10000), sourcePage: 0 };
     const r = mergeConfirmedDocumentFields({}, "iva", [
       bad,
       candidate("iva_ve50_2025", Number.NaN),
@@ -63,7 +60,7 @@ describe("controlled local document prefill", () => {
     const r = mergeConfirmedDocumentFields({ source_document_verified: "no" }, "visura", [
       candidate("ragione_sociale", "AZIENDA DEMO SRL"),
     ]);
-    expect(r.answers.source_document_verified).toBe("no");
-    expect(r.answers.ragione_sociale).toBe("AZIENDA DEMO SRL");
+    expect(r.answers["source_document_verified"]).toBe("no");
+    expect(r.answers["ragione_sociale"]).toBe("AZIENDA DEMO SRL");
   });
 });

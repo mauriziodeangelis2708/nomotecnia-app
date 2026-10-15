@@ -35,10 +35,12 @@ export function mergeConfirmedDocumentFields(
     const field = proposal.field;
     if (applied.includes(field) || blocked.includes(field)) continue;
     const value = proposal.value;
-    const valid = typeof value === "string"
-      ? value.length > 0 && value.length <= 200
-      : typeof value === "number" && Number.isFinite(value) && value >= 0;
-    const provenance = Number.isSafeInteger(proposal.sourcePage) &&
+    const valid =
+      typeof value === "string"
+        ? value.length > 0 && value.length <= 200
+        : typeof value === "number" && Number.isFinite(value) && value >= 0;
+    const provenance =
+      Number.isSafeInteger(proposal.sourcePage) &&
       proposal.sourcePage > 0 &&
       Number.isSafeInteger(proposal.sourceLine) &&
       proposal.sourceLine > 0 &&
