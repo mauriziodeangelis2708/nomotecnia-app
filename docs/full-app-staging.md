@@ -80,14 +80,16 @@ non autorizzati. Per il test live multi-account:
 
 ## Limiti di questa fase
 
-Non è ancora stato eseguito il test live con quattro sessioni, perché
-**non esistono account Supabase Auth staging verificati** in questo lavoro
-e gli strumenti connessi non espongono una funzione di creazione utenti
-Auth ufficiale. Non inserire utenti direttamente con SQL nelle tabelle
-interne `auth.users`.
+Il test live API Auth/RLS con quattro sessioni è stato eseguito e superato
+il 15 ottobre 2026: run 38779433108, tentativo 2. Tutti gli account
+sintetici e i relativi dati sono stati rimossi, con conteggi SQL verificati.
+Dettagli in docs/staging-rls-automated-test.md. Il test dell'interfaccia
+browser completa resta da eseguire.
 
-Il deploy Cloudflare non è ancora avvenuto, poiché non sono disponibili
-credenziali Cloudflare autorizzate. I test PDF e la compilazione GitHub
+Il deploy Cloudflare non è ancora avvenuto. Il 15 ottobre è stato avviato
+l'accesso sicuro a Cloudflare con Google per preparare il collaudo UI;
+la selezione dell'account è stata declinata e il login non è stato completato.
+Nessun token Cloudflare creato, nessun Worker pubblicato o modificato. I test PDF e la compilazione GitHub
 non sono un sostituto del test browser end-to-end.
 
 Solo dati sintetici; nessuna modifica al progetto Supabase di produzione.
