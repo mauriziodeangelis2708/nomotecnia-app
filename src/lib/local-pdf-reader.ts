@@ -99,7 +99,7 @@ export async function extractLocalPdfText(file: File): Promise<DocumentPage[]> {
       const p = await pdf.getPage(n);
       const content = await p.getTextContent();
       const items = content.items
-        .filter((item): item is typeof item & { str: string } => "str" in item && typeof item.str === "string")
+        .filter((item): item is Extract<typeof item, { str: string }> => "str" in item && typeof item.str === "string")
         .map((item) => ({
           str: item.str,
           transform: item.transform,
