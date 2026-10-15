@@ -18,8 +18,7 @@ import { getGeCoWebFormMissing, isIntegerQuestion, STEPS } from "@/lib/questions
 import { CHECKLIST, DOC_STATUS, dt, eur } from "@/lib/checklist";
 import { QuestionField } from "@/components/QuestionField";
 import { DocumentPrefillSandbox } from "@/components/DocumentPrefillSandbox";
-import { mergeConfirmedDocumentFields } from "@/lib/document-prefill-merge";
-import { canImportForIdentity, reviewDocumentIdentity } from "@/lib/document-prefill-identity";
+import { mergeReviewedDocumentFields } from "@/lib/document-prefill-review";
 import { ResultView } from "@/components/ResultView";
 import { Disclaimer } from "@/components/StatusBadge";
 import { Button } from "@/components/ui/button";
@@ -553,29 +552,32 @@ function AssessmentPage() {
             <DocumentPrefillSandbox
               answers={answers}
               onApply={(kind, proposals, sourcePages, ownershipConfirmed) => {
-                const identity = reviewDocumentIdentity(sourcePages, answers["partita_iva"]);
-                if (!canImportForIdentity(identity.status, ownershipConfirmed)) {
-                  toast.error("Documento non associabile all'impresa: controlla la Partita IVA.");
-                  return;
-                }
-                const outcome = mergeConfirmedDocumentFields(answers, kind, proposals);
+                const outcome = mergeReviewedDocumentFields(
+                  answers,
+                  kind,
+                  proposals,
+                  sourcePages,
+                  ownershipConfirmed,
+                );
                 if (outcome.applied.length === 0) {
-                  toast.error("Nessun campo applicabile: verifica valori esistenti o incoerenti.");
+                  toast.error(
+                    "Importazione bloccata: controlla documento, impresa, periodo e valori.",
+                  );
                   return;
                 }
-                setAnswers((previous) => {
-                  const latestIdentity = reviewDocumentIdentity(
+                setAnswers((previous) =>
+                  mergeReviewedDocumentFields(
+                    previous,
+                    kind,
+                    proposals,
                     sourcePages,
-                    previous["partita_iva"],
-                  );
-                  if (!canImportForIdentity(latestIdentity.status, ownershipConfirmed)) {
-                    return previous;
-                  }
-                  return mergeConfirmedDocumentFields(previous, kind, proposals).answers;
-                });
+                    ownershipConfirmed,
+                  ).answers,
+                );
                 setDirty(true);
-                if (outcome.blocked.length > 0)
-                  toast.warning("Alcuni campi erano già compilati o non validi e non sono stati modificati.");
+                if (outcome.blocked.length > 0) {
+                  toast.warning("Alcuni campi erano già compilati e non sono stati modificati.");
+                }
               }}
             />
           )}

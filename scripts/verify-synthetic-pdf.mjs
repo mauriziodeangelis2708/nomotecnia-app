@@ -4,6 +4,7 @@ import { getDocument } from "pdfjs-dist/legacy/build/pdf.mjs";
 import { pdfItemsToLines } from "../src/lib/local-pdf-reader.ts";
 import { previewDocumentPages } from "../src/lib/document-prefill-demo.ts";
 import { mergeConfirmedDocumentFields } from "../src/lib/document-prefill-merge.ts";
+import { mergeReviewedDocumentFields } from "../src/lib/document-prefill-review.ts";
 
 function assert(condition, message) {
   if (!condition) throw new Error("Synthetic PDF test failed: " + message);
@@ -86,12 +87,18 @@ const scenarios = [
 ];
 let count = 0;
 for (const s of scenarios) {
-  const preview = previewDocumentPages(await readPdf(s.pdf), s.kind);
+  const sourcePages = await readPdf(s.pdf);
+  const preview = previewDocumentPages(sourcePages, s.kind);
   assert(preview.proposals.length === Object.keys(s.expected).length, s.title + " proposal count " + JSON.stringify(preview));
   for (const p of preview.proposals) {
     assert(p.value === s.expected[p.field], s.title + " wrong " + p.field);
     assert(p.sourcePage === s.page && p.sourceLine >= 1, s.title + " wrong provenance");
   }
+  const reviewed = mergeReviewedDocumentFields({}, s.kind, preview.proposals, sourcePages, true);
+  assert(reviewed.applied.length === preview.proposals.length, s.title + " reviewed merge incomplete");
+  const forged = { ...preview.proposals[0], value: 999999999 };
+  const tampered = mergeReviewedDocumentFields({}, s.kind, [forged], sourcePages, true);
+  assert(tampered.applied.length === 0, s.title + " accepted altered source value");
   const merged = mergeConfirmedDocumentFields({}, s.kind, preview.proposals);
   assert(merged.applied.length === preview.proposals.length, s.title + " merge incomplete");
   assert(JSON.stringify(merged.answers) === JSON.stringify(s.expected), s.title + " incorrect mapping");

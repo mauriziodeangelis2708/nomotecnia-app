@@ -69,6 +69,23 @@ describe("Document Intelligence: conferma operatore", () => {
     expect(screen.getByText(/Nessuna evidenza diventa/)).toBeInTheDocument();
   });
 
+  it("blocca l'importazione di VE50 e VF25 se il regime fiscale è forfettario", () => {
+    const onApply = vi.fn();
+    render(
+      <DocumentPrefillSandbox answers={{ regime_fiscale: "forfettario" }} onApply={onApply} />,
+    );
+    fireEvent.change(screen.getByLabelText("Tipologia documento"), {
+      target: { value: "iva" },
+    });
+    expect(screen.getByRole("alert")).toHaveTextContent("Regime forfettario");
+    const ve50 = screen.getByRole("checkbox", { name: "Conferma VE50 volume d'affari 2025" });
+    expect(ve50).toBeDisabled();
+    expect(
+      screen.getByRole("button", { name: "Conferma campi selezionati nella bozza" }),
+    ).toBeDisabled();
+    expect(onApply).not.toHaveBeenCalled();
+  });
+
   it("non offre campi da approvare se l'anno IVA non corrisponde", () => {
     const onApply = vi.fn();
     render(<DocumentPrefillSandbox answers={{}} onApply={onApply} />);

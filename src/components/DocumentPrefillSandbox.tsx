@@ -49,6 +49,7 @@ export function DocumentPrefillSandbox({
     [sourcePages, answers],
   );
   const identityAllowed = canImportForIdentity(companyReview.status, ownershipConfirmed);
+  const fiscalAllowed = !(kind === "iva" && answers["regime_fiscale"] === "forfettario");
   const eligible = preview.proposals.filter(
     (candidate) =>
       answers[candidate.field] === undefined ||
@@ -99,7 +100,7 @@ export function DocumentPrefillSandbox({
   }
   function apply() {
     const approved = eligible.filter((item) => selected[item.field]);
-    if (!approved.length || !identityAllowed) return;
+    if (!approved.length || !identityAllowed || !fiscalAllowed) return;
     if (
       !window.confirm(
         "Confermi i valori selezionati? Verranno inseriti SOLO nei campi vuoti dell'assessment. " +
@@ -224,6 +225,11 @@ export function DocumentPrefillSandbox({
         <h3 className="mb-2 text-sm font-semibold">
           Proposte da verificare ({preview.proposals.length})
         </h3>
+        {!fiscalAllowed && (
+          <p role="alert" className="mb-3 text-sm text-destructive">
+            Regime forfettario: i righi IVA VE50 e VF25 non sono applicabili a questa pratica.
+          </p>
+        )}
         {companyReview.status === "unverified" && (
           <label className="mb-3 flex items-start gap-2 rounded-md border bg-muted/20 p-3 text-sm">
             <input
@@ -262,7 +268,7 @@ export function DocumentPrefillSandbox({
                     aria-label={"Conferma " + candidate.label}
                     type="checkbox"
                     className="mt-1"
-                    disabled={occupied || busy || !identityAllowed}
+                    disabled={occupied || busy || !identityAllowed || !fiscalAllowed}
                     checked={!!selected[candidate.field] && !occupied}
                     onChange={(e) =>
                       setSelected((s) => ({ ...s, [candidate.field]: e.target.checked }))
@@ -302,7 +308,7 @@ export function DocumentPrefillSandbox({
         <Button
           type="button"
           className="mt-3"
-          disabled={busy || !identityAllowed || !eligible.some((p) => selected[p.field])}
+          disabled={busy || !identityAllowed || !fiscalAllowed || !eligible.some((p) => selected[p.field])}
           onClick={apply}
         >
           Conferma campi selezionati nella bozza

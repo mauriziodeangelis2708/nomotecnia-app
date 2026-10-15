@@ -68,3 +68,10 @@ Questo piano è una checklist tecnica/organizzativa, non un parere legale e non 
 - Il file bun.lock è riallineato sul ramo di sviluppo dopo esito positivo dei controlli; verificare installazione congelata prima del merge.
 - Il parsing locale evita la trasmissione di PDF a nuovi provider ma non elimina gli obblighi GDPR riferiti ai dati estratti, salvati e accessibili attraverso l'app.
 - Prima della produzione serve approvazione del referente privacy e verifica dei contratti e delle misure tecniche applicabili.
+
+## Verifica ripetuta al momento dell'importazione (fase laboratorio)
+
+- I campi approvati sono nuovamente confrontati con la stessa sorgente testuale PDF (valore, etichetta, pagina, riga e frammento). Se anche un campo risulta diverso o non più riconoscibile, nessun campo selezionato viene importato.
+- L'associazione del documento alla Partita IVA della pratica è ricontrollata prima di modificare la bozza. Mancanza del dato richiede conferma manuale, mentre incongruenze esplicite bloccano.
+- L'importazione di VE50/VF25 è impedita quando il regime fiscale della pratica è esplicitamente forfettario.
+- Nessuno di questi controlli sostituisce il confronto con i documenti originali o un controllo normativo; non rendono i documenti verificati e non abilitano l'uso di dati reali nella versione di prova.
