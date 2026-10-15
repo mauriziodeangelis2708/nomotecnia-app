@@ -8,6 +8,7 @@ import {
 } from "@/lib/document-prefill-demo";
 import type { Answers } from "@/lib/engine";
 import { Button } from "@/components/ui/button";
+import { canImportForIdentity, reviewDocumentIdentity } from "@/lib/document-prefill-identity";
 
 const PDF_LAB_ENABLED = import.meta.env["VITE_ENABLE_DOCUMENT_PDF_LAB"] === "true";
 
@@ -16,7 +17,12 @@ export function DocumentPrefillSandbox({
   onApply,
 }: {
   answers: Answers;
-  onApply: (kind: DemoDocumentKind, proposals: DocumentProposal[]) => void;
+  onApply: (
+    kind: DemoDocumentKind,
+    proposals: DocumentProposal[],
+    sourcePages: DocumentPage[],
+    ownershipConfirmed: boolean,
+  ) => void;
 }) {
   const [kind, setKind] = useState<DemoDocumentKind>("visura");
   const [text, setText] = useState(SYNTHETIC_EXAMPLES.visura);
@@ -24,6 +30,7 @@ export function DocumentPrefillSandbox({
   const [pdfName, setPdfName] = useState("");
   const [busy, setBusy] = useState(false);
   const [syntheticOnly, setSyntheticOnly] = useState(false);
+  const [ownershipConfirmed, setOwnershipConfirmed] = useState(false);
   const [error, setError] = useState("");
   const [selected, setSelected] = useState<Record<string, boolean>>({});
   const generation = useRef(0);
@@ -35,10 +42,16 @@ export function DocumentPrefillSandbox({
     },
     [],
   );
+  const sourcePages = useMemo(() => pages ?? [{ page: 1, text }], [pages, text]);
   const preview = useMemo(
-    () => previewDocumentPages(pages ?? [{ page: 1, text }], kind),
-    [kind, pages, text],
+    () => previewDocumentPages(sourcePages, kind),
+    [kind, sourcePages],
   );
+  const companyReview = useMemo(
+    () => reviewDocumentIdentity(sourcePages, answers["partita_iva"]),
+    [sourcePages, answers],
+  );
+  const identityAllowed = canImportForIdentity(companyReview.status, ownershipConfirmed);
   const eligible = preview.proposals.filter(
     (candidate) =>
       answers[candidate.field] === undefined ||
@@ -54,6 +67,7 @@ export function DocumentPrefillSandbox({
     setError("");
     setSelected({});
     setSyntheticOnly(false);
+    setOwnershipConfirmed(false);
     if (fileInput.current) fileInput.current.value = "";
   }
   function changeKind(value: DemoDocumentKind) {
@@ -66,6 +80,7 @@ export function DocumentPrefillSandbox({
     const token = ++generation.current;
     setPages(null);
     setText(""); // Fail-closed: never show synthetic proposals after a PDF error.
+    setOwnershipConfirmed(false);
     setSelected({});
     setPdfName("");
     setError("");
@@ -87,7 +102,7 @@ export function DocumentPrefillSandbox({
   }
   function apply() {
     const approved = eligible.filter((item) => selected[item.field]);
-    if (!approved.length) return;
+    if (!approved.length || !identityAllowed) return;
     if (
       !window.confirm(
         "Confermi i valori selezionati? Verranno inseriti SOLO nei campi vuoti dell'assessment. " +
@@ -95,7 +110,7 @@ export function DocumentPrefillSandbox({
       )
     )
       return;
-    onApply(kind, approved);
+    onApply(kind, approved, sourcePages, ownershipConfirmed);
     setSelected({});
   }
 
@@ -167,6 +182,7 @@ export function DocumentPrefillSandbox({
               onChange={(event) => {
                 setText(event.target.value);
                 setSelected({});
+                setOwnershipConfirmed(false);
               }}
               className="min-h-40 w-full rounded-md border bg-background p-3 font-mono text-xs"
               maxLength={20000}
@@ -211,6 +227,29 @@ export function DocumentPrefillSandbox({
         <h3 className="mb-2 text-sm font-semibold">
           Proposte da verificare ({preview.proposals.length})
         </h3>
+        {companyReview.status === "unverified" && (
+          <label className="mb-3 flex items-start gap-2 rounded-md border bg-muted/20 p-3 text-sm">
+            <input
+              type="checkbox"
+              className="mt-1"
+              checked={ownershipConfirmed}
+              onChange={(event) => setOwnershipConfirmed(event.target.checked)}
+              aria-label="Confermo appartenenza documento alla impresa"
+            />
+            <span>
+              {companyReview.explanation} Ho verificato manualmente che il documento
+              appartiene a questa impresa.
+            </span>
+          </label>
+        )}
+        {(companyReview.status === "mismatch" || companyReview.status === "conflict") && (
+          <p role="alert" className="mb-3 text-sm text-destructive">
+            {companyReview.explanation}
+          </p>
+        )}
+        {companyReview.status === "matched" && (
+          <p className="mb-3 text-sm text-muted-foreground">{companyReview.explanation}</p>
+        )}
         {preview.proposals.length === 0 && (
           <p className="text-sm text-muted-foreground">Nessun campo univoco riconosciuto.</p>
         )}
@@ -226,7 +265,7 @@ export function DocumentPrefillSandbox({
                     aria-label={"Conferma " + candidate.label}
                     type="checkbox"
                     className="mt-1"
-                    disabled={occupied || busy}
+                    disabled={occupied || busy || !identityAllowed}
                     checked={!!selected[candidate.field] && !occupied}
                     onChange={(e) =>
                       setSelected((s) => ({ ...s, [candidate.field]: e.target.checked }))
@@ -266,7 +305,7 @@ export function DocumentPrefillSandbox({
         <Button
           type="button"
           className="mt-3"
-          disabled={busy || !eligible.some((p) => selected[p.field])}
+          disabled={busy || !identityAllowed || !eligible.some((p) => selected[p.field])}
           onClick={apply}
         >
           Conferma campi selezionati nella bozza

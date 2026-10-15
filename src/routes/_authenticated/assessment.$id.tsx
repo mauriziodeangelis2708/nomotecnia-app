@@ -19,6 +19,7 @@ import { CHECKLIST, DOC_STATUS, dt, eur } from "@/lib/checklist";
 import { QuestionField } from "@/components/QuestionField";
 import { DocumentPrefillSandbox } from "@/components/DocumentPrefillSandbox";
 import { mergeConfirmedDocumentFields } from "@/lib/document-prefill-merge";
+import { canImportForIdentity, reviewDocumentIdentity } from "@/lib/document-prefill-identity";
 import { ResultView } from "@/components/ResultView";
 import { Disclaimer } from "@/components/StatusBadge";
 import { Button } from "@/components/ui/button";
@@ -551,13 +552,27 @@ function AssessmentPage() {
           {me.data?.isAdmin && import.meta.env["VITE_ENABLE_DOCUMENT_PDF_LAB"] === "true" && (
             <DocumentPrefillSandbox
               answers={answers}
-              onApply={(kind, proposals) => {
+              onApply={(kind, proposals, sourcePages, ownershipConfirmed) => {
+                const identity = reviewDocumentIdentity(sourcePages, answers["partita_iva"]);
+                if (!canImportForIdentity(identity.status, ownershipConfirmed)) {
+                  toast.error("Documento non associabile all'impresa: controlla la Partita IVA.");
+                  return;
+                }
                 const outcome = mergeConfirmedDocumentFields(answers, kind, proposals);
                 if (outcome.applied.length === 0) {
                   toast.error("Nessun campo applicabile: verifica valori esistenti o incoerenti.");
                   return;
                 }
-                setAnswers((previous) => mergeConfirmedDocumentFields(previous, kind, proposals).answers);
+                setAnswers((previous) => {
+                  const latestIdentity = reviewDocumentIdentity(
+                    sourcePages,
+                    previous["partita_iva"],
+                  );
+                  if (!canImportForIdentity(latestIdentity.status, ownershipConfirmed)) {
+                    return previous;
+                  }
+                  return mergeConfirmedDocumentFields(previous, kind, proposals).answers;
+                });
                 setDirty(true);
                 if (outcome.blocked.length > 0)
                   toast.warning("Alcuni campi erano già compilati o non validi e non sono stati modificati.");
