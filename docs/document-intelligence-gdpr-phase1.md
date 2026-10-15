@@ -1,22 +1,20 @@
 # NomotecnIA — Piano Document Intelligence con privacy by design
 
-**Stato 15 ottobre 2026: solo laboratorio su esempi sintetici, NON attivo per PDF dei clienti.**
-Questa prima fase non introduce un servizio AI, non riceve upload, non scrive documenti in Supabase/Cloudflare e non precompila automaticamente gli assessment salvati. È una prova del mapping testo → campi, con provenienza della riga. Limitata alla UI amministratori.
+**Stato tecnico 15 ottobre 2026: laboratorio PDF LOCALE, disabilitato di default e NON rilasciato ai clienti.**
 
-## Stato della fase 1
+- La demo predefinita usa soltanto dati fittizi: visura, IVA 2026 per il 2025 e attestazione INPS luglio 2026.
+- La lettura PDF, tramite libreria pdfjs-dist 6.4.299 e worker locale, richiede un flag esplicito VITE_ENABLE_DOCUMENT_PDF_LAB=true in un ambiente di test. L'app online resta invariata.
+- Nessun upload PDF a server, nessuna AI esterna, nessun OCR e nessun salvataggio dell'originale. I dati testuali rimangono transitori nel browser.
+- Il parser impone 8 MB, 45 pagine e 240.000 caratteri; i PDF immagine e protetti da password non sono gestiti.
+- Il laboratorio propone soltanto campi con etichette specifiche e senza duplicati, mostrando pagina/riga e frammento di origine.
+- Conferma umana esplicita e campi non sovrascritti: i dati accettati entrano solo nella bozza; documenti e importi non vengono automaticamente dichiarati verificati.
+- Non caricare documenti reali dei clienti nel laboratorio. Manca ancora il collaudo end-to-end con browser, PDF di prova e tablet.
 
-- Nel tab **Documenti** gli amministratori possono provare tre facsimili **inventati**: visura, dichiarazione IVA 2026 anno 2025 e attestazione INPS luglio 2026.
-- Il parser analizza solo testo digitato nel browser: nessuna lettura binaria PDF, OCR, modello di AI o API esterna.
-- Il motore di calcolo, checklist, ruoli e database esistenti non sono modificati.
-- La preview non scrive negli assessment né marca un documento come “verificato”.
-- Il matching è dimostrativo e intenzionalmente ristretto: righe duplicate, intestazioni o periodi incompatibili non producono valori utilizzabili.
-- **Non inserire documenti o dati reali nel laboratorio.**
-
-## Architettura per le fasi successive (DA APPROVARE, non implementata)
+## Architettura per le fasi successive (DA APPROVARE: storage, OCR e AI non implementati)
 
 1. **Accesso:** solo utenti autenticati e autorizzati sulla singola pratica; per i clienti, permessi limitati esclusivamente alle proprie pratiche.
 2. **Upload protetto:** bucket privato con RLS/policy specifiche, cifratura in transito e a riposo, verifica estensione e magic bytes, limiti dimensione/pagine, scansione malware, URL firmati temporanei. Nessun bucket pubblico.
-3. **Estrazione:** valutare prima estrazione PDF testuale nel browser o su servizio privato, poi OCR per scansioni. **Non** inviare originali a fornitori AI prima di contratti, controlli sui trasferimenti internazionali e configurazioni privacy.
+3. **Estrazione:** il parser locale testuale è presente sul ramo di laboratorio; restano OCR per scansioni, test browser, documenti a colonne e qualunque servizio AI esterno. **Non** inviare originali a fornitori AI prima di contratti, controlli sui trasferimenti internazionali e configurazioni privacy.
 4. **Selezione minima:** identificare prima i dati strettamente necessari (es. VE50/VF25, Forza Aziendale, partita IVA, dati PMI). Evitare di conservare o riprodurre informazioni personali non necessarie.
 5. **Proposte, non verità:** origine con documento, numero pagina/riga e valore; stima di attendibilità solo se validata. Valori discordanti/bloccati e documenti incompleti vanno verificati da un operatore.
 6. **Conferma manuale:** non sovrascrivere dati già presenti, non attestare automaticamente l'autenticità di documenti, non assegnare “documento verificato”, non salvare esiti senza conferma esplicita dell'operatore.
@@ -43,7 +41,7 @@ Questa prima fase non introduce un servizio AI, non riceve upload, non scrive do
 - [ ] Upload privato, scansione file, limiti e retention implementati.
 - [ ] Provenienza pagina/campo, gestione duplicati e dati contraddittori verificata.
 - [ ] Revisione e conferma umana prima del salvataggio implementate.
-- [ ] Test con PDF sintetici superati; nessun dato di clienti usato nei test.
+- [ ] Test con PDF fittizi, scannerizzati, a colonne, danneggiati, protetti da password, mobile e browser superati. Nessun dato cliente nei test.
 - [ ] Riesame aggiornamenti dell'Avviso e del questionario, senza cambiare silenziosamente il motore.
 - [ ] Piano gestione violazioni ed eliminazione documenti testato.
 - [ ] Rilascio approvato dal responsabile del progetto e dal referente privacy.
@@ -52,3 +50,21 @@ Questa prima fase non introduce un servizio AI, non riceve upload, non scrive do
 
 Regolamento (UE) 2016/679: artt. 5, 6, 13–14, 24–25, 28, 30, 32–35, 44 e seguenti.
 Questo piano è una checklist tecnica/organizzativa, non un parere legale e non un'attestazione di conformità GDPR.
+
+## Audit read-only del database del 15 ottobre 2026
+
+- Supabase nomotecnia-production risulta nella regione eu-west-1. Questo non certifica residenza e accessi di tutti i fornitori.
+- Nessun bucket presente in storage.buckets al controllo: nessun archivio documentale aggiunto.
+- Advisor: cinque funzioni SECURITY DEFINER pubbliche (can_access_assessment, can_access_client, has_role, is_member e rls_auto_enable) concedono EXECUTE tramite PUBLIC, quindi anche a client anonimi. Non dimostra di per sé exploit; occorrono revisione del codice e test prima di restringere i privilegi.
+- Advisor: protezione contro password compromesse disabilitata; verificare configurazione auth ed effetti di eventuali modifiche.
+- Policy su clienti, assessment e invii presenti per authenticated; l'isolamento cross-tenant richiede comunque test di regressione prima di aggiungere dati PDF.
+- Nessun intervento eseguito sul database di produzione.
+- Remediation: https://supabase.com/docs/guides/database/database-linter?lint=0028_anon_security_definer_function_executable e https://supabase.com/docs/guides/auth/password-security#password-strength-and-leaked-password-protection
+
+## Stato collaudo / rilascio
+
+- La PR #7 resta draft, su ramo separato, senza merge e deploy.
+- GitHub Actions esegue TypeScript, test unitari e build; serve ancora testare in browser e con PDF campione reali ma fittizi.
+- Il file bun.lock è riallineato sul ramo di sviluppo dopo esito positivo dei controlli; verificare installazione congelata prima del merge.
+- Il parsing locale evita la trasmissione di PDF a nuovi provider ma non elimina gli obblighi GDPR riferiti ai dati estratti, salvati e accessibili attraverso l'app.
+- Prima della produzione serve approvazione del referente privacy e verifica dei contratti e delle misure tecniche applicabili.
