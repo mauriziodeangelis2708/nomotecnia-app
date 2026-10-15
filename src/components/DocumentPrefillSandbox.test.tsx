@@ -67,7 +67,7 @@ describe("Document Intelligence: conferma operatore", () => {
       target: { value: "iva" },
     });
     fireEvent.change(screen.getByLabelText("Testo di prova (solo nel browser)"), {
-      target: { value: "DICHIARAZIONE IVA 2026\\nPeriodo d'imposta 2024\\nVE50: 500.000" },
+      target: { value: "DICHIARAZIONE IVA 2026\nPeriodo d'imposta 2024\nVE50: 500.000" },
     });
     expect(screen.getByText(/Nessun campo univoco riconosciuto/)).toBeInTheDocument();
     expect(
