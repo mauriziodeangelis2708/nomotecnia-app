@@ -16,7 +16,7 @@ export function DocumentPrefillSandbox({
   onApply,
 }: {
   answers: Answers;
-  onApply: (proposals: DocumentProposal[]) => void;
+  onApply: (kind: DemoDocumentKind, proposals: DocumentProposal[]) => void;
 }) {
   const [kind, setKind] = useState<DemoDocumentKind>("visura");
   const [text, setText] = useState(SYNTHETIC_EXAMPLES.visura);
@@ -95,7 +95,7 @@ export function DocumentPrefillSandbox({
       )
     )
       return;
-    onApply(approved);
+    onApply(kind, approved);
     setSelected({});
   }
 

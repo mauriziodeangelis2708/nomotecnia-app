@@ -59,6 +59,18 @@ export function previewDocumentPages(
       warnings: ["Testo assente, pagina non valida o dimensione superiore a 240.000 caratteri."],
     };
   }
+  // Fail closed on contradictory fiscal or INPS periods within one uploaded file.
+  // These documents require human examination before any imported value is trusted.
+  if (
+    (kind === "iva" && /(?:periodo|anno)\s+(?:d.imposta\s+)?2024\b/i.test(whole)) ||
+    (kind === "inps" && /luglio\s+20(?!26)\d{2}\b/i.test(whole))
+  ) {
+    return {
+      kind,
+      proposals,
+      warnings: ["Periodi incompatibili presenti nello stesso PDF: controllo manuale necessario."],
+    };
+  }
   if (DOCUMENT_MARKERS[kind].some((marker) => !marker.test(whole))) {
     return {
       kind,

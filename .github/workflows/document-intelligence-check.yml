@@ -4,6 +4,7 @@ on:
     paths:
       - "src/lib/document-prefill-demo*"
       - "src/lib/local-pdf-reader*"
+      - "src/lib/document-prefill-merge*"
       - "src/components/DocumentPrefillSandbox.tsx"
       - "src/routes/_authenticated/assessment.$id.tsx"
       - "package.json"
@@ -29,7 +30,7 @@ jobs:
       - name: Typecheck
         run: bunx tsc --noEmit
       - name: Lint new document-reading modules
-        run: bunx eslint src/lib/document-prefill-demo.ts src/lib/document-prefill-demo.test.ts src/lib/local-pdf-reader.ts src/lib/local-pdf-reader.test.ts src/components/DocumentPrefillSandbox.tsx
+        run: bunx eslint src/lib/document-prefill-demo.ts src/lib/document-prefill-demo.test.ts src/lib/document-prefill-merge.ts src/lib/document-prefill-merge.test.ts src/lib/local-pdf-reader.ts src/lib/local-pdf-reader.test.ts src/components/DocumentPrefillSandbox.tsx
       - name: Unit tests
         run: bun run test
       - uses: actions/setup-node@v4

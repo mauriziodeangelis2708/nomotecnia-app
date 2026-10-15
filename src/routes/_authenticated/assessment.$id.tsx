@@ -18,6 +18,7 @@ import { getGeCoWebFormMissing, isIntegerQuestion, STEPS } from "@/lib/questions
 import { CHECKLIST, DOC_STATUS, dt, eur } from "@/lib/checklist";
 import { QuestionField } from "@/components/QuestionField";
 import { DocumentPrefillSandbox } from "@/components/DocumentPrefillSandbox";
+import { mergeConfirmedDocumentFields } from "@/lib/document-prefill-merge";
 import { ResultView } from "@/components/ResultView";
 import { Disclaimer } from "@/components/StatusBadge";
 import { Button } from "@/components/ui/button";
@@ -550,19 +551,16 @@ function AssessmentPage() {
           {me.data?.isAdmin && import.meta.env["VITE_ENABLE_DOCUMENT_PDF_LAB"] === "true" && (
             <DocumentPrefillSandbox
               answers={answers}
-              onApply={(proposals) => {
-                setAnswers((previous) => {
-                  const updated: Answers = { ...previous };
-                  for (const proposal of proposals) {
-                    if (
-                      updated[proposal.field] === undefined ||
-                      updated[proposal.field] === null ||
-                      updated[proposal.field] === ""
-                    ) updated[proposal.field] = proposal.value;
-                  }
-                  return updated;
-                });
+              onApply={(kind, proposals) => {
+                const outcome = mergeConfirmedDocumentFields(answers, kind, proposals);
+                if (outcome.applied.length === 0) {
+                  toast.error("Nessun campo applicabile: verifica valori esistenti o incoerenti.");
+                  return;
+                }
+                setAnswers((previous) => mergeConfirmedDocumentFields(previous, kind, proposals).answers);
                 setDirty(true);
+                if (outcome.blocked.length > 0)
+                  toast.warning("Alcuni campi erano già compilati o non validi e non sono stati modificati.");
               }}
             />
           )}
