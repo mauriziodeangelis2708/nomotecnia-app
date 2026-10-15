@@ -17,7 +17,8 @@ export function reviewDocumentIdentity(
   assessmentVat: unknown,
 ): DocumentIdentityReview {
   const vatIds = new Set<string>();
-  const vatPattern = /^(?:partita\s+iva|p\.?\s*iva|p\.?\s*i\.?\s*v\.?\s*a\.?)\s*:?\s*(?:IT\s*)?(\d{11})\s*$/i;
+  const vatPattern =
+    /^(?:partita\s+iva|p\.?\s*iva|p\.?\s*i\.?\s*v\.?\s*a\.?)\s*:?\s*(?:IT\s*)?(\d{11})\s*$/i;
   for (const page of pages) {
     for (const line of page.text.split(/\r?\n/)) {
       const match = line.trim().match(vatPattern);
@@ -32,9 +33,8 @@ export function reviewDocumentIdentity(
     };
   }
   const sourceVat = [...vatIds][0];
-  const targetVat = typeof assessmentVat === "string"
-    ? assessmentVat.replace(/\s/g, "").replace(/^IT/i, "")
-    : "";
+  const targetVat =
+    typeof assessmentVat === "string" ? assessmentVat.replace(/\s/g, "").replace(/^IT/i, "") : "";
   if (!sourceVat || !/^\d{11}$/.test(targetVat)) {
     return {
       status: "unverified",
@@ -45,12 +45,14 @@ export function reviewDocumentIdentity(
   if (sourceVat !== targetVat) {
     return {
       status: "mismatch",
-      explanation: "Partita IVA del documento diversa da quella nella pratica: importazione bloccata.",
+      explanation:
+        "Partita IVA del documento diversa da quella nella pratica: importazione bloccata.",
     };
   }
   return {
     status: "matched",
-    explanation: "Partita IVA del documento coerente con quella della pratica. Verificare comunque il documento.",
+    explanation:
+      "Partita IVA del documento coerente con quella della pratica. Verificare comunque il documento.",
   };
 }
 

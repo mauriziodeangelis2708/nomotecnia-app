@@ -43,10 +43,7 @@ export function DocumentPrefillSandbox({
     [],
   );
   const sourcePages = useMemo(() => pages ?? [{ page: 1, text }], [pages, text]);
-  const preview = useMemo(
-    () => previewDocumentPages(sourcePages, kind),
-    [kind, sourcePages],
-  );
+  const preview = useMemo(() => previewDocumentPages(sourcePages, kind), [kind, sourcePages]);
   const companyReview = useMemo(
     () => reviewDocumentIdentity(sourcePages, answers["partita_iva"]),
     [sourcePages, answers],
@@ -237,8 +234,8 @@ export function DocumentPrefillSandbox({
               aria-label="Confermo appartenenza documento alla impresa"
             />
             <span>
-              {companyReview.explanation} Ho verificato manualmente che il documento
-              appartiene a questa impresa.
+              {companyReview.explanation} Ho verificato manualmente che il documento appartiene a
+              questa impresa.
             </span>
           </label>
         )}

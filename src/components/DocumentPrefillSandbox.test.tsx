@@ -18,8 +18,10 @@ describe("Document Intelligence: conferma operatore", () => {
     expect(onApply).not.toHaveBeenCalled();
     expect(prompt).not.toHaveBeenCalled();
 
+    fireEvent.click(
+      screen.getByRole("checkbox", { name: "Confermo appartenenza documento alla impresa" }),
+    );
     fireEvent.click(screen.getByRole("checkbox", { name: "Conferma VE50 volume d'affari 2025" }));
-    fireEvent.click(screen.getByRole("checkbox", { name: "Confermo appartenenza documento alla impresa" }));
     expect(apply).toBeEnabled();
     fireEvent.click(apply);
     expect(prompt).toHaveBeenCalledTimes(1);
@@ -40,8 +42,10 @@ describe("Document Intelligence: conferma operatore", () => {
     fireEvent.change(screen.getByLabelText("Tipologia documento"), {
       target: { value: "inps" },
     });
+    fireEvent.click(
+      screen.getByRole("checkbox", { name: "Confermo appartenenza documento alla impresa" }),
+    );
     fireEvent.click(screen.getByRole("checkbox", { name: "Conferma Forza aziendale luglio 2026" }));
-    fireEvent.click(screen.getByRole("checkbox", { name: "Confermo appartenenza documento alla impresa" }));
     fireEvent.click(screen.getByRole("button", { name: "Conferma campi selezionati nella bozza" }));
     expect(onApply).not.toHaveBeenCalled();
   });
@@ -83,12 +87,7 @@ describe("Document Intelligence: conferma operatore", () => {
 
   it("blocks the wrong company even when the operator selects and confirms the field", () => {
     const onApply = vi.fn();
-    render(
-      <DocumentPrefillSandbox
-        answers={{ partita_iva: "12345678901" }}
-        onApply={onApply}
-      />,
-    );
+    render(<DocumentPrefillSandbox answers={{ partita_iva: "12345678901" }} onApply={onApply} />);
     fireEvent.change(screen.getByLabelText("Tipologia documento"), {
       target: { value: "iva" },
     });
@@ -99,24 +98,26 @@ describe("Document Intelligence: conferma operatore", () => {
       },
     });
     expect(screen.getByRole("alert")).toHaveTextContent("Partita IVA");
-    expect(screen.getByRole("checkbox", { name: "Conferma VE50 volume d'affari 2025" }))
-      .toBeDisabled();
-    expect(screen.getByRole("button", { name: "Conferma campi selezionati nella bozza" }))
-      .toBeDisabled();
+    expect(
+      screen.getByRole("checkbox", { name: "Conferma VE50 volume d'affari 2025" }),
+    ).toBeDisabled();
+    expect(
+      screen.getByRole("button", { name: "Conferma campi selezionati nella bozza" }),
+    ).toBeDisabled();
     expect(onApply).not.toHaveBeenCalled();
   });
 
   it("requires explicit ownership review when document lacks a VAT identifier", () => {
     const onApply = vi.fn();
-    render(
-      <DocumentPrefillSandbox answers={{ partita_iva: "12345678901" }} onApply={onApply} />,
-    );
+    render(<DocumentPrefillSandbox answers={{ partita_iva: "12345678901" }} onApply={onApply} />);
     fireEvent.change(screen.getByLabelText("Tipologia documento"), {
       target: { value: "inps" },
     });
     const employee = screen.getByRole("checkbox", { name: "Conferma Forza aziendale luglio 2026" });
     expect(employee).toBeDisabled();
-    fireEvent.click(screen.getByRole("checkbox", { name: "Confermo appartenenza documento alla impresa" }));
+    fireEvent.click(
+      screen.getByRole("checkbox", { name: "Confermo appartenenza documento alla impresa" }),
+    );
     expect(employee).toBeEnabled();
   });
 
@@ -127,8 +128,10 @@ describe("Document Intelligence: conferma operatore", () => {
     fireEvent.change(screen.getByLabelText("Tipologia documento"), {
       target: { value: "iva" },
     });
+    fireEvent.click(
+      screen.getByRole("checkbox", { name: "Confermo appartenenza documento alla impresa" }),
+    );
     fireEvent.click(screen.getByRole("checkbox", { name: "Conferma VE50 volume d'affari 2025" }));
-    fireEvent.click(screen.getByRole("checkbox", { name: "Confermo appartenenza documento alla impresa" }));
     expect(apply).toBeEnabled();
 
     fireEvent.change(screen.getByLabelText("Testo di prova (solo nel browser)"), {

@@ -21,7 +21,10 @@ describe("documento - identita impresa, fail closed", () => {
 
   it("rejects multiple different VATs, even if one matches", () => {
     const result = reviewDocumentIdentity(
-      [{ page: 1, text: "Partita IVA: 00000000000" }, { page: 2, text: "Partita IVA: 12345678901" }],
+      [
+        { page: 1, text: "Partita IVA: 00000000000" },
+        { page: 2, text: "Partita IVA: 12345678901" },
+      ],
       "00000000000",
     );
     expect(result.status).toBe("conflict");
@@ -30,7 +33,10 @@ describe("documento - identita impresa, fail closed", () => {
 
   it("repeated identical VAT identifiers are not a conflict", () => {
     const r = reviewDocumentIdentity(
-      [{ page: 1, text: "PARTITA IVA: 00000000000" }, { page: 2, text: "P. IVA: IT00000000000" }],
+      [
+        { page: 1, text: "PARTITA IVA: 00000000000" },
+        { page: 2, text: "P. IVA: IT00000000000" },
+      ],
       "IT00000000000",
     );
     expect(r.status).toBe("matched");
