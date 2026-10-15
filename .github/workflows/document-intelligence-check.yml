@@ -7,6 +7,7 @@ on:
       - "src/components/DocumentPrefillSandbox.tsx"
       - "src/routes/_authenticated/assessment.$id.tsx"
       - "package.json"
+      - "scripts/verify-synthetic-pdf.mjs"
       - "bun.lock"
       - ".github/workflows/document-intelligence-check.yml"
   push:
@@ -29,6 +30,11 @@ jobs:
         run: bunx tsc --noEmit
       - name: Unit tests
         run: bun run test
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - name: Real PDF.js roundtrip (synthetic document only)
+        run: node scripts/verify-synthetic-pdf.mjs
       - name: Production build
         run: bun run build
       - name: Lockfile alignment warning
