@@ -57,6 +57,7 @@ export function DocumentPrefillSandbox({
     if (!PDF_LAB_ENABLED || !file) return;
     const token = ++generation.current;
     setPages(null);
+    setText(""); // Fail-closed: never show synthetic proposals after a PDF error.
     setSelected({});
     setPdfName("");
     setError("");
