@@ -86,10 +86,7 @@ describe("conservative document preview: local data, human review only", () => {
       SYNTHETIC_EXAMPLES.iva + "\nPeriodo d'imposta 2024\nVE50: 12345",
       "iva",
     );
-    const inps = previewSyntheticDocument(
-      SYNTHETIC_EXAMPLES.inps + "\nLuglio 2025",
-      "inps",
-    );
+    const inps = previewSyntheticDocument(SYNTHETIC_EXAMPLES.inps + "\nLuglio 2025", "inps");
     expect(iva.proposals).toHaveLength(0);
     expect(inps.proposals).toHaveLength(0);
     expect(iva.warnings[0]).toContain("Periodi incompatibili");
