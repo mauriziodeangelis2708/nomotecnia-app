@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import type { Json } from "@/integrations/supabase/types";
-import { useRules } from "@/hooks/use-rules";
+import { useRules, useMe } from "@/hooks/use-rules";
 import {
   evaluate,
   nonnegative,
@@ -17,6 +17,7 @@ import {
 import { getGeCoWebFormMissing, isIntegerQuestion, STEPS } from "@/lib/questions";
 import { CHECKLIST, DOC_STATUS, dt, eur } from "@/lib/checklist";
 import { QuestionField } from "@/components/QuestionField";
+import { DocumentPrefillSandbox } from "@/components/DocumentPrefillSandbox";
 import { ResultView } from "@/components/ResultView";
 import { Disclaimer } from "@/components/StatusBadge";
 import { Button } from "@/components/ui/button";
@@ -52,6 +53,7 @@ function AssessmentPage() {
   const newClientId = isNew ? id.slice(4) : null;
   const qc = useQueryClient();
   const rules = useRules();
+  const me = useMe();
   const a = useQuery({
     queryKey: ["assessment", id],
     enabled: !isNew,
@@ -545,6 +547,7 @@ function AssessmentPage() {
         </TabsContent>
 
         <TabsContent value="documenti" className="mt-4">
+          {me.data?.isAdmin && <DocumentPrefillSandbox />}
           <div className="rounded-lg border bg-card">
             {CHECKLIST.map((d) => {
               const c = checklist[d.key] ?? { status: "mancante" };
