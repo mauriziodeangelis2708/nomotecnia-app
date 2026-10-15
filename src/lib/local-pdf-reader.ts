@@ -83,7 +83,6 @@ export async function extractLocalPdfText(file: File): Promise<DocumentPage[]> {
   const bytes = new Uint8Array(await file.arrayBuffer());
   const loadingTask = pdfjs.getDocument({
     data: bytes,
-    isEvalSupported: false,
     enableXfa: false,
     useSystemFonts: false,
   });
@@ -123,7 +122,6 @@ export async function extractLocalPdfText(file: File): Promise<DocumentPage[]> {
       "Impossibile leggere il PDF: potrebbe essere protetto da password, danneggiato o non supportato.",
     );
   } finally {
-    if (pdf) await pdf.destroy();
-    else await loadingTask.destroy();
+    await loadingTask.destroy();
   }
 }
