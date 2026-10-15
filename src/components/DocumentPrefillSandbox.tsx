@@ -23,6 +23,7 @@ export function DocumentPrefillSandbox({
   const [pages, setPages] = useState<DocumentPage[] | null>(null);
   const [pdfName, setPdfName] = useState("");
   const [busy, setBusy] = useState(false);
+  const [syntheticOnly, setSyntheticOnly] = useState(false);
   const [error, setError] = useState("");
   const [selected, setSelected] = useState<Record<string, boolean>>({});
   const generation = useRef(0);
@@ -46,6 +47,7 @@ export function DocumentPrefillSandbox({
     setBusy(false);
     setError("");
     setSelected({});
+    setSyntheticOnly(false);
     if (fileInput.current) fileInput.current.value = "";
   }
   function changeKind(value: DemoDocumentKind) {
@@ -54,7 +56,7 @@ export function DocumentPrefillSandbox({
     setText(SYNTHETIC_EXAMPLES[value]);
   }
   async function inspectFile(file?: File) {
-    if (!PDF_LAB_ENABLED || !file) return;
+    if (!PDF_LAB_ENABLED || !file || !syntheticOnly) return;
     const token = ++generation.current;
     setPages(null);
     setText(""); // Fail-closed: never show synthetic proposals after a PDF error.
@@ -115,13 +117,22 @@ export function DocumentPrefillSandbox({
             <label htmlFor="sandbox-file" className="block text-sm font-medium">
               PDF locale per collaudo tecnico (non caricare documenti reali dei clienti)
             </label>
+            <label className="mt-2 flex items-start gap-2 text-xs">
+              <input
+                type="checkbox"
+                checked={syntheticOnly}
+                onChange={(e) => setSyntheticOnly(e.target.checked)}
+                className="mt-0.5"
+              />
+              <span>Confermo che userò esclusivamente PDF inventati per test, senza dati reali di persone o aziende.</span>
+            </label>
             <input
               id="sandbox-file"
               ref={fileInput}
               type="file"
               accept="application/pdf,.pdf"
               className="mt-2 block w-full text-sm"
-              disabled={busy}
+              disabled={busy || !syntheticOnly}
               onChange={(e) => void inspectFile(e.target.files?.[0])}
             />
             <p className="mt-1 text-xs text-muted-foreground">
