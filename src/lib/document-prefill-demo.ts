@@ -125,20 +125,20 @@ export function previewDocumentPages(
     capture(
       "iva_ve50_2025",
       "VE50 volume d'affari 2025",
-      /^ve50(?:\s+volume\s+d.affari)?\s*:\s*([\d., ]+)$/i,
+      /^ve50(?:\s+volume\s+d.affari)?\s*(?::|\s)\s*([\d., ]+)$/i,
       money,
     );
     capture(
       "iva_vf25_2025",
       "VF25 imponibile acquisti 2025",
-      /^vf25(?:\s+imponibile(?:\s+totale\s+acquisti)?)?\s*:\s*([\d., ]+)$/i,
+      /^vf25(?:\s+imponibile(?:\s+totale\s+acquisti)?)?\s*(?::|\s)\s*([\d., ]+)$/i,
       money,
     );
   } else {
     capture(
       "addetti_inps_luglio_2026",
       "Forza aziendale luglio 2026",
-      /^forza\s+aziendale\s*:\s*(\d+)$/i,
+      /^forza\s+aziendale\s*(?::|\s)\s*(\d+)$/i,
       integer,
     );
   }

@@ -92,6 +92,24 @@ describe("conservative document preview: local data, human review only", () => {
     expect(iva.warnings[0]).toContain("Periodi incompatibili");
   });
 
+  it("accepts common split-row labels without a colon, but not ambiguous amounts", () => {
+    const iva = previewSyntheticDocument(
+      "DICHIARAZIONE IVA 2026\nPeriodo d'imposta 2025\nVE50 500.000\nVF25 100.000",
+      "iva",
+    );
+    const inps = previewSyntheticDocument(
+      "ATTESTAZIONE DELLA DENUNCIA CONTRIBUTIVA\nLuglio 2026\nForza Aziendale 8",
+      "inps",
+    );
+    const ambiguous = previewSyntheticDocument(
+      "DICHIARAZIONE IVA 2026\nPeriodo d'imposta 2025\nVE50 500.000 200.000",
+      "iva",
+    );
+    expect(iva.proposals.map((p) => p.value)).toEqual([500000, 100000]);
+    expect(inps.proposals.map((p) => p.value)).toEqual([8]);
+    expect(ambiguous.proposals).toHaveLength(0);
+  });
+
   it("does not infer employee counts from unrelated rows", () => {
     const r = previewSyntheticDocument(
       SYNTHETIC_EXAMPLES.inps.replace("Forza Aziendale: 8", "Totale lavoratori: 8"),

@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { mergeConfirmedDocumentFields } from "./document-prefill-merge";
+import { IMPORTABLE_FIELDS, mergeConfirmedDocumentFields } from "./document-prefill-merge";
+import { STEPS } from "./questions";
+import { OFFICIAL_RULES } from "./bando";
 import type { DocumentProposal } from "./document-prefill-demo";
 
 function candidate(field: string, value: string | number): DocumentProposal {
@@ -56,11 +58,21 @@ describe("controlled local document prefill", () => {
     expect(r.answers).toEqual({});
   });
 
+  it("maps only to actual canonical questions in NomotecnIA", () => {
+    const ids = new Set(STEPS.flatMap((step) => step.questions(OFFICIAL_RULES).map((q) => q.id)));
+    for (const fields of Object.values(IMPORTABLE_FIELDS)) {
+      for (const field of fields) expect(ids.has(field), field).toBe(true);
+    }
+    expect(ids.has("iva_volume_2025")).toBe(false);
+    expect(ids.has("inps_addetti_2025")).toBe(false);
+  });
+
   it("never treats an imported proposal as a confirmed evidence", () => {
     const r = mergeConfirmedDocumentFields({ source_document_verified: "no" }, "visura", [
       candidate("ragione_sociale", "AZIENDA DEMO SRL"),
     ]);
     expect(r.answers["source_document_verified"]).toBe("no");
     expect(r.answers["ragione_sociale"]).toBe("AZIENDA DEMO SRL");
+    expect(r.answers["regime_fiscale"]).toBeUndefined();
   });
 });

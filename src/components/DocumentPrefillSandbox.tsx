@@ -275,6 +275,11 @@ export function DocumentPrefillSandbox({
           I dati restano da controllare sull'originale. Nessuna evidenza diventa “verificata”, e
           nessuna modifica viene salvata senza usare il comando Salva della pratica.
         </p>
+        <p className="mt-2 text-xs text-muted-foreground">
+          Per stimare il punteggio Lazio occorre inoltre compilare e verificare il regime fiscale,
+          le eventuali vendite OSS e integrazioni editoriali, le certificazioni e la checklist.
+          La lettura del PDF non rende automaticamente completa o ammissibile la domanda.
+        </p>
       </div>
     </section>
   );
