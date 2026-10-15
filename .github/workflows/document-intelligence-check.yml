@@ -9,6 +9,8 @@ on:
       - "src/routes/index.tsx"
       - "scripts/prepare-full-staging.mjs"
       - "scripts/verify-staging-rls.mjs"
+      - "scripts/provision-and-test-staging-rls.mjs"
+      - ".github/workflows/test-staging-rls.yml"
       - ".github/workflows/deploy-full-staging.yml"
       - "staging/**"
       - "wrangler.pdf-staging.jsonc"
@@ -72,6 +74,14 @@ jobs:
         run: |
           bun run build
           node scripts/prepare-full-staging.mjs
+      - name: Validate disposable Auth RLS test runner syntax and prod guard
+        run: |
+          node --check scripts/verify-staging-rls.mjs
+          node --check scripts/provision-and-test-staging-rls.mjs
+          if STAGING_SUPABASE_URL="https://bdwqobvkeposjvuddjav.supabase.co" node scripts/provision-and-test-staging-rls.mjs; then
+            echo "::error::Disposable account runner did not block production URL"
+            exit 1
+          fi
       - name: Frozen lockfile validation
         run: |
           git diff --exit-code -- bun.lock

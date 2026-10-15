@@ -108,7 +108,10 @@ try {
 } finally {
   for (const id of cleanup) {
     const { error } = await admin.client.from("clients").delete().eq("id", id);
-    if (error) console.error("Cleanup required for a staging-only fixture");
+    if (error) {
+      console.error("Cleanup required for a staging-only fixture");
+      process.exitCode = 1;
+    }
   }
   for (const person of Object.values(participants)) {
     await person.client.auth.signOut();
