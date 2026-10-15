@@ -3,6 +3,8 @@ on:
   pull_request:
     paths:
       - "src/lib/document-prefill-demo*"
+      - "staging/**"
+      - "wrangler.pdf-staging.jsonc"
       - "src/lib/local-pdf-reader*"
       - "src/lib/document-prefill-merge*"
       - "src/lib/document-prefill-review*"
@@ -42,6 +44,16 @@ jobs:
         run: node scripts/verify-synthetic-pdf.mjs
       - name: Production build
         run: bun run build
+      - name: Typecheck isolated Cloudflare staging client and edge
+        run: bun run typecheck:pdf-staging
+      - name: Build isolated synthetic-document staging client
+        run: bun run build:pdf-staging
+      - name: Verify no production Supabase URL or app name in staging build
+        run: |
+          if grep -R -l -E 'bdwqobvkeposjvuddjav|nomotecnia-app[.]maurizio' dist/pdf-staging; then
+            echo "::error::Production identifiers found in PDF staging bundle"
+            exit 1
+          fi
       - name: Frozen lockfile validation
         run: |
           git diff --exit-code -- bun.lock
