@@ -60,6 +60,22 @@ describe("Document Intelligence: conferma operatore", () => {
     expect(screen.getByText(/Nessuna evidenza diventa/)).toBeInTheDocument();
   });
 
+  it("non offre campi da approvare se l'anno IVA non corrisponde", () => {
+    const onApply = vi.fn();
+    render(<DocumentPrefillSandbox answers={{}} onApply={onApply} />);
+    fireEvent.change(screen.getByLabelText("Tipologia documento"), {
+      target: { value: "iva" },
+    });
+    fireEvent.change(screen.getByLabelText("Testo di prova (solo nel browser)"), {
+      target: { value: "DICHIARAZIONE IVA 2026\\nPeriodo d'imposta 2024\\nVE50: 500.000" },
+    });
+    expect(screen.getByText(/Nessun campo univoco riconosciuto/)).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Conferma campi selezionati nella bozza" }),
+    ).toBeDisabled();
+    expect(onApply).not.toHaveBeenCalled();
+  });
+
   it("cambiare testo o tipologia annulla la precedente selezione", () => {
     const onApply = vi.fn();
     render(<DocumentPrefillSandbox answers={{}} onApply={onApply} />);
