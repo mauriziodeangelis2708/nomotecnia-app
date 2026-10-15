@@ -93,6 +93,18 @@ async function run() {
     console.log("PASS: live staging RLS checks across all four independent Auth sessions.");
   } finally {
     let failures = 0;
+    if (accounts.length > 0) {
+      // A failed RLS test might prevent the ordinary admin session from
+      // deleting test customers. Using staging-admin only for cleanup is safe
+      // because all account IDs were generated in this specific run.
+      const ids = accounts.map((account) => account.id);
+      const { error } = await admin.from("clients")
+        .delete().in("created_by", ids);
+      if (error) {
+        failures++;
+        console.error("WARNING: staging fixture cleanup encountered an error");
+      }
+    }
     for (const account of [...accounts].reverse()) {
       const { error } = await admin.auth.admin.deleteUser(account.id);
       if (error) failures++;

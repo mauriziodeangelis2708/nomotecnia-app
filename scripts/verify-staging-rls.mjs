@@ -78,6 +78,10 @@ try {
   assert(await visible(admin, "clients", clientB) === 1, "admin cannot see member B client");
   assert(await visible(b, "assessments", assessment.id) === 0, "cross-member assessment access");
   assert(await visible(outsider, "assessments", assessment.id) === 0, "outsider assessment");
+  assert(await visible(admin, "assessments", assessment.id) === 1, "admin cannot see member assessment");
+  assert(await visible(b, "profiles", a.user.id) === 0, "member B can read member A profile");
+  assert(await visible(outsider, "profiles", a.user.id) === 0, "outsider can read member A profile");
+  assert(await visible(admin, "profiles", a.user.id) === 1, "admin cannot read profiles");
   console.log("PASS: cross-member, outsider, and admin SELECT isolation");
 
   const forbiddenOwner = await a.client.from("clients")
@@ -87,6 +91,27 @@ try {
   const forbiddenReparent = await a.client.from("assessments")
     .update({ client_id: clientB }).eq("id", assessment.id);
   assert(!!forbiddenReparent.error, "reparenting assessment was accepted");
+
+  // A filtered PostgREST UPDATE/DELETE can succeed with zero rows if RLS
+  // excludes the target. Always inspect returned IDs and re-check ownership.
+  const illegalUpdate = await b.client.from("clients")
+    .update({ ragione_sociale: "TEST SINTETICO VIOLAZIONE" })
+    .eq("id", clientA).select("id");
+  assert(
+    !!illegalUpdate.error || illegalUpdate.data?.length === 0,
+    "member B modified member A's company",
+  );
+  const illegalDelete = await b.client.from("clients")
+    .delete().eq("id", clientA).select("id");
+  assert(
+    !!illegalDelete.error || illegalDelete.data?.length === 0,
+    "member B deleted member A's company",
+  );
+  assert(await visible(a, "clients", clientA) === 1, "owner's client was corrupted/deleted");
+
+  const illegalAssessmentInsert = await b.client.from("assessments")
+    .insert({ client_id: clientA, created_by: b.user.id, title: "ACCESSO VIETATO" });
+  assert(!!illegalAssessmentInsert.error, "member B created assessment under member A");
 
   const escalation = await outsider.client.from("user_roles")
     .insert({ user_id: outsider.user.id, role: "admin" });
@@ -105,6 +130,39 @@ try {
     .select("title,answers").eq("id", assessment.id).single();
   assert(updated?.answers?.ateco_codice === "62.10.00", "assessment save/reload mismatch");
   console.log("PASS: own assessment write and reload");
+
+  const { data: note, error: noteError } = await a.client.from("assessment_notes")
+    .insert({ assessment_id: assessment.id, author_id: a.user.id, body: "Nota sintetica" })
+    .select("id").single();
+  assert(!noteError && note?.id, "member A cannot add own assessment note");
+
+  const { data: evidence, error: evidenceError } = await a.client.from("evidences")
+    .insert({ assessment_id: assessment.id, author_id: a.user.id, title: "PDF fittizio" })
+    .select("id").single();
+  assert(!evidenceError && evidence?.id, "member A cannot create own evidence");
+
+  const { data: snapshot, error: snapshotError } = await a.client.from("assessment_snapshots")
+    .insert({
+      assessment_id: assessment.id,
+      author_id: a.user.id,
+      answers: { ateco_codice: "62.10.00" },
+      result: {},
+    }).select("id").single();
+  assert(!snapshotError && snapshot?.id, "member A cannot create snapshot");
+
+  for (const [table, id] of [
+    ["assessment_notes", note.id],
+    ["evidences", evidence.id],
+    ["assessment_snapshots", snapshot.id],
+  ]) {
+    assert(await visible(b, table, id) === 0, "member B read another member's " + table);
+    assert(await visible(outsider, table, id) === 0, "outsider read " + table);
+    assert(await visible(admin, table, id) === 1, "admin cannot read " + table);
+  }
+  const unauthorizedNote = await b.client.from("assessment_notes")
+    .insert({ assessment_id: assessment.id, author_id: b.user.id, body: "Intrusione" });
+  assert(!!unauthorizedNote.error, "member B wrote to another member's assessment");
+  console.log("PASS: cross-account notes, evidence and snapshots isolation");
 } finally {
   for (const id of cleanup) {
     const { error } = await admin.client.from("clients").delete().eq("id", id);
