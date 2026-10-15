@@ -308,7 +308,9 @@ export function DocumentPrefillSandbox({
         <Button
           type="button"
           className="mt-3"
-          disabled={busy || !identityAllowed || !fiscalAllowed || !eligible.some((p) => selected[p.field])}
+          disabled={
+            busy || !identityAllowed || !fiscalAllowed || !eligible.some((p) => selected[p.field])
+          }
           onClick={apply}
         >
           Conferma campi selezionati nella bozza
