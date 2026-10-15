@@ -23,7 +23,7 @@ export interface DocumentPreview {
   warnings: string[];
 }
 
-export const DOCUMENT_TEXT_LIMIT = 20000;
+export const DOCUMENT_TEXT_LIMIT = 240000;
 const DOCUMENT_MARKERS: Record<DemoDocumentKind, RegExp[]> = {
   visura: [/visura\s+camerale|visura\s+ordinaria/i],
   iva: [/dichiarazione\s+iva\s+2026/i, /(?:periodo|anno)\s+(?:d.imposta\s+)?2025/i],
@@ -60,7 +60,7 @@ export function previewDocumentPages(
     return {
       kind,
       proposals,
-      warnings: ["Testo assente, pagina non valida o dimensione superiore a 20.000 caratteri."],
+      warnings: ["Testo assente, pagina non valida o dimensione superiore a 240.000 caratteri."],
     };
   }
   if (DOCUMENT_MARKERS[kind].some((marker) => !marker.test(whole))) {
