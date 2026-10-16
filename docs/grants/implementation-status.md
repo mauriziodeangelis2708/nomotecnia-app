@@ -34,3 +34,5 @@ Migration 20261016131853_configurable_grant_templates.sql is applied to vknvadzs
 supabase/tests/configurable_grants.sql executes entirely in a transaction ending in rollback. It must be run in staging only. It uses invented grant terms and temporary users, not real customers. Three-browser workflow test-grant-studio.yml needs no application credentials and cannot send data to a real model/backend.
 
 Documentation consulted: https://developers.cloudflare.com/workers-ai/platform/pricing/ ; https://developers.cloudflare.com/workers-ai/models/llama-3.3-70b-instruct-fp8-fast/ ; https://developers.cloudflare.com/workers-ai/features/json-mode/ ; https://supabase.com/docs/guides/api/securing-your-api .
+
+The protected staging-rls environment allows only feature/document-intelligence-sandbox-20261015. Authenticated tests run from that existing authorized development branch after promotion of the tested prototype. No environment protection is relaxed and no secrets are copied to the new branch. PR #12 remains a draft against main.

@@ -1,7 +1,7 @@
 name: Grant studio authenticated staging checks
 on:
   push:
-    branches: [feature/configurable-grant-studio-20261016]
+    branches: [feature/document-intelligence-sandbox-20261015]
     paths:
       - "src/lib/grants/**"
       - "src/components/grants/**"
@@ -17,7 +17,7 @@ concurrency:
   cancel-in-progress: false
 jobs:
   operational:
-    if: github.ref == 'refs/heads/feature/configurable-grant-studio-20261016'
+    if: github.ref == 'refs/heads/feature/document-intelligence-sandbox-20261015'
     runs-on: ubuntu-latest
     environment: staging-rls
     timeout-minutes: 20
