@@ -87,6 +87,7 @@ export async function extractLocalPdfText(file: File): Promise<DocumentPage[]> {
   const loadingTask = pdfjs.getDocument({
     data: bytes,
     enableXfa: false,
+    isEvalSupported: false,
     useSystemFonts: false,
   });
   let pdf: Awaited<typeof loadingTask.promise> | undefined;

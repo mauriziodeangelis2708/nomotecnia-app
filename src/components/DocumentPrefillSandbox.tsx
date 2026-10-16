@@ -15,8 +15,10 @@ const PDF_LAB_ENABLED = import.meta.env["VITE_ENABLE_DOCUMENT_PDF_LAB"] === "tru
 export function DocumentPrefillSandbox({
   answers,
   onApply,
+  mode = "lab",
 }: {
   answers: Answers;
+  mode?: "lab" | "local";
   onApply: (
     kind: DemoDocumentKind,
     proposals: DocumentProposal[],
@@ -24,8 +26,10 @@ export function DocumentPrefillSandbox({
     ownershipConfirmed: boolean,
   ) => void;
 }) {
+  const localMode = mode === "local";
+  const pdfEnabled = localMode || PDF_LAB_ENABLED;
   const [kind, setKind] = useState<DemoDocumentKind>("visura");
-  const [text, setText] = useState(SYNTHETIC_EXAMPLES.visura);
+  const [text, setText] = useState(localMode ? "" : SYNTHETIC_EXAMPLES.visura);
   const [pages, setPages] = useState<DocumentPage[] | null>(null);
   const [pdfName, setPdfName] = useState("");
   const [busy, setBusy] = useState(false);
@@ -42,6 +46,10 @@ export function DocumentPrefillSandbox({
     },
     [],
   );
+  useEffect(() => {
+    setOwnershipConfirmed(false);
+    setSelected({});
+  }, [answers["partita_iva"]]);
   const sourcePages = useMemo(() => pages ?? [{ page: 1, text }], [pages, text]);
   const preview = useMemo(() => previewDocumentPages(sourcePages, kind), [kind, sourcePages]);
   const companyReview = useMemo(
@@ -60,6 +68,7 @@ export function DocumentPrefillSandbox({
   function clearFile() {
     generation.current++;
     setPages(null);
+    setText("");
     setPdfName("");
     setBusy(false);
     setError("");
@@ -71,10 +80,10 @@ export function DocumentPrefillSandbox({
   function changeKind(value: DemoDocumentKind) {
     clearFile();
     setKind(value);
-    setText(SYNTHETIC_EXAMPLES[value]);
+    setText(localMode ? "" : SYNTHETIC_EXAMPLES[value]);
   }
   async function inspectFile(file?: File) {
-    if (!PDF_LAB_ENABLED || !file || !syntheticOnly) return;
+    if (!pdfEnabled || !file || (!localMode && !syntheticOnly)) return;
     const token = ++generation.current;
     setPages(null);
     setText(""); // Fail-closed: never show synthetic proposals after a PDF error.
@@ -114,11 +123,19 @@ export function DocumentPrefillSandbox({
 
   return (
     <section className="mb-5 rounded-lg border border-dashed bg-card p-4">
-      <h2 className="font-semibold">Document Intelligence — laboratorio riservato</h2>
+      <h2 className="font-semibold">
+        {localMode ? "Leggi PDF e compila la pratica" : "Document Intelligence — laboratorio riservato"}
+      </h2>
       <p className="mt-1 text-sm text-muted-foreground">
-        Prototipo con controllo umano. Di base accetta solo esempi sintetici; non usa AI esterna,
-        non invia dati fuori dal browser e non memorizza PDF. Non incollare dati reali nel
-        laboratorio. Le proposte non attestano validità o autenticità dei documenti.
+        {localMode ? (
+          <>Seleziona un documento dell’impresa. Il PDF viene letto sul tuo dispositivo e non viene
+          archiviato né inviato a servizi esterni. Controlla le proposte sull’originale: solo i valori
+          che confermi entrano nella bozza e saranno salvati con il comando Salva della pratica.</>
+        ) : (
+          <>Prototipo con controllo umano. Di base accetta solo esempi sintetici; non usa AI esterna,
+          non invia dati fuori dal browser e non memorizza PDF. Non incollare dati reali nel
+          laboratorio. Le proposte non attestano validità o autenticità dei documenti.</>
+        )}
       </p>
       <div className="mt-4 space-y-2">
         <label htmlFor="sandbox-kind" className="block text-sm font-medium">
@@ -134,12 +151,12 @@ export function DocumentPrefillSandbox({
           <option value="iva">Dichiarazione IVA 2026</option>
           <option value="inps">Attestazione INPS luglio 2026</option>
         </select>
-        {PDF_LAB_ENABLED && (
+        {pdfEnabled && (
           <div className="rounded-md border bg-muted/20 p-3">
             <label htmlFor="sandbox-file" className="block text-sm font-medium">
-              PDF locale per collaudo tecnico (non caricare documenti reali dei clienti)
+              {localMode ? "Seleziona PDF dell’impresa" : "PDF locale per collaudo tecnico (non caricare documenti reali dei clienti)"}
             </label>
-            <label className="mt-2 flex items-start gap-2 text-xs">
+            {!localMode && <label className="mt-2 flex items-start gap-2 text-xs">
               <input
                 type="checkbox"
                 checked={syntheticOnly}
@@ -150,14 +167,14 @@ export function DocumentPrefillSandbox({
                 Confermo che userò esclusivamente PDF inventati per test, senza dati reali di
                 persone o aziende.
               </span>
-            </label>
+            </label>}
             <input
               id="sandbox-file"
               ref={fileInput}
               type="file"
               accept="application/pdf,.pdf"
               className="mt-2 block w-full text-sm"
-              disabled={busy || !syntheticOnly}
+              disabled={busy || (!localMode && !syntheticOnly)}
               onChange={(e) => void inspectFile(e.target.files?.[0])}
             />
             <p className="mt-1 text-xs text-muted-foreground">
@@ -165,11 +182,11 @@ export function DocumentPrefillSandbox({
             </p>
             {pdfName && <p className="mt-2 text-sm">Analizzato localmente: {pdfName}</p>}
             <Button type="button" variant="outline" className="mt-2" onClick={clearFile}>
-              Svuota PDF dalla memoria del laboratorio
+              {localMode ? "Rimuovi PDF dalla memoria" : "Svuota PDF dalla memoria del laboratorio"}
             </Button>
           </div>
         )}
-        {!pages && (
+        {!localMode && !pages && (
           <>
             <label htmlFor="sandbox-text" className="block text-sm font-medium">
               Testo di prova (solo nel browser)

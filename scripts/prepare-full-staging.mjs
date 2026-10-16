@@ -13,7 +13,10 @@ const key = process.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 if (process.env.VITE_NOMOTECNIA_STAGING !== "true") {
   throw new Error("STAGING MODE MUST BE EXPLICITLY ENABLED");
 }
-if (process.env.VITE_ENABLE_DOCUMENT_PDF_LAB !== "true") {
+if (process.env.STAGING_DOCUMENT_MODE === "local") {
+  if (process.env.VITE_ENABLE_DOCUMENT_PDF_LAB === "true")
+    throw new Error("Local-document operational test must not enable the synthetic lab");
+} else if (process.env.VITE_ENABLE_DOCUMENT_PDF_LAB !== "true") {
   throw new Error("PDF document lab must be enabled for the synthetic test build");
 }
 if (url !== stagingURL) {
