@@ -53,3 +53,5 @@ jobs:
           retention-days: 3
 
 # Validate the outer Worker gate for HTML and static assets in the local runtime.
+
+# Capture mobile evidence after modal close has completed.
