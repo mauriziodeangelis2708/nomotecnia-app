@@ -24,9 +24,6 @@ export function createLocalOcr(options: LocalReadOptions) {
       if (stopped) throw new Error("Lettura annullata.");
       options.onProgress?.(`OCR locale: pagina ${number}…`);
       if (!worker) {
-        const { createWorker, OEM } = await import("tesseract.js");
-        options.signal?.throwIfAborted();
-        if (stopped) throw new Error("Lettura annullata.");
         let abandoned = false;
         let rejectInitialization: (reason: Error) => void = () => {};
         const initializationFailed = new Promise<never>((_, reject) => {
@@ -42,27 +39,31 @@ export function createLocalOcr(options: LocalReadOptions) {
             new Error("Avvio OCR troppo lento: controlla la connessione e riprova."),
           );
         }, 60000);
-        const initializing = createWorker("ita", OEM.LSTM_ONLY, {
-          workerPath: new URL("/ocr/v7/worker.min.js", location.origin).href,
-          corePath: new URL("/ocr/v7/core", location.origin).href,
-          langPath: new URL("/ocr/v7/lang", location.origin).href,
-          workerBlobURL: false,
-          cacheMethod: "none",
-          gzip: true,
-          // Some model-loading errors do not settle Tesseract's initialization promise.
-          errorHandler: () => {
-            abandoned = true;
-            rejectInitialization(
-              new Error("Impossibile avviare l’OCR: controlla la connessione e riprova."),
-            );
-          },
-        }).then(async (ready) => {
+        const initializing = (async () => {
+          const { createWorker, OEM } = await import("tesseract.js");
+          if (abandoned || stopped || options.signal?.aborted)
+            throw new Error("Lettura annullata.");
+          const ready = await createWorker("ita", OEM.LSTM_ONLY, {
+            workerPath: new URL("/ocr/v7/worker.min.js", location.origin).href,
+            corePath: new URL("/ocr/v7/core", location.origin).href,
+            langPath: new URL("/ocr/v7/lang", location.origin).href,
+            workerBlobURL: false,
+            cacheMethod: "none",
+            gzip: true,
+            // Some model-loading errors do not settle Tesseract's initialization promise.
+            errorHandler: () => {
+              abandoned = true;
+              rejectInitialization(
+                new Error("Impossibile avviare l’OCR: controlla la connessione e riprova."),
+              );
+            },
+          });
           if (abandoned || stopped || options.signal?.aborted) {
             await ready.terminate();
             throw new Error("Lettura annullata.");
           }
           return ready;
-        });
+        })();
         try {
           worker = await Promise.race([initializing, initializationFailed]);
         } finally {
