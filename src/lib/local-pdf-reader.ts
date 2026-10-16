@@ -83,8 +83,8 @@ export async function extractLocalPdfText(
   if (!looksLikePdf(header)) throw new LocalPdfError("Firma PDF non riconosciuta.");
   // Dynamically load the library only after an explicit user action.
   const [pdfjs, workerModule] = await Promise.all([
-    import("pdfjs-dist"),
-    import("pdfjs-dist/build/pdf.worker.min.mjs?url"),
+    import("pdfjs-dist/legacy/build/pdf.mjs"),
+    import("pdfjs-dist/legacy/build/pdf.worker.min.mjs?url"),
   ]);
   pdfjs.GlobalWorkerOptions.workerSrc = workerModule.default;
   options.signal?.throwIfAborted();

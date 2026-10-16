@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 
-async function scanPdf(page) {
+export async function scanPdf(page) {
   const jpeg = await page.evaluate(() => {
     const canvas = document.createElement("canvas");
     canvas.width = 1600; canvas.height = 1800;
@@ -42,7 +42,8 @@ export async function verifyDocumentExtensions({ root, own, other, admin, assess
     const scan = await scanPdf(page);
     page.on("request", watch);
     await lab.locator('input[type="file"]').setInputFiles({ name: "scansione-inventata.pdf", mimeType: "application/pdf", buffer: scan });
-    await lab.getByText("Analizzato localmente: scansione-inventata.pdf", { exact: true }).waitFor({ timeout: 150000 });
+    await lab.getByText("Analizzato localmente: scansione-inventata.pdf", { exact: true }).or(lab.getByRole("alert")).first().waitFor({ timeout: 150000 });
+    if (await lab.getByRole("alert").count()) throw new Error("OCR UI: " + await lab.getByRole("alert").first().innerText());
     const text = await lab.getByLabel("Testo letto dal documento (non salvato)").inputValue();
     assert.match(text, /FACSIMILE/i);
     assert.match(text, /12345/);
