@@ -238,3 +238,46 @@ con Supabase staging; non sono una certificazione su ogni dispositivo reale,
 su ogni combinazione dei bandi o sul dominio pubblico bloccato al browser cloud.
 Non è stato necessario cambiare il codice applicativo o fare un nuovo deploy
 per questa estensione dei test. Workflow UI di nuovo solo manuale.
+
+
+## Percorso UI completo di importazione PDF sintetico – 16 ottobre 2026
+
+Esecuzione **SUCCESSO**:
+https://github.com/mauriziodeangelis2708/nomotecnia-app/actions/runs/38858735164
+
+Commit testato: `31273d75bcf32001062781c4ce79579e68101791`.
+La suite precedente (quattro utenti, mobile, report, CSV, note e storico)
+è stata ripetuta con successo insieme ai controlli seguenti.
+
+L'admin ha aperto l'assessment del socio A e caricato nel campo file un PDF
+inventato di una pagina, generato dal runner con denominazione sintetica,
+Partita IVA `00000000000`, ATECO `62.10.00` e indirizzo fittizio.
+La lettura è stata effettuata dal vero PDF.js e dal relativo worker nel browser.
+
+- Caricamento disabilitato prima della conferma “solo PDF inventati”.
+- Proposte non selezionabili finché non è confermata l'appartenenza del
+  documento all'impresa, dato che la Partita IVA della pratica era vuota.
+- Ragione sociale già compilata non sovrascrivibile.
+- Annullamento della conferma: selezione conservata senza applicazione.
+- Conferma successiva: valori applicati alla sola bozza; SELECT separata
+  prima di “Salva” verifica che il database non sia stato aggiornato.
+- “Salva” e ricaricamento: Partita IVA, ATECO e indirizzo confermati sono
+  persistenti; ragione sociale originaria e checklist restano invariate.
+  Nessun documento viene marcato verificato per effetto dell'importazione.
+- PDF di impresa diversa (Partita IVA sintetica `11111111111`): importazione
+  bloccata e nessuna sovrascrittura.
+- File danneggiato: errore visibile, nessuna proposta residua applicabile
+  e dati salvati invariati.
+- Monitoraggio delle richieste: nessun POST/PUT/PATCH con file PDF,
+  multipart o contenuto grezzo PDF.
+
+Pulizia verificata anche tramite SQL: utenti, clienti, assessment, note e
+snapshot sintetici tutti a zero. Nessun cambiamento applicativo o nuovo
+deploy necessario: questa estensione aggiunge soltanto prove automatizzate.
+Il workflow è stato ripristinato a solo avvio manuale.
+
+Questo completa il percorso di importazione **visura sintetica a testo** nel
+browser locale del runner con Supabase staging. Non certifica scansioni/OCR,
+file cifrati, ogni layout reale o il dominio pubblico workers.dev.
+I parser IVA/INPS restano coperti dai test PDF.js e unitari già presenti;
+non si dichiara qui un percorso UI completo per ciascuno di quei layout.
