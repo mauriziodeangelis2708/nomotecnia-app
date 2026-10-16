@@ -40,6 +40,26 @@ async function until(fn, description) {
   }
   throw new Error(description);
 }
+
+function syntheticPdf(lines) {
+  const escape=value=>value.replace(/\\/g,"\\\\").replace(/\(/g,"\\(").replace(/\)/g,"\\)");
+  const stream="BT /F1 11 Tf 38 798 Td "+lines.map((line,i)=>(i?"0 -20 Td ":"")+"("+escape(line)+") Tj").join(" ")+" ET";
+  const objects=[
+    "<< /Type /Catalog /Pages 2 0 R >>",
+    "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+    "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 5 0 R >> >> /Contents 4 0 R >>",
+    "<< /Length "+stream.length+" >>\nstream\n"+stream+"\nendstream",
+    "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
+  ];
+  let pdf="%PDF-1.4\n";const offsets=[0];
+  objects.forEach((object,i)=>{offsets.push(pdf.length);pdf+=(i+1)+" 0 obj\n"+object+"\nendobj\n";});
+  const xref=pdf.length;
+  pdf+="xref\n0 "+(objects.length+1)+"\n0000000000 65535 f \n";
+  for(const offset of offsets.slice(1)) pdf+=String(offset).padStart(10,"0")+" 00000 n \n";
+  pdf+="trailer\n<< /Size "+(objects.length+1)+" /Root 1 0 R >>\nstartxref\n"+xref+"\n%%EOF";
+  return Buffer.from(pdf,"ascii");
+}
+
 try {
   stage = "local Cloudflare runtime";
   await writeFile(".output/server/.dev.vars", "STAGING_ACCESS_PASSWORD=" + gate + "\n", {mode:0o600});
@@ -128,7 +148,7 @@ try {
   await until(async()=>await titleInput.inputValue()===title,"Title not restored after reload");
   const own = createClient(URL,key,options);
   must(await own.auth.signInWithPassword({email:a.email,password:a.password}),"Owner API login");
-  const saved=must(await own.from("assessments").select("id,title,answers,created_by").eq("id",assessmentId).single(),"Read saved assessment");
+  const saved=must(await own.from("assessments").select("id,title,answers,checklist,created_by").eq("id",assessmentId).single(),"Read saved assessment");
   assert.equal(saved.title,title);
   assert.equal(saved.created_by,a.id);
   assert.equal(saved.answers.ragione_sociale,a.clientName);
@@ -237,6 +257,85 @@ try {
   await b.page.getByRole("alert").getByText("Impossibile caricare il report completo.",{exact:false}).waitFor();
   assert.equal(await b.page.locator(".report-document").count(),0);
   pass("cross-member report is denied without rendering owner document");
+
+
+  stage="local PDF upload, human review and explicit save";
+  await root.page.goto(assessmentURL);
+  await root.page.getByRole("tab",{name:"Documenti",exact:true}).click();
+  const lab=root.page.locator("section").filter({has:root.page.getByRole("heading",{name:"Document Intelligence — laboratorio riservato",exact:true})});
+  await lab.getByRole("heading",{name:"Document Intelligence — laboratorio riservato",exact:true}).waitFor();
+  const input=lab.locator('input[type="file"]');
+  assert.equal(await input.isDisabled(),true,"PDF input must require synthetic-only consent");
+  await lab.getByRole("checkbox",{name:"Confermo che userò esclusivamente PDF inventati per test, senza dati reali di persone o aziende.",exact:true}).check();
+  const fixture=syntheticPdf([
+    "VISURA CAMERALE - FACSIMILE INVENTATO",
+    "Denominazione: "+a.clientName,
+    "Partita IVA: 00000000000",
+    "ATECO prevalente: 62.10.00",
+    "Sede legale: Via Fittizia 1, Viterbo",
+  ]);
+  const fileRequests=[];
+  const watch=request=>{
+    if(["POST","PUT","PATCH"].includes(request.method())) {
+      const body=request.postData()??"";
+      const type=request.headers()["content-type"]??"";
+      if(type.includes("application/pdf") || type.includes("multipart/form-data") || body.includes("%PDF-")) fileRequests.push(request.url());
+    }
+  };
+  root.page.on("request",watch);
+  await input.setInputFiles({name:"visura-inventata.pdf",mimeType:"application/pdf",buffer:fixture});
+  await lab.getByText("Analizzato localmente: visura-inventata.pdf",{exact:true}).waitFor();
+  const iva=lab.getByRole("checkbox",{name:"Conferma Partita IVA",exact:true});
+  assert.equal(await iva.isDisabled(),true,"Unverified identity must prevent selecting proposals");
+  await lab.getByRole("checkbox",{name:"Confermo appartenenza documento alla impresa",exact:true}).check();
+  assert.equal(await lab.getByRole("checkbox",{name:"Conferma Ragione sociale",exact:true}).isDisabled(),true,
+    "Existing company name cannot be overwritten");
+  await iva.check();
+  await lab.getByRole("checkbox",{name:"Conferma Codice ATECO",exact:true}).check();
+  await lab.getByRole("checkbox",{name:"Conferma Sede legale",exact:true}).check();
+  const apply=lab.getByRole("button",{name:"Conferma campi selezionati nella bozza",exact:true});
+  root.page.once("dialog",dialog=>dialog.dismiss());
+  await apply.click();
+  assert.equal(await iva.isChecked(),true,"Cancelling review must keep selection without applying it");
+  root.page.once("dialog",dialog=>dialog.accept());
+  await apply.click();
+  await root.page.getByText("Modifiche non salvate: salva prima di aprire il report o registrare una valutazione.",{exact:true}).waitFor();
+  const beforeSave=must(await own.from("assessments").select("answers").eq("id",assessmentId).single(),"Read before explicit PDF save");
+  assert.ok(!beforeSave.answers.partita_iva,"Applying PDF proposals must not automatically save them");
+  await root.page.getByRole("button",{name:"Salva",exact:true}).click();
+  await root.page.getByRole("button",{name:"Salvato",exact:true}).waitFor();
+  await root.page.reload();
+  await root.page.getByRole("tab",{name:"Documenti",exact:true}).click();
+  const afterSave=must(await own.from("assessments").select("answers,checklist").eq("id",assessmentId).single(),"Read confirmed PDF fields");
+  assert.equal(afterSave.answers.partita_iva,"00000000000");
+  assert.equal(afterSave.answers.ateco_codice,"62.10.00");
+  assert.equal(afterSave.answers.sede_legale_indirizzo,"Via Fittizia 1, Viterbo");
+  assert.equal(afterSave.answers.ragione_sociale,a.clientName);
+  assert.deepEqual(afterSave.checklist,saved.checklist??{},"PDF import must not mark documents verified");
+  pass("real local PDF parsed in browser, human consent/cancel/confirm checked; explicit save and reload preserve selected fields");
+
+  stage="PDF wrong-company rejection and malformed-file fail-closed";
+  await lab.getByRole("checkbox",{name:"Confermo che userò esclusivamente PDF inventati per test, senza dati reali di persone o aziende.",exact:true}).check();
+  const wrong=syntheticPdf([
+    "VISURA CAMERALE - FACSIMILE INVENTATO",
+    "Denominazione: IMPRESA DIVERSA INVENTATA",
+    "Partita IVA: 11111111111",
+    "ATECO prevalente: 01.11.00",
+  ]);
+  await input.setInputFiles({name:"impresa-diversa-inventata.pdf",mimeType:"application/pdf",buffer:wrong});
+  await lab.getByText("Analizzato localmente: impresa-diversa-inventata.pdf",{exact:true}).waitFor();
+  assert.equal(await apply.isDisabled(),true,"Wrong-company PDF must not be importable");
+  assert.equal(await lab.getByRole("checkbox",{name:"Conferma Partita IVA",exact:true}).isDisabled(),true);
+  await input.setInputFiles({name:"file-danneggiato.pdf",mimeType:"application/pdf",buffer:Buffer.from("FILE SINTETICO NON PDF")});
+  await lab.getByRole("alert").waitFor();
+  await lab.getByText("Nessun campo univoco riconosciuto.",{exact:true}).waitFor();
+  assert.equal(await apply.isDisabled(),true,"Malformed PDF must not leave importable stale proposals");
+  const finalData=must(await own.from("assessments").select("answers").eq("id",assessmentId).single(),"Read after rejected PDFs");
+  assert.deepEqual(finalData.answers,afterSave.answers);
+  assert.deepEqual(fileRequests,[],"Raw PDFs must never be sent over the network");
+  root.page.off("request",watch);
+  await root.page.screenshot({path:"ui-test-results/pdf-import-fail-closed.png",fullPage:true,animations:"disabled"});
+  pass("wrong-company and malformed PDFs rejected without overwrites or stale proposals; no raw PDF upload");
 
   stage="UI cross-account assessment isolation";
   await b.page.goto(assessmentURL);
