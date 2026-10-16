@@ -50,7 +50,8 @@ try {
   for(const stream of [server.stdout,server.stderr]) stream.on("data",chunk=>{serverLog=(serverLog+chunk.toString()).slice(-6000);});
   await until(async()=>{try{return (await fetch(base)).status===401;}catch{return false;}}, "Local server did not start");
   assert.equal((await fetch(base,{headers:{Authorization:"Basic "+Buffer.from("nomotecnia:wrong").toString("base64")}})).status,401);
-  pass("local staging gate denies anonymous and wrong-password requests");
+  assert.equal((await fetch(base+"/favicon.svg")).status,401);
+  pass("local staging gate denies anonymous, wrong-password and static-asset requests");
   stage = "disposable staging identities";
   for (const [name,role] of [["ADMIN","admin"],["MEMBER_A","socio"],["MEMBER_B","socio"],["OUTSIDER",null]]) {
     const email = "nomotecnia-staging-ui-"+nonce+"-"+name.toLowerCase()+"@example.com";
