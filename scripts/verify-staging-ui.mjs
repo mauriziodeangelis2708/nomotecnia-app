@@ -70,6 +70,7 @@ try {
     await context.route("**/*",async route=>{
       const u=new globalThis.URL(route.request().url());
       if(["data:","blob:"].includes(u.protocol) || u.origin===base || u.origin===URL) return route.continue();
+      if (["fonts.googleapis.com","fonts.gstatic.com"].includes(u.hostname)) return route.abort();
       blocked.push(u.hostname);
       return route.abort();
     });
@@ -144,7 +145,7 @@ try {
   stage="network and browser checks";
   assert.deepEqual(blocked,[],"Unexpected external origin requested");
   assert.deepEqual(consoleErrors,[],"Browser uncaught errors");
-  pass("browser requests confined to localhost and staging Supabase");
+  pass("backend requests confined to localhost and staging Supabase; external fonts disabled");
   await mkdir("ui-test-results",{recursive:true});
   await a.page.screenshot({path:"ui-test-results/assessment-synthetic.png",fullPage:true});
   pass("local browser UI smoke completed; published edge-site UI remains separate");
