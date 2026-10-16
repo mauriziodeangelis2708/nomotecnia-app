@@ -17,6 +17,7 @@ import {
 import { getGeCoWebFormMissing, isIntegerQuestion, STEPS } from "@/lib/questions";
 import { CHECKLIST, DOC_STATUS, dt, eur } from "@/lib/checklist";
 import { QuestionField } from "@/components/QuestionField";
+import { DocumentArchive } from "@/components/DocumentArchive";
 import { DocumentPrefillSandbox } from "@/components/DocumentPrefillSandbox";
 import { mergeReviewedDocumentFields } from "@/lib/document-prefill-review";
 import { ResultView } from "@/components/ResultView";
@@ -83,6 +84,9 @@ function AssessmentPage() {
     },
   });
   const [answers, setAnswers] = useState<Answers>({});
+  const [loadedCompanyId, setLoadedCompanyId] = useState<string | null>(null);
+  const [companyLoadError, setCompanyLoadError] = useState(false);
+  const companyDataReady = !isNew || loadedCompanyId === newClientId;
   const client = useQuery({
     queryKey: ["client", newClientId],
     enabled: isNew && !!newClientId,
@@ -107,6 +111,8 @@ function AssessmentPage() {
     if (!isNew || !newClientId || !client.data) return;
 
     let cancelled = false;
+    setLoadedCompanyId(null);
+    setCompanyLoadError(false);
 
     async function loadCompanyData() {
       const { data: previous, error } = await supabase
@@ -120,6 +126,7 @@ function AssessmentPage() {
       if (cancelled) return;
 
       if (error) {
+        setCompanyLoadError(true);
         toast.error("Errore nel recupero dei dati aziendali");
         return;
       }
@@ -160,6 +167,7 @@ function AssessmentPage() {
             partita_iva: client.data!.partita_iva ?? "",
           }) as Answers,
       );
+      setLoadedCompanyId(newClientId);
     }
 
     void loadCompanyData();
@@ -202,7 +210,7 @@ function AssessmentPage() {
   const geCoWebMissing = useMemo(() => getGeCoWebFormMissing(answers), [answers]);
 
   async function save(silent = false, openReport = false) {
-    if (saving || !rules.data || rules.error) return;
+    if (saving || !rules.data || rules.error || !companyDataReady) return;
     const invalid = STEPS.flatMap((step) => step.questions(rules.data!.map)).filter(
       (q) =>
         q.type === "number" &&
@@ -383,6 +391,13 @@ function AssessmentPage() {
 
   return (
     <div className="mx-auto max-w-6xl space-y-5">
+      {!companyDataReady && (
+        <p role={companyLoadError ? "alert" : "status"} className="text-sm">
+          {companyLoadError
+            ? "Impossibile recuperare i dati aziendali: ricarica la pagina prima di salvare."
+            : "Caricamento dati aziendali: attendi prima di salvare la nuova pratica…"}
+        </p>
+      )}
       <div className="no-print flex flex-wrap items-center justify-between gap-3">
         <div className="min-w-0">
           <Link
@@ -405,7 +420,7 @@ function AssessmentPage() {
         </div>
         <div className="assessment-actions flex w-full flex-wrap gap-2 sm:w-auto">
           <Button
-            disabled={saving}
+            disabled={saving || !companyDataReady}
             onClick={() => save()}
             variant={isNew || dirty ? "default" : "outline"}
           >
@@ -417,7 +432,7 @@ function AssessmentPage() {
           </Button>
           <Button
             variant="outline"
-            disabled={saving}
+            disabled={saving || !companyDataReady}
             onClick={() => {
               if (isNew || dirty) void save(false, true);
               else void nav({ to: "/report/$id", params: { id } });
@@ -508,7 +523,9 @@ function AssessmentPage() {
                     Avanti <ChevronRight className="h-4 w-4" />
                   </Button>
                 ) : (
-                  <Button onClick={() => save()}>Salva questionario</Button>
+                  <Button disabled={!companyDataReady || saving} onClick={() => save()}>
+                    Salva questionario
+                  </Button>
                 )}
               </div>
             </div>
@@ -567,14 +584,15 @@ function AssessmentPage() {
                   );
                   return;
                 }
-                setAnswers((previous) =>
-                  mergeReviewedDocumentFields(
-                    previous,
-                    kind,
-                    proposals,
-                    sourcePages,
-                    ownershipConfirmed,
-                  ).answers,
+                setAnswers(
+                  (previous) =>
+                    mergeReviewedDocumentFields(
+                      previous,
+                      kind,
+                      proposals,
+                      sourcePages,
+                      ownershipConfirmed,
+                    ).answers,
                 );
                 setDirty(true);
                 if (outcome.blocked.length > 0) {
@@ -582,6 +600,12 @@ function AssessmentPage() {
                 }
               }}
             />
+          )}
+          {!isNew && me.data?.isMember && <DocumentArchive key={id} assessmentId={id} />}
+          {isNew && (
+            <p className="mb-4 text-sm text-muted-foreground">
+              Salva prima la nuova pratica per archiviare gli originali PDF.
+            </p>
           )}
           <div className="rounded-lg border bg-card">
             {CHECKLIST.map((d) => {

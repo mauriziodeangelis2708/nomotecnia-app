@@ -3,7 +3,7 @@
  * Nessun upload, AI esterna o verifica automatica di autenticità.
  * NON marcare i documenti come verificati a partire dalle proposte.
  */
-export type DemoDocumentKind = "visura" | "iva" | "inps";
+export type DemoDocumentKind = "visura" | "iva" | "inps" | "altro";
 
 export interface DocumentPage {
   page: number;
@@ -25,6 +25,7 @@ export interface DocumentPreview {
 
 export const DOCUMENT_TEXT_LIMIT = 240000;
 const DOCUMENT_MARKERS: Record<DemoDocumentKind, RegExp[]> = {
+  altro: [],
   visura: [/visura\s+camerale|visura\s+ordinaria/i],
   iva: [
     /(?:dichiarazione\s+iva\s+2026|mod\.?\s+iva\s+2026)/i,
@@ -143,7 +144,7 @@ export function previewDocumentPages(
       /^vf25\s+totale\s+acquisti\s+e\s+importazioni\s+(\d[\d.,]*)\s+(\d[\d.,]*)$/i,
       /\bimponibile\s+imposta\b/i.test(whole),
     );
-  } else {
+  } else if (kind === "inps") {
     capture(
       "addetti_inps_luglio_2026",
       "Forza aziendale luglio 2026",
@@ -163,6 +164,7 @@ export function previewSyntheticDocument(text: string, kind: DemoDocumentKind): 
 
 /** Completely fictitious identifiers and values; do not use customer documents in the lab. */
 export const SYNTHETIC_EXAMPLES: Record<DemoDocumentKind, string> = {
+  altro: "",
   visura:
     "VISURA CAMERALE — DOCUMENTO FITTIZIO\nDenominazione: AZIENDA DEMO SRL\nPartita IVA: 00000000000\nATECO prevalente: 62.10.00\nSede legale: Via Esempio 1, Viterbo",
   iva: "DICHIARAZIONE IVA 2026 — DOCUMENTO FITTIZIO\nPeriodo d'imposta 2025\nVE50: 500.000\nVF25: 100.000",

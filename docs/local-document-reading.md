@@ -1,33 +1,18 @@
-# Lettura PDF locale nella pratica — 16 ottobre 2026
+# Documenti della pratica: lettura locale, OCR e archivio privato
 
-La scheda **Documenti** degli assessment Lazio offre agli amministratori la funzione
-**Leggi PDF e compila la pratica**. Per i soci senza ruolo amministratore e nel portale
-clienti non viene abilitata in questa prima versione.
+## Lettura e controllo
+Gli amministratori possono leggere visura, IVA 2026 per il 2025 e attestazione INPS luglio 2026 nella scheda Documenti dell’assessment Lazio. Gli altri PDF (bilanci, DURC, certificazioni, allegati) possono essere letti come testo di supporto, ma non hanno una mappatura automatica dei campi.
 
-## Funzionamento
-- Selezione di un singolo PDF testuale: visura, IVA 2026 (periodo 2025), attestazione INPS luglio 2026.
-- Lettura con PDF.js e worker distribuiti dall'app sul dispositivo dell'operatore.
-- Nessun originale, nome file, testo completo o frammento di provenienza viene aggiunto
-  al database, ai log applicativi o a servizi AI. Il nome è mostrato solo nella sessione.
-- Solo i valori selezionati e confermati entrano nelle risposte della bozza. Il salvataggio
-  segue il comando Salva e le autorizzazioni della pratica già esistenti.
-- Campi già compilati protetti, periodo e P.IVA discordanti bloccati, appartenenza da
-  confermare manualmente quando non determinabile. Nessuna checklist diventa verificata.
-- Nessun dato sintetico precaricato nella modalità operativa.
-- Rimozione esplicita, cambio documento e smontaggio della scheda invalidano letture pendenti;
-  il componente è distinto per ID della pratica.
+L’OCR in italiano è facoltativo e viene eseguito sul dispositivo con Tesseract.js 7.0.0, risorse e modello serviti dalla stessa origine dell’app. Nessun servizio OCR/AI esterno, nessun invio di pagine o testo. L’OCR interviene sulle pagine con meno di 80 caratteri estraibili, massimo 8 pagine OCR per documento; le letture poco leggibili vengono rifiutate. Non è un controllo di autenticità. Verificare sempre il risultato sull’originale.
 
-## Limiti
-8 MB, 45 pagine, 240.000 caratteri. Non gestisce scansioni/OCR o PDF protetti.
-Il riconoscimento è conservativo: un layout non riconosciuto rimane da compilare manualmente.
-Non verifica l'autenticità né sostituisce il controllo sull'originale.
-Non è un archivio documentale: conservare gli originali con la procedura aziendale vigente.
+Limiti PDF: 8 MB, 45 pagine, 240.000 caratteri. PDF cifrati non supportati. Il pulsante Rimuovi invalida la lettura in corso. Nessun campo valorizzato viene sovrascritto; restano i controlli di impresa e periodo, la conferma umana e il salvataggio esplicito della bozza. La checklist non diventa verificata.
 
-## Ambito privacy e test
-Il piano storico document-intelligence-gdpr-phase1.md descrive anche fasi future di upload,
-storage e servizi esterni: queste fasi non sono attivate da questa versione.
-Restano applicabili gli accordi e le procedure del progetto per le risposte salvate;
-la funzionalità locale non costituisce un'attestazione di conformità.
-I test usano esclusivamente documenti e utenti sintetici nel database staging, mai dati reali.
-La modalità laboratorio resta disponibile solo dove il flag VITE_ENABLE_DOCUMENT_PDF_LAB=true
-è esplicitamente configurato. I test operativi usano il flag false e il medesimo flusso della produzione.
+## Archivio originale
+L’archivio è un’operazione distinta e richiede conferma esplicita. I soci autorizzati sulla pratica possono archiviare originali PDF di massimo 8 MB nel bucket privato assessment-documents. La lettura locale non carica né archivia il documento. Per le pratiche nuove occorre salvare prima la pratica.
+
+Gli oggetti sono suddivisi per ID della pratica, con un identificativo casuale per evitare sovrascritture. Il nome file viene normalizzato. Le policy Storage applicano le autorizzazioni già esistenti sull’assessment e richiedono un ruolo interno: altri soci, esterni e accessi anonimi non possono leggere, caricare o rimuovere documenti altrui. Nessun URL pubblico o URL firmato condivisibile viene creato dall’app. I download dell’app usano una richiesta senza cache con nonce univoco e il JWT dell’utente e vengono proposti come allegati, senza visualizzazione attiva nell’app.
+
+Gli originali restano fino a cancellazione esplicita. La cancellazione non revoca copie già scaricate; eventuali copie nelle cache del fornitore seguono i suoi tempi di propagazione. Prima di eliminare la pratica o il cliente devono essere rimossi gli originali associati: un trigger impedisce di lasciare file scollegati. La policy di caricamento blocca la riga assessment durante l’inserimento per coordinarsi con la cancellazione. L’app non dichiara i file sicuri e non dispone di scansione antivirus automatica. Per conservazioni e backup del fornitore si applicano i contratti e le procedure del progetto: non viene promessa cancellazione immediata da ogni backup.
+
+## Costi e collaudo
+Nessun servizio a pagamento viene attivato. Non viene modificato il piano Supabase/Cloudflare. In caso di limiti o spazio esaurito il caricamento deve fallire senza upgrade automatici. I test usano soltanto originali inventati e quattro identità temporanee in staging. Comprendono OCR reale su PDF raster, annullamento, importazione controllata, archivio/download/eliminazione, isolamento e URL pubblici negati. Le migrazioni sono additive e non modificano dati o risposte delle pratiche esistenti.

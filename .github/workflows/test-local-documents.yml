@@ -5,6 +5,13 @@ on:
     paths:
       - "src/components/DocumentPrefillSandbox*"
       - "src/lib/local-pdf-reader*"
+      - "src/lib/local-ocr*"
+      - "src/lib/document-archive*"
+      - "src/components/DocumentArchive*"
+      - "scripts/verify-document-extensions.mjs"
+      - "scripts/prepare-ocr-assets.mjs"
+      - "package.json"
+      - "bun.lock"
       - "src/routes/_authenticated/assessment.$id.tsx"
       - "scripts/verify-staging-ui.mjs"
       - ".github/workflows/test-local-documents.yml"
@@ -50,6 +57,7 @@ jobs:
       - name: Browser regression with four disposable users and synthetic PDFs
         env:
           STAGING_DOCUMENT_MODE: "local"
+          STAGING_DOCUMENT_EXTENSIONS: "true"
           STAGING_SUPABASE_URL: "https://vknvadzsjuixcuwegxto.supabase.co"
           STAGING_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.STAGING_SUPABASE_PUBLISHABLE_KEY }}
           STAGING_SUPABASE_SECRET_KEY: ${{ secrets.STAGING_SUPABASE_SECRET_KEY }}
@@ -60,3 +68,4 @@ jobs:
           name: local-document-synthetic-ui
           path: ui-test-results/
           retention-days: 3
+
