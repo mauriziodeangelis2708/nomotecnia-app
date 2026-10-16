@@ -1,3 +1,4 @@
+import { addCoverageFindings, COVERAGE_SYSTEM } from "./coverage";
 import { planSourceChunks } from "./multipass";
 import {
   acceptGeneratedDefinition,
@@ -96,34 +97,56 @@ export async function handleGrantGeneration(
     const chunks = planSourceChunks(parsed.data.sources);
     const chunk = chunks[parsed.data.chunkIndex]!;
     let timer: ReturnType<typeof setTimeout> | undefined;
+    let expired = false;
     try {
-      const response = await Promise.race([
-        env.AI.run(GENERATOR_MODEL, {
-          messages: [
-            { role: "system", content: GENERATOR_SYSTEM },
-            {
-              role: "user",
-              content: JSON.stringify({
-                title: parsed.data.title,
-                chunkIndex: parsed.data.chunkIndex,
-                chunkCount: chunks.length,
-                excerpts: chunk,
-              }),
-            },
-          ],
-          response_format: { type: "json_object" },
-          max_tokens: 8000,
-          temperature: 0,
-        }),
+      const definition = await Promise.race([
+        (async () => {
+          const response = await env.AI!.run(GENERATOR_MODEL, {
+            messages: [
+              { role: "system", content: GENERATOR_SYSTEM },
+              {
+                role: "user",
+                content: JSON.stringify({
+                  title: parsed.data.title,
+                  chunkIndex: parsed.data.chunkIndex,
+                  chunkCount: chunks.length,
+                  excerpts: chunk,
+                }),
+              },
+            ],
+            response_format: { type: "json_object" },
+            max_tokens: 8000,
+            temperature: 0,
+          });
+          const raw =
+            typeof response.response === "string"
+              ? JSON.parse(response.response)
+              : response.response;
+          const draft = acceptGeneratedDefinition(raw, parsed.data);
+          if (expired) throw new Error("timeout");
+          const audit = await env.AI!.run(GENERATOR_MODEL, {
+            messages: [
+              { role: "system", content: COVERAGE_SYSTEM },
+              {
+                role: "user",
+                content: JSON.stringify({ excerpts: chunk, draft: raw }),
+              },
+            ],
+            response_format: { type: "json_object" },
+            max_tokens: 3500,
+            temperature: 0,
+          });
+          const findings =
+            typeof audit.response === "string" ? JSON.parse(audit.response) : audit.response;
+          return addCoverageFindings(draft, findings, chunk);
+        })(),
         new Promise<never>((_, reject) => {
-          timer = setTimeout(() => reject(new Error("timeout")), 90000);
+          timer = setTimeout(() => {
+            expired = true;
+            reject(new Error("timeout"));
+          }, 90000);
         }),
       ]);
-      const raw =
-        typeof response.response === "string" ? JSON.parse(response.response) : response.response;
-      if (!raw || typeof raw !== "object" || Array.isArray(raw))
-        return reply({ error: "Il modello non ha restituito una configurazione valida." }, 502);
-      const definition = acceptGeneratedDefinition(raw, parsed.data);
       return reply(
         {
           definition,

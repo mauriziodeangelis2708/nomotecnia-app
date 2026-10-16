@@ -1,0 +1,195 @@
+{
+  "note": "Real synthetic probes 2026-10-16; auditor missed known SME omission. Improved generation passed only this small fixture, not full Lazio.",
+  "audit": {
+    "response": {
+      "findings": []
+    },
+    "usage": {
+      "prompt_tokens": 914,
+      "completion_tokens": 7,
+      "total_tokens": 921,
+      "prompt_tokens_details": {
+        "cached_tokens": 0
+      },
+      "neurons": 25.80788803100586
+    }
+  },
+  "regenerated": {
+    "response": {
+      "description": "Bando sintetico di collaudo",
+      "questions": [
+        {
+          "id": "pmi",
+          "section": "Informazioni azienda",
+          "label": "Sei una PMI?",
+          "type": "boolean",
+          "required": true,
+          "citations": [
+            {
+              "documentId": "documento_1",
+              "page": 1,
+              "quote": "Possono partecipare le PMI"
+            }
+          ]
+        },
+        {
+          "id": "sede_lazio",
+          "section": "Informazioni azienda",
+          "label": "Hai sede operativa nel Lazio?",
+          "type": "boolean",
+          "required": true,
+          "citations": [
+            {
+              "documentId": "documento_1",
+              "page": 1,
+              "quote": "sede operativa nel Lazio"
+            }
+          ]
+        },
+        {
+          "id": "liquidazione",
+          "section": "Informazioni azienda",
+          "label": "L'impresa è in liquidazione?",
+          "type": "boolean",
+          "required": true,
+          "citations": [
+            {
+              "documentId": "documento_1",
+              "page": 1,
+              "quote": "Sono escluse le imprese in liquidazione"
+            }
+          ]
+        },
+        {
+          "id": "spesa_ammissibile",
+          "section": "Spesa",
+          "label": "Quale è la spesa ammissibile?",
+          "type": "number",
+          "required": true,
+          "citations": [
+            {
+              "documentId": "documento_1",
+              "page": 1,
+              "quote": "La spesa ammissibile deve essere almeno 14000 euro"
+            }
+          ],
+          "unit": "euro"
+        }
+      ],
+      "rules": [
+        {
+          "id": "requisito_pmi",
+          "label": "Requisito PMI",
+          "kind": "eligibility",
+          "condition": {
+            "op": "eq",
+            "field": "pmi",
+            "value": true
+          },
+          "citations": [
+            {
+              "documentId": "documento_1",
+              "page": 1,
+              "quote": "Possono partecipare le PMI"
+            }
+          ]
+        },
+        {
+          "id": "requisito_sede",
+          "label": "Requisito sede",
+          "kind": "eligibility",
+          "condition": {
+            "op": "eq",
+            "field": "sede_lazio",
+            "value": true
+          },
+          "citations": [
+            {
+              "documentId": "documento_1",
+              "page": 1,
+              "quote": "sede operativa nel Lazio"
+            }
+          ]
+        },
+        {
+          "id": "esclusione_liquidazione",
+          "label": "Esclusione liquidazione",
+          "kind": "exclusion",
+          "condition": {
+            "op": "eq",
+            "field": "liquidazione",
+            "value": true
+          },
+          "citations": [
+            {
+              "documentId": "documento_1",
+              "page": 1,
+              "quote": "Sono escluse le imprese in liquidazione"
+            }
+          ]
+        },
+        {
+          "id": "requisito_spesa",
+          "label": "Requisito spesa",
+          "kind": "eligibility",
+          "condition": {
+            "op": "gte",
+            "field": "spesa_ammissibile",
+            "value": 14000
+          },
+          "citations": [
+            {
+              "documentId": "documento_1",
+              "page": 1,
+              "quote": "La spesa ammissibile deve essere almeno 14000 euro"
+            }
+          ]
+        },
+        {
+          "id": "calcolo_contributo",
+          "label": "Calcolo contributo",
+          "kind": "grant",
+          "formula": {
+            "op": "min",
+            "args": [
+              {
+                "op": "multiply",
+                "args": [
+                  {
+                    "op": "field",
+                    "field": "spesa_ammissibile"
+                  },
+                  {
+                    "op": "constant",
+                    "value": 0.5
+                  }
+                ]
+              },
+              {
+                "op": "constant",
+                "value": 10000
+              }
+            ]
+          },
+          "citations": [
+            {
+              "documentId": "documento_1",
+              "page": 1,
+              "quote": "Il contributo è pari al 50% della spesa ammissibile, fino a un massimo di 10000 euro"
+            }
+          ]
+        }
+      ],
+      "unresolved": []
+    },
+    "usage": {
+      "prompt_tokens": 982,
+      "completion_tokens": 821,
+      "total_tokens": 1803,
+      "prompt_tokens_details": {
+        "cached_tokens": 0
+      },
+      "neurons": 194.33282470703125
+    }
+  }
+}

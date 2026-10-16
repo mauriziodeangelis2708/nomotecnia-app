@@ -1,3 +1,4 @@
+import { HUMAN_COVERAGE_REVIEW } from "./coverage";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { handleGrantGeneration, type GenerationEnv } from "./generator-server";
 import { syntheticGrant } from "./fixtures.test-support";
@@ -23,7 +24,10 @@ const modelOutput = () => {
   return { description, questions, rules, unresolved };
 };
 function setup(admin = true) {
-  const ai = vi.fn().mockResolvedValue({ response: JSON.stringify(modelOutput()) });
+  const ai = vi
+    .fn()
+    .mockResolvedValue({ response: { findings: [] } })
+    .mockResolvedValueOnce({ response: JSON.stringify(modelOutput()) });
   const http = vi
     .fn()
     .mockResolvedValueOnce(Response.json({ id: "synthetic-user" }))
@@ -103,12 +107,26 @@ describe("admin-only generation gateway", () => {
     expect(response.headers.get("Cache-Control")).toBe("no-store");
     const body = await response.json();
     expect(body.reviewed).toBe(false);
-    expect(body.definition).toEqual(d);
+    expect(body.definition).toEqual({ ...d, unresolved: [HUMAN_COVERAGE_REVIEW] });
     expect(s.http.mock.calls.every((c) => String(c[0]).startsWith(s.env.SUPABASE_URL!))).toBe(true);
+  });
+  it("fails closed if the independent audit fails instead of returning a partial draft", async () => {
+    const s = setup();
+    s.ai
+      .mockReset()
+      .mockResolvedValueOnce({ response: modelOutput() })
+      .mockRejectedValueOnce(new Error("private provider detail"));
+    const response = await handleGrantGeneration(request(), s.env, s.http);
+    expect(response.status).toBe(502);
+    expect(await response.text()).not.toContain("private provider detail");
+    expect(s.ai).toHaveBeenCalledTimes(2);
   });
   it("accepts the live synthetic provider response and evaluates its generated rules", async () => {
     const s = setup();
-    s.ai.mockResolvedValue({ response: observed.response });
+    s.ai
+      .mockReset()
+      .mockResolvedValue({ response: { findings: [] } })
+      .mockResolvedValueOnce({ response: observed.response });
     const response = await handleGrantGeneration(
       request({
         ...input,
@@ -135,15 +153,24 @@ describe("admin-only generation gateway", () => {
   });
   it("validates structured JSON-mode responses observed from Workers AI", async () => {
     const s = setup();
-    s.ai.mockResolvedValue({ response: modelOutput() });
+    s.ai
+      .mockReset()
+      .mockResolvedValue({ response: { findings: [] } })
+      .mockResolvedValueOnce({ response: modelOutput() });
     const response = await handleGrantGeneration(request(), s.env, s.http);
     expect(response.status).toBe(200);
-    expect((await response.json()).definition).toEqual(d);
+    expect((await response.json()).definition).toEqual({
+      ...d,
+      unresolved: [HUMAN_COVERAGE_REVIEW],
+    });
     const payload = modelOutput();
     payload.rules[0]!.citations = [
       { documentId: "avviso", page: 1, quote: "Il modello ha inventato questa frase." },
     ];
-    s.ai.mockResolvedValue({ response: payload });
+    s.ai
+      .mockReset()
+      .mockResolvedValue({ response: { findings: [] } })
+      .mockResolvedValueOnce({ response: payload });
     expect((await handleGrantGeneration(request(), s.env, s.http)).status).toBe(502);
   });
   it("rejects hallucinated citations and executable payloads", async () => {
@@ -152,7 +179,10 @@ describe("admin-only generation gateway", () => {
     payload.rules[0]!.citations = [
       { documentId: "avviso", page: 1, quote: "Il modello ha inventato questa frase." },
     ];
-    s.ai.mockResolvedValue({ response: JSON.stringify(payload) });
+    s.ai
+      .mockReset()
+      .mockResolvedValue({ response: { findings: [] } })
+      .mockResolvedValueOnce({ response: JSON.stringify(payload) });
     expect((await handleGrantGeneration(request(), s.env, s.http)).status).toBe(502);
   });
   it("rejects overlong sources before inference", async () => {
@@ -171,7 +201,10 @@ describe("admin-only generation gateway", () => {
   });
   it("rejects malformed model JSON without exposing source text", async () => {
     const s = setup();
-    s.ai.mockResolvedValue({ response: "PRIVATE_SOURCE_TEXT invalid json" });
+    s.ai
+      .mockReset()
+      .mockResolvedValue({ response: { findings: [] } })
+      .mockResolvedValueOnce({ response: "PRIVATE_SOURCE_TEXT invalid json" });
     const r = await handleGrantGeneration(request(), s.env, s.http);
     expect(r.status).toBe(502);
     expect(await r.text()).not.toContain("PRIVATE_SOURCE_TEXT");
