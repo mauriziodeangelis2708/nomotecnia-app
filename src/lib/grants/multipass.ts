@@ -1,4 +1,4 @@
-import { parseDefinition, parseFragment, type GrantDefinition, type GrantSource } from "./schema";
+import { parseDefinition, parseFragment, type GrantDefinition, type GrantSource } from "./schema.ts";
 
 export const CHUNK_CHARACTERS = 10000;
 export interface SourceChunk {
