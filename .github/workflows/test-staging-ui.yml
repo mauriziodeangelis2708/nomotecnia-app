@@ -52,4 +52,4 @@ jobs:
           path: ui-test-results/
           retention-days: 3
 
-# Validate the framework-to-Worker secret binding path in the local runtime.
+# Validate the outer Worker gate for HTML and static assets in the local runtime.
