@@ -1,4 +1,5 @@
 import { createLocalOcr, type LocalReadOptions } from "./local-ocr.ts";
+import type { TextContent } from "pdfjs-dist/types/src/display/api";
 import type { DocumentPage } from "./document-prefill-demo";
 
 const MAX_PDF_BYTES = 8 * 1024 * 1024;
@@ -112,8 +113,29 @@ export async function extractLocalPdfText(
       options.signal?.throwIfAborted();
       options.onProgress?.(`Lettura pagina ${n} di ${pdf.numPages}…`);
       const p = await pdf.getPage(n);
-      const content = await p.getTextContent();
-      const items = content.items
+      // ReadableStream async iteration is not available in every WebKit build.
+      // PDF.js streamTextContent().getReader() provides the same text chunks.
+      const textReader = p.streamTextContent().getReader();
+      const contentItems: TextContent["items"] = [];
+      let rawCharacters = 0;
+      try {
+        while (true) {
+          options.signal?.throwIfAborted();
+          const { done, value } = await textReader.read();
+          if (done) break;
+          for (const item of value.items) {
+            if ("str" in item) rawCharacters += item.str.length;
+            if (rawCharacters > MAX_PDF_TEXT)
+              throw new LocalPdfError(
+                "PDF troppo esteso: massimo 240.000 caratteri; seleziona un estratto.",
+              );
+            contentItems.push(item);
+          }
+        }
+      } finally {
+        textReader.releaseLock();
+      }
+      const items = contentItems
         .filter(
           (item): item is Extract<typeof item, { str: string }> =>
             "str" in item && typeof item.str === "string",
