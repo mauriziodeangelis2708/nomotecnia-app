@@ -1,0 +1,52 @@
+name: Published staging UI smoke (synthetic users)
+on:
+  workflow_dispatch:
+  push:
+    branches: [feature/document-intelligence-sandbox-20261015]
+    paths: [.github/workflows/test-published-staging-ui.yml]
+permissions:
+  contents: read
+concurrency:
+  group: nomotecnia-staging-ui-disposable
+  cancel-in-progress: false
+jobs:
+  published-ui:
+    if: github.ref == 'refs/heads/feature/document-intelligence-sandbox-20261015'
+    runs-on: ubuntu-latest
+    environment: staging-rls
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - name: Read-only published gate preflight
+        run: node scripts/verify-published-staging-gate.mjs
+      - name: Require existing staging gate credential from protected environment
+        env:
+          STAGING_ACCESS_PASSWORD: ${{ secrets.STAGING_ACCESS_PASSWORD }}
+        run: |
+          node -e 'if ((process.env.STAGING_ACCESS_PASSWORD || "").length < 18) { console.error("MISSING: configure STAGING_ACCESS_PASSWORD in protected environment staging-rls. No test identities created; no security controls changed."); process.exit(1); }'
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - name: Install locked app dependencies and isolated Chromium
+        run: |
+          bun install --frozen-lockfile
+          npm install --prefix /tmp/nomotecnia-ui --no-audit --no-fund playwright@1.56.1
+          /tmp/nomotecnia-ui/node_modules/.bin/playwright install --with-deps chromium
+          node --check scripts/verify-staging-ui.mjs
+      - name: Exercise published staging with four disposable users
+        env:
+          STAGING_UI_TARGET: published
+          STAGING_ACCESS_PASSWORD: ${{ secrets.STAGING_ACCESS_PASSWORD }}
+          STAGING_SUPABASE_URL: "https://vknvadzsjuixcuwegxto.supabase.co"
+          STAGING_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.STAGING_SUPABASE_PUBLISHABLE_KEY }}
+          STAGING_SUPABASE_SECRET_KEY: ${{ secrets.STAGING_SUPABASE_SECRET_KEY }}
+        run: node scripts/verify-staging-ui.mjs
+      - uses: actions/upload-artifact@v4
+        if: success()
+        with:
+          name: published-synthetic-ui-evidence
+          path: ui-test-results/
+          retention-days: 3
