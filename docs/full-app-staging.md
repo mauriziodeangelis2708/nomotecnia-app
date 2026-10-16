@@ -1,6 +1,6 @@
 # NomotecnIA – full-app staging (Supabase Free + Cloudflare)
 
-**Stato al 16 ottobre 2026: pubblicato sul Worker separato di staging e protetto; collaudo UI sul runtime locale Cloudflare con Supabase staging superato. Verifica UI sul dominio pubblico ancora limitata dal browser cloud.**
+**Stato al 16 ottobre 2026: pubblicato sul Worker separato di staging e protetto; collaudo UI sul runtime locale Cloudflare con Supabase staging superato. Preflight sul dominio pubblico da GitHub Actions superato; collaudo UI pubblico predisposto, fermo per il secret della protezione esterna mancante in staging-rls.**
 
 ## Progetto
 
@@ -310,3 +310,24 @@ Pulizia SQL successiva: utenti, clienti, assessment, note e snapshot sintetici
 tutti a zero. Nessuna modifica applicativa o nuovo deploy necessario;
 workflow UI nuovamente solo manuale. Il limite relativo alla verifica del
 dominio pubblico dal browser cloud resta invariato.
+
+
+## Verifica pubblicazione indipendente dal browser chat — 16 ottobre 2026
+
+Il run https://github.com/mauriziodeangelis2708/nomotecnia-app/actions/runs/38862519583
+ha raggiunto il sito pubblicato dal runner GitHub: `/`, `/auth` e
+`/favicon.svg` hanno risposto 401 con challenge Basic e header no-store,
+noindex e DENY. Il preflight è superato. Questo non certifica ancora la UI autenticata.
+
+Il nuovo workflow `.github/workflows/test-published-staging-ui.yml` riutilizza
+il collaudo con quattro identità sintetiche sul solo origin staging esatto,
+tramite `STAGING_UI_TARGET=published`. Mantiene la protezione Basic e usa
+`STAGING_ACCESS_PASSWORD` dall'ambiente protetto `staging-rls`.
+Il controllo preliminare ha rilevato che il secret è assente: il job è fallito
+prima di installare il browser o creare utenti. La password non è nel repository.
+Il trigger push temporaneo è già stato rimosso: resta soltanto workflow_dispatch.
+Nessun deploy, modifica alla produzione o modifica ai controlli di sicurezza.
+
+Per completare: salvare la credenziale staging esistente nel suddetto environment
+secret, poi riavviare il collaudo sul ramo di sviluppo. Il connettore GitHub non
+espone le API secrets e il browser remoto è attualmente senza sessione GitHub.
