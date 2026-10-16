@@ -281,3 +281,32 @@ browser locale del runner con Supabase staging. Non certifica scansioni/OCR,
 file cifrati, ogni layout reale o il dominio pubblico workers.dev.
 I parser IVA/INPS restano coperti dai test PDF.js e unitari già presenti;
 non si dichiara qui un percorso UI completo per ciascuno di quei layout.
+
+
+## Percorsi UI IVA 2026 e INPS luglio 2026 – 16 ottobre 2026
+
+Esecuzione **SUCCESSO**:
+https://github.com/mauriziodeangelis2708/nomotecnia-app/actions/runs/38860026634
+
+Commit testato: `d986075c330e6825e64a35f69c137bb251b61194`.
+Sono state ripetute le prove precedenti ed estesa l'importazione PDF nel
+browser a due ulteriori file interamente sintetici, appartenenti all'impresa
+di test con Partita IVA `00000000000`.
+
+- IVA 2026, periodo d'imposta 2025: VE50 = 500000 e VF25 = 100000.
+- INPS luglio 2026: forza aziendale = 8.
+- In ciascun caso: controllo di identità coerente, selezione e conferma
+  dell'operatore, verifica che l'applicazione alla bozza non aggiorni il DB,
+  salvataggio esplicito, ricaricamento e verifica dei valori nel DB staging.
+- Ragione sociale, Partita IVA e checklist restano invariate.
+- IVA con periodo d'imposta 2024 e INPS luglio 2025: nessun campo
+  applicabile, comando di importazione disabilitato e dati salvati invariati.
+
+Le precedenti limitazioni sul mancato percorso UI IVA/INPS sono quindi
+superate per questi specifici layout sintetici a testo. Non sono certificati
+tutti i layout reali, OCR, PDF cifrati o ogni combinazione fiscale.
+
+Pulizia SQL successiva: utenti, clienti, assessment, note e snapshot sintetici
+tutti a zero. Nessuna modifica applicativa o nuovo deploy necessario;
+workflow UI nuovamente solo manuale. Il limite relativo alla verifica del
+dominio pubblico dal browser cloud resta invariato.
