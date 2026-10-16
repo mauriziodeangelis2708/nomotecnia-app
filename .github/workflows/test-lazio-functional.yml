@@ -1,0 +1,40 @@
+name: Lazio functional rules audit (synthetic only)
+on:
+  workflow_dispatch:
+  push:
+    branches: [feature/document-intelligence-sandbox-20261015]
+    paths:
+      - scripts/verify-lazio-functional.mjs
+      - src/lib/engine*
+      - src/lib/bando.ts
+      - src/lib/lazio-dossier*
+      - src/lib/questions*
+      - src/test/lazio-fixtures.ts
+      - .github/workflows/test-lazio-functional.yml
+permissions:
+  contents: read
+jobs:
+  lazio-rules:
+    if: github.ref == 'refs/heads/feature/document-intelligence-sandbox-20261015'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - name: Independent scenarios from Avviso and official Excel grid
+        env:
+          LAZIO_AUDIT_OUTPUT: lazio-audit-results.json
+        run: node scripts/verify-lazio-functional.mjs
+      - uses: oven-sh/setup-bun@v2
+      - name: Locked dependencies
+        run: bun install --frozen-lockfile
+      - name: Existing eligibility, dossier and form regressions
+        run: bunx vitest run src/lib/engine.test.ts src/lib/lazio-dossier.test.ts src/lib/questions.test.ts
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: lazio-functional-rules-evidence
+          path: lazio-audit-results.json
+          retention-days: 7

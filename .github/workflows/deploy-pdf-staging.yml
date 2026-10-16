@@ -1,0 +1,62 @@
+name: Deploy NomotecnIA PDF staging (opt-in)
+on:
+  push:
+    branches:
+      - feature/document-intelligence-sandbox-20261015
+    paths:
+      - "staging/**"
+      - "src/lib/document-prefill-*"
+      - "src/lib/local-pdf-reader.ts"
+      - "src/components/DocumentPrefillSandbox.tsx"
+      - "src/styles.css"
+      - "wrangler.pdf-staging.jsonc"
+      - ".github/workflows/deploy-pdf-staging.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pdf-staging-deploy
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    if: ${{ github.ref == 'refs/heads/feature/document-intelligence-sandbox-20261015' && vars.ENABLE_PDF_STAGING_DEPLOY == 'true' }}
+    runs-on: ubuntu-latest
+    environment: pdf-staging
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - name: Locked dependencies
+        run: bun install --frozen-lockfile
+      - name: Typecheck isolated lab
+        run: bun run typecheck:pdf-staging
+      - name: Build isolated lab
+        run: bun run build:pdf-staging
+      - name: Deny production identifiers in staging bundle
+        run: |
+          if grep -R -l -E 'bdwqobvkeposjvuddjav|nomotecnia-app[.]maurizio' dist/pdf-staging; then
+            echo "::error::Staging unexpectedly embeds production identifiers."
+            exit 1
+          fi
+      - name: Deploy only separate Cloudflare staging Worker
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_STAGING_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CF_STAGING_API_TOKEN }}
+          STAGING_PASSWORD: ${{ secrets.PDF_STAGING_PASSWORD }}
+        run: |
+          if [ -z "$CLOUDFLARE_ACCOUNT_ID" ] || [ -z "$CLOUDFLARE_API_TOKEN" ]; then
+            echo "::error::Cloudflare staging-specific credentials are required."
+            exit 1
+          fi
+          if [ "${#STAGING_PASSWORD}" -lt 18 ]; then
+            echo "::error::PDF_STAGING_PASSWORD must be at least 18 characters."
+            exit 1
+          fi
+          # First deployment is fail-closed (503) until the separate secret is set.
+          bunx wrangler@4 deploy --config wrangler.pdf-staging.jsonc
+          printf '%s' "$STAGING_PASSWORD" | bunx wrangler@4 secret put STAGING_ACCESS_PASSWORD --config wrangler.pdf-staging.jsonc

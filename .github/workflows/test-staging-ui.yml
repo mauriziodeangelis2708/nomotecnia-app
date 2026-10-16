@@ -1,0 +1,54 @@
+name: Isolated staging UI smoke (synthetic users)
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: nomotecnia-staging-ui-disposable
+  cancel-in-progress: false
+jobs:
+  ui:
+    if: github.ref == 'refs/heads/feature/document-intelligence-sandbox-20261015'
+    runs-on: ubuntu-latest
+    environment: staging-rls
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - name: Install locked dependencies and isolated browser test tool
+        run: |
+          bun install --frozen-lockfile
+          npm install --prefix /tmp/nomotecnia-ui --no-audit --no-fund playwright@1.56.1 wrangler@4
+          /tmp/nomotecnia-ui/node_modules/.bin/playwright install --with-deps chromium
+          node --check scripts/verify-staging-ui.mjs
+      - name: Build real application strictly for staging
+        env:
+          VITE_NOMOTECNIA_STAGING: "true"
+          VITE_ENABLE_DOCUMENT_PDF_LAB: "true"
+          VITE_SUPABASE_URL: "https://vknvadzsjuixcuwegxto.supabase.co"
+          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.STAGING_SUPABASE_PUBLISHABLE_KEY }}
+        run: |
+          bunx vitest run src/lib/staging-gate.test.ts
+          bun run build
+          node scripts/prepare-full-staging.mjs
+      - name: Exercise local Cloudflare runtime with four disposable staging users
+        env:
+          STAGING_SUPABASE_URL: "https://vknvadzsjuixcuwegxto.supabase.co"
+          STAGING_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.STAGING_SUPABASE_PUBLISHABLE_KEY }}
+          STAGING_SUPABASE_SECRET_KEY: ${{ secrets.STAGING_SUPABASE_SECRET_KEY }}
+        run: node scripts/verify-staging-ui.mjs
+      - uses: actions/upload-artifact@v4
+        if: success()
+        with:
+          name: synthetic-ui-screenshots
+          path: ui-test-results/
+          retention-days: 3
+
+# Validate the outer Worker gate for HTML and static assets in the local runtime.
+
+# Capture mobile evidence after modal close has completed.

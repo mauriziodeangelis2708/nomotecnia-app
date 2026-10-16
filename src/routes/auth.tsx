@@ -173,9 +173,11 @@ function AuthPage() {
               Resta connesso
             </label>
           )}
-          <Button type="button" variant="outline" className="w-full" onClick={google}>
-            Continua con Google
-          </Button>
+          {import.meta.env["VITE_NOMOTECNIA_STAGING"] !== "true" && (
+            <Button type="button" variant="outline" className="w-full" onClick={google}>
+              Continua con Google
+            </Button>
+          )}
           <button
             type="button"
             className="text-sm text-primary underline-offset-4 hover:underline"

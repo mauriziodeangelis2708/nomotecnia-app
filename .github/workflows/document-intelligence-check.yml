@@ -1,0 +1,89 @@
+name: Document intelligence draft checks
+on:
+  pull_request:
+    paths:
+      - "src/lib/document-prefill-demo*"
+      - "src/lib/staging-gate*"
+      - "src/server.ts"
+      - "src/routes/auth.tsx"
+      - "src/routes/index.tsx"
+      - "scripts/prepare-full-staging.mjs"
+      - "scripts/verify-staging-rls.mjs"
+      - "scripts/provision-and-test-staging-rls.mjs"
+      - ".github/workflows/test-staging-rls.yml"
+      - ".github/workflows/deploy-full-staging.yml"
+      - "staging/**"
+      - "wrangler.pdf-staging.jsonc"
+      - "src/lib/local-pdf-reader*"
+      - "src/lib/document-prefill-merge*"
+      - "src/lib/document-prefill-review*"
+      - "src/lib/document-prefill-identity*"
+      - "src/components/DocumentPrefillSandbox*"
+      - "src/routes/_authenticated/assessment.$id.tsx"
+      - "package.json"
+      - "scripts/verify-synthetic-pdf.mjs"
+      - "bun.lock"
+      - ".github/workflows/document-intelligence-check.yml"
+concurrency:
+  group: document-intelligence-pr-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+permissions:
+  contents: read
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - name: Install packages (draft dependency validation)
+        run: bun install
+      - name: Typecheck
+        run: bunx tsc --noEmit
+      - name: Lint new document-reading modules
+        run: bunx eslint src/lib/document-prefill-demo.ts src/lib/document-prefill-demo.test.ts src/lib/document-prefill-merge.ts src/lib/document-prefill-merge.test.ts src/lib/document-prefill-review.ts src/lib/document-prefill-review.test.ts src/lib/document-prefill-identity.ts src/lib/document-prefill-identity.test.ts src/lib/local-pdf-reader.ts src/lib/local-pdf-reader.test.ts src/components/DocumentPrefillSandbox.tsx src/components/DocumentPrefillSandbox.test.tsx
+      - name: Unit tests
+        run: bun run test
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - name: Real PDF.js roundtrip (synthetic document only)
+        run: node scripts/verify-synthetic-pdf.mjs
+      - name: Production build
+        run: bun run build
+      - name: Typecheck isolated Cloudflare staging client and edge
+        run: bun run typecheck:pdf-staging
+      - name: Build isolated synthetic-document staging client
+        run: bun run build:pdf-staging
+      - name: Verify no production Supabase URL or app name in staging build
+        run: |
+          if grep -R -l -E 'bdwqobvkeposjvuddjav|nomotecnia-app[.]maurizio' dist/pdf-staging; then
+            echo "::error::Production identifiers found in PDF staging bundle"
+            exit 1
+          fi
+      - name: Test staging gate (fail-closed access)
+        run: bunx vitest run src/lib/staging-gate.test.ts
+      - name: Build real app against synthetic staging configuration
+        env:
+          VITE_NOMOTECNIA_STAGING: "true"
+          VITE_ENABLE_DOCUMENT_PDF_LAB: "true"
+          VITE_SUPABASE_URL: "https://vknvadzsjuixcuwegxto.supabase.co"
+          VITE_SUPABASE_PUBLISHABLE_KEY: "sb_publishable_CI_BUILD_PLACEHOLDER_ONLY"
+        run: |
+          bun run build
+          node scripts/prepare-full-staging.mjs
+      - name: Validate disposable Auth RLS test runner syntax and prod guard
+        run: |
+          node --check scripts/verify-staging-rls.mjs
+          node --check scripts/provision-and-test-staging-rls.mjs
+          if STAGING_SUPABASE_URL="https://bdwqobvkeposjvuddjav.supabase.co" node scripts/provision-and-test-staging-rls.mjs; then
+            echo "::error::Disposable account runner did not block production URL"
+            exit 1
+          fi
+      - name: Frozen lockfile validation
+        run: |
+          git diff --exit-code -- bun.lock
+          bun install --frozen-lockfile
+

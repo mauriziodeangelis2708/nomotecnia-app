@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import type { Json } from "@/integrations/supabase/types";
-import { useRules } from "@/hooks/use-rules";
+import { useRules, useMe } from "@/hooks/use-rules";
 import {
   evaluate,
   nonnegative,
@@ -17,6 +17,8 @@ import {
 import { getGeCoWebFormMissing, isIntegerQuestion, STEPS } from "@/lib/questions";
 import { CHECKLIST, DOC_STATUS, dt, eur } from "@/lib/checklist";
 import { QuestionField } from "@/components/QuestionField";
+import { DocumentPrefillSandbox } from "@/components/DocumentPrefillSandbox";
+import { mergeReviewedDocumentFields } from "@/lib/document-prefill-review";
 import { ResultView } from "@/components/ResultView";
 import { Disclaimer } from "@/components/StatusBadge";
 import { Button } from "@/components/ui/button";
@@ -52,6 +54,7 @@ function AssessmentPage() {
   const newClientId = isNew ? id.slice(4) : null;
   const qc = useQueryClient();
   const rules = useRules();
+  const me = useMe();
   const a = useQuery({
     queryKey: ["assessment", id],
     enabled: !isNew,
@@ -545,6 +548,39 @@ function AssessmentPage() {
         </TabsContent>
 
         <TabsContent value="documenti" className="mt-4">
+          {me.data?.isAdmin && import.meta.env["VITE_ENABLE_DOCUMENT_PDF_LAB"] === "true" && (
+            <DocumentPrefillSandbox
+              answers={answers}
+              onApply={(kind, proposals, sourcePages, ownershipConfirmed) => {
+                const outcome = mergeReviewedDocumentFields(
+                  answers,
+                  kind,
+                  proposals,
+                  sourcePages,
+                  ownershipConfirmed,
+                );
+                if (outcome.applied.length === 0) {
+                  toast.error(
+                    "Importazione bloccata: controlla documento, impresa, periodo e valori.",
+                  );
+                  return;
+                }
+                setAnswers((previous) =>
+                  mergeReviewedDocumentFields(
+                    previous,
+                    kind,
+                    proposals,
+                    sourcePages,
+                    ownershipConfirmed,
+                  ).answers,
+                );
+                setDirty(true);
+                if (outcome.blocked.length > 0) {
+                  toast.warning("Alcuni campi erano già compilati e non sono stati modificati.");
+                }
+              }}
+            />
+          )}
           <div className="rounded-lg border bg-card">
             {CHECKLIST.map((d) => {
               const c = checklist[d.key] ?? { status: "mancante" };

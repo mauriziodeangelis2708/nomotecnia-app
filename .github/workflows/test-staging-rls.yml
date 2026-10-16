@@ -1,0 +1,33 @@
+name: Test staging RLS with disposable Auth users
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  rls:
+    if: ${{ github.ref == 'refs/heads/feature/document-intelligence-sandbox-20261015' && vars.ENABLE_STAGING_RLS_TESTS == 'true' }}
+    runs-on: ubuntu-latest
+    environment: staging-rls
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - name: Install locked dependencies
+        run: bun install --frozen-lockfile
+      - name: Validate independent test script syntax
+        run: |
+          node --check scripts/provision-and-test-staging-rls.mjs
+          node --check scripts/verify-staging-rls.mjs
+      - name: Run actual four-user Supabase Auth/RLS test (STAGING ONLY)
+        env:
+          STAGING_SUPABASE_URL: "https://vknvadzsjuixcuwegxto.supabase.co"
+          STAGING_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.STAGING_SUPABASE_PUBLISHABLE_KEY }}
+          STAGING_SUPABASE_SECRET_KEY: ${{ secrets.STAGING_SUPABASE_SECRET_KEY }}
+        run: node scripts/provision-and-test-staging-rls.mjs
