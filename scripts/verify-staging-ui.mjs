@@ -337,6 +337,60 @@ try {
   await root.page.screenshot({path:"ui-test-results/pdf-import-fail-closed.png",fullPage:true,animations:"disabled"});
   pass("wrong-company and malformed PDFs rejected without overwrites or stale proposals; no raw PDF upload");
 
+
+  stage="IVA and INPS PDF import with fiscal-period validation";
+  const periodFixtures=[
+    {
+      kind:"iva",name:"iva-2026-inventata.pdf",
+      lines:["DICHIARAZIONE IVA 2026 - FACSIMILE INVENTATO","Periodo d'imposta 2025","Partita IVA: 00000000000","VE50: 500.000","VF25: 100.000"],
+      labels:["Conferma VE50 volume d'affari 2025","Conferma VF25 imponibile acquisti 2025"],
+      expected:{iva_ve50_2025:500000,iva_vf25_2025:100000},
+      wrong:["DICHIARAZIONE IVA 2026 - FACSIMILE INVENTATO","Periodo d'imposta 2024","Partita IVA: 00000000000","VE50: 900.000","VF25: 800.000"],
+    },
+    {
+      kind:"inps",name:"inps-luglio-2026-inventata.pdf",
+      lines:["ATTESTAZIONE DELLA DENUNCIA CONTRIBUTIVA - FACSIMILE INVENTATO","Luglio 2026","Partita IVA: 00000000000","Forza Aziendale: 8"],
+      labels:["Conferma Forza aziendale luglio 2026"],
+      expected:{addetti_inps_luglio_2026:8},
+      wrong:["ATTESTAZIONE DELLA DENUNCIA CONTRIBUTIVA - FACSIMILE INVENTATO","Luglio 2025","Partita IVA: 00000000000","Forza Aziendale: 88"],
+    },
+  ];
+  for(const fixture of periodFixtures) {
+    stage="PDF import "+fixture.kind;
+    await lab.getByLabel("Tipologia documento",{exact:true}).selectOption(fixture.kind);
+    await lab.getByRole("checkbox",{name:"Confermo che userò esclusivamente PDF inventati per test, senza dati reali di persone o aziende.",exact:true}).check();
+    await input.setInputFiles({name:fixture.name,mimeType:"application/pdf",buffer:syntheticPdf(fixture.lines)});
+    await lab.getByText("Analizzato localmente: "+fixture.name,{exact:true}).waitFor();
+    await lab.getByText("Partita IVA del documento coerente con quella della pratica. Verificare comunque il documento.",{exact:true}).waitFor();
+    for(const label of fixture.labels) await lab.getByRole("checkbox",{name:label,exact:true}).check();
+    const before=must(await own.from("assessments").select("answers,checklist").eq("id",assessmentId).single(),"Read before fiscal import");
+    root.page.once("dialog",dialog=>dialog.accept());
+    await apply.click();
+    const draft=must(await own.from("assessments").select("answers").eq("id",assessmentId).single(),"Read draft before explicit save");
+    assert.deepEqual(draft.answers,before.answers,"Fiscal import must not auto-save");
+    await root.page.getByRole("button",{name:"Salva",exact:true}).click();
+    await root.page.getByRole("button",{name:"Salvato",exact:true}).waitFor();
+    await root.page.reload();
+    await root.page.getByRole("tab",{name:"Documenti",exact:true}).click();
+    const persisted=must(await own.from("assessments").select("answers,checklist").eq("id",assessmentId).single(),"Read saved fiscal fields");
+    for(const [field,value] of Object.entries(fixture.expected)) assert.equal(persisted.answers[field],value);
+    assert.equal(persisted.answers.partita_iva,"00000000000");
+    assert.equal(persisted.answers.ragione_sociale,a.clientName);
+    assert.deepEqual(persisted.checklist,before.checklist);
+    pass(fixture.kind+" PDF parsed in browser; confirmed fields survive explicit save and reload without changing checklist");
+
+    stage="wrong-period PDF rejection "+fixture.kind;
+    await lab.getByLabel("Tipologia documento",{exact:true}).selectOption(fixture.kind);
+    await lab.getByRole("checkbox",{name:"Confermo che userò esclusivamente PDF inventati per test, senza dati reali di persone o aziende.",exact:true}).check();
+    await input.setInputFiles({name:"periodo-errato-"+fixture.name,mimeType:"application/pdf",buffer:syntheticPdf(fixture.wrong)});
+    await lab.getByText("Analizzato localmente: periodo-errato-"+fixture.name,{exact:true}).waitFor();
+    await lab.getByText("Nessun campo univoco riconosciuto.",{exact:true}).waitFor();
+    assert.equal(await apply.isDisabled(),true);
+    const unchanged=must(await own.from("assessments").select("answers").eq("id",assessmentId).single(),"Read after wrong-period PDF");
+    assert.deepEqual(unchanged.answers,persisted.answers);
+    pass(fixture.kind+" PDF with wrong period rejected; saved values unchanged");
+  }
+
   stage="UI cross-account assessment isolation";
   await b.page.goto(assessmentURL);
   await b.page.getByText("Caricamento", {exact:false}).waitFor({state:"hidden"}).catch(()=>{});
