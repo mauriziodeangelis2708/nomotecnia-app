@@ -1,0 +1,49 @@
+name: Document reader browser compatibility
+on:
+  push:
+    branches: ["feature/document-intelligence-sandbox-20261015"]
+    paths:
+      - "src/lib/local-ocr*"
+      - "src/lib/local-pdf-reader*"
+      - "src/components/DocumentPrefillSandbox*"
+      - "tests/document-reader/**"
+      - "scripts/test-document-browsers.mjs"
+      - "scripts/document-reader-fixtures.mjs"
+      - ".github/workflows/test-document-browsers.yml"
+permissions:
+  contents: read
+jobs:
+  reader:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        browser: [chromium, firefox, webkit]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - name: Install pinned browser test tools
+        run: |
+          bun install --frozen-lockfile
+          npm install --prefix /tmp/nomotecnia-local-browser --no-audit --no-fund playwright@1.56.1
+          /tmp/nomotecnia-local-browser/node_modules/.bin/playwright install --with-deps ${{ matrix.browser }}
+      - name: Build isolated reader without database or credentials
+        run: |
+          node scripts/prepare-ocr-assets.mjs
+          bunx vite build --config tests/document-reader/vite.config.ts
+      - name: Exercise document reader on desktop and mobile viewport
+        env:
+          READER_BROWSER: ${{ matrix.browser }}
+        run: node scripts/test-document-browsers.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: reader-${{ matrix.browser }}
+          path: reader-test-results/
+          retention-days: 3

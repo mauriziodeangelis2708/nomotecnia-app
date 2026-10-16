@@ -27,6 +27,8 @@ describe("Lettura PDF operativa locale", () => {
     render(<DocumentPrefillSandbox mode="local" answers={{}} onApply={vi.fn()} />);
     expect(screen.getByLabelText("Seleziona PDF dell’impresa")).toBeEnabled();
     expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
+    expect(screen.queryByText(/Testo assente/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Non posso confermare automaticamente/)).not.toBeInTheDocument();
     expect(screen.queryByText(/AZIENDA DEMO/)).not.toBeInTheDocument();
     expect(
       screen.queryByRole("checkbox", { name: "Conferma Partita IVA" }),

@@ -103,7 +103,7 @@ export function DocumentPrefillSandbox({
     setError("");
     setBusy(true);
     try {
-      // No upload, network request, server-side storage or external AI call.
+      // No document upload, server-side storage or external AI call.
       const { extractLocalPdfText } = await import("@/lib/local-pdf-reader");
       const extracted = await extractLocalPdfText(file, {
         ocr: ocrEnabled,
@@ -223,7 +223,7 @@ export function DocumentPrefillSandbox({
               Solo sul dispositivo; massimo 8 MB, 45 pagine. OCR facoltativo per scansioni; PDF
               cifrati non supportati.
             </p>
-            {pdfName && <p className="mt-2 text-sm">Analizzato localmente: {pdfName}</p>}
+            {pdfName && <p className="mt-2 break-all text-sm">Analizzato localmente: {pdfName}</p>}
             <Button type="button" variant="outline" className="mt-2" onClick={clearFile}>
               {localMode ? "Rimuovi PDF dalla memoria" : "Svuota PDF dalla memoria del laboratorio"}
             </Button>
@@ -304,113 +304,115 @@ export function DocumentPrefillSandbox({
           </p>
         </div>
       )}
-      <div className="mt-4">
-        <h3 className="mb-2 text-sm font-semibold">
-          Proposte da verificare ({preview.proposals.length})
-        </h3>
-        {!fiscalAllowed && (
-          <p role="alert" className="mb-3 text-sm text-destructive">
-            Regime forfettario: i righi IVA VE50 e VF25 non sono applicabili a questa pratica.
-          </p>
-        )}
-        {companyReview.status === "unverified" && (
-          <label className="mb-3 flex items-start gap-2 rounded-md border bg-muted/20 p-3 text-sm">
-            <input
-              type="checkbox"
-              className="mt-1"
-              checked={ownershipConfirmed}
-              onChange={(event) => setOwnershipConfirmed(event.target.checked)}
-              aria-label="Confermo appartenenza documento alla impresa"
-            />
-            <span>
-              {companyReview.explanation} Ho verificato manualmente che il documento appartiene a
-              questa impresa.
-            </span>
-          </label>
-        )}
-        {(companyReview.status === "mismatch" || companyReview.status === "conflict") && (
-          <p role="alert" className="mb-3 text-sm text-destructive">
-            {companyReview.explanation}
-          </p>
-        )}
-        {companyReview.status === "matched" && (
-          <p className="mb-3 text-sm text-muted-foreground">{companyReview.explanation}</p>
-        )}
-        {preview.proposals.length === 0 && (
-          <p className="text-sm text-muted-foreground">Nessun campo univoco riconosciuto.</p>
-        )}
-        <ul className="space-y-2">
-          {preview.proposals.map((candidate) => {
-            const original = answers[candidate.field];
-            const occupied = original !== undefined && original !== null && original !== "";
-            const different = occupied && original !== candidate.value;
-            return (
-              <li key={candidate.field} className="rounded-md border bg-background p-3 text-sm">
-                <label className="flex items-start gap-2">
-                  <input
-                    aria-label={"Conferma " + candidate.label}
-                    type="checkbox"
-                    className="mt-1"
-                    disabled={occupied || busy || !identityAllowed || !fiscalAllowed}
-                    checked={!!selected[candidate.field] && !occupied}
-                    onChange={(e) =>
-                      setSelected((s) => ({
-                        ...s,
-                        [candidate.field]: e.target.checked,
-                      }))
-                    }
-                  />
-                  <span className="font-medium">
-                    {candidate.label}: {String(candidate.value)}
-                  </span>
-                </label>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  Campo {candidate.field} · pagina {candidate.sourcePage} · riga{" "}
-                  {candidate.sourceLine}
-                </p>
-                <p className="mt-1 break-words text-xs text-muted-foreground">
-                  Fonte locale: {candidate.sourceExcerpt}
-                </p>
-                {different && (
-                  <p className="mt-1 text-xs text-destructive">
-                    Campo già valorizzato: confronto obbligatorio, nessuna sovrascrittura
-                    automatica.
-                  </p>
-                )}
-                {occupied && !different && (
+      {(!localMode || ((pages !== null || error !== "") && kind !== "altro")) && (
+        <div className="mt-4">
+          <h3 className="mb-2 text-sm font-semibold">
+            Proposte da verificare ({preview.proposals.length})
+          </h3>
+          {!fiscalAllowed && (
+            <p role="alert" className="mb-3 text-sm text-destructive">
+              Regime forfettario: i righi IVA VE50 e VF25 non sono applicabili a questa pratica.
+            </p>
+          )}
+          {companyReview.status === "unverified" && (
+            <label className="mb-3 flex items-start gap-2 rounded-md border bg-muted/20 p-3 text-sm">
+              <input
+                type="checkbox"
+                className="mt-1"
+                checked={ownershipConfirmed}
+                onChange={(event) => setOwnershipConfirmed(event.target.checked)}
+                aria-label="Confermo appartenenza documento alla impresa"
+              />
+              <span>
+                {companyReview.explanation} Ho verificato manualmente che il documento appartiene a
+                questa impresa.
+              </span>
+            </label>
+          )}
+          {(companyReview.status === "mismatch" || companyReview.status === "conflict") && (
+            <p role="alert" className="mb-3 text-sm text-destructive">
+              {companyReview.explanation}
+            </p>
+          )}
+          {companyReview.status === "matched" && (
+            <p className="mb-3 text-sm text-muted-foreground">{companyReview.explanation}</p>
+          )}
+          {preview.proposals.length === 0 && (
+            <p className="text-sm text-muted-foreground">Nessun campo univoco riconosciuto.</p>
+          )}
+          <ul className="space-y-2">
+            {preview.proposals.map((candidate) => {
+              const original = answers[candidate.field];
+              const occupied = original !== undefined && original !== null && original !== "";
+              const different = occupied && original !== candidate.value;
+              return (
+                <li key={candidate.field} className="rounded-md border bg-background p-3 text-sm">
+                  <label className="flex items-start gap-2">
+                    <input
+                      aria-label={"Conferma " + candidate.label}
+                      type="checkbox"
+                      className="mt-1"
+                      disabled={occupied || busy || !identityAllowed || !fiscalAllowed}
+                      checked={!!selected[candidate.field] && !occupied}
+                      onChange={(e) =>
+                        setSelected((s) => ({
+                          ...s,
+                          [candidate.field]: e.target.checked,
+                        }))
+                      }
+                    />
+                    <span className="min-w-0 break-words font-medium">
+                      {candidate.label}: {String(candidate.value)}
+                    </span>
+                  </label>
                   <p className="mt-1 text-xs text-muted-foreground">
-                    Valore già presente nell'assessment.
+                    Campo {candidate.field} · pagina {candidate.sourcePage} · riga{" "}
+                    {candidate.sourceLine}
                   </p>
-                )}
-              </li>
-            );
-          })}
-        </ul>
-        {preview.warnings.map((warning, i) => (
-          <p key={i} role="status" className="mt-2 text-sm text-destructive">
-            {warning}
+                  <p className="mt-1 break-words text-xs text-muted-foreground">
+                    Fonte locale: {candidate.sourceExcerpt}
+                  </p>
+                  {different && (
+                    <p className="mt-1 text-xs text-destructive">
+                      Campo già valorizzato: confronto obbligatorio, nessuna sovrascrittura
+                      automatica.
+                    </p>
+                  )}
+                  {occupied && !different && (
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Valore già presente nell'assessment.
+                    </p>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+          {preview.warnings.map((warning, i) => (
+            <p key={i} role="status" className="mt-2 text-sm text-destructive">
+              {warning}
+            </p>
+          ))}
+          <Button
+            type="button"
+            className="mt-3 h-auto min-h-9 max-w-full whitespace-normal"
+            disabled={
+              busy || !identityAllowed || !fiscalAllowed || !eligible.some((p) => selected[p.field])
+            }
+            onClick={apply}
+          >
+            Conferma campi selezionati nella bozza
+          </Button>
+          <p className="mt-2 text-xs text-muted-foreground">
+            I dati restano da controllare sull'originale. Nessuna evidenza diventa “verificata”, e
+            nessuna modifica viene salvata senza usare il comando Salva della pratica.
           </p>
-        ))}
-        <Button
-          type="button"
-          className="mt-3"
-          disabled={
-            busy || !identityAllowed || !fiscalAllowed || !eligible.some((p) => selected[p.field])
-          }
-          onClick={apply}
-        >
-          Conferma campi selezionati nella bozza
-        </Button>
-        <p className="mt-2 text-xs text-muted-foreground">
-          I dati restano da controllare sull'originale. Nessuna evidenza diventa “verificata”, e
-          nessuna modifica viene salvata senza usare il comando Salva della pratica.
-        </p>
-        <p className="mt-2 text-xs text-muted-foreground">
-          Per stimare il punteggio Lazio occorre inoltre compilare e verificare il regime fiscale,
-          le eventuali vendite OSS e integrazioni editoriali, le certificazioni e la checklist. La
-          lettura del PDF non rende automaticamente completa o ammissibile la domanda.
-        </p>
-      </div>
+          <p className="mt-2 text-xs text-muted-foreground">
+            Per stimare il punteggio Lazio occorre inoltre compilare e verificare il regime fiscale,
+            le eventuali vendite OSS e integrazioni editoriali, le certificazioni e la checklist. La
+            lettura del PDF non rende automaticamente completa o ammissibile la domanda.
+          </p>
+        </div>
+      )}
     </section>
   );
 }
