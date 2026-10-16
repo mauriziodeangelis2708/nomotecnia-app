@@ -1,6 +1,9 @@
 name: Published staging UI smoke (synthetic users)
 on:
   workflow_dispatch:
+  push:
+    branches: [feature/document-intelligence-sandbox-20261015]
+    paths: [.github/workflows/test-published-staging-ui.yml]
 permissions:
   contents: read
 concurrency:
@@ -24,6 +27,25 @@ jobs:
           STAGING_ACCESS_PASSWORD: ${{ secrets.STAGING_ACCESS_PASSWORD }}
         run: |
           node -e 'if ((process.env.STAGING_ACCESS_PASSWORD || "").length < 18) { console.error("MISSING: configure STAGING_ACCESS_PASSWORD in protected environment staging-rls. No test identities created; no security controls changed."); process.exit(1); }'
+      - name: Verify authenticated staging gate before creating test users
+        env:
+          STAGING_ACCESS_PASSWORD: ${{ secrets.STAGING_ACCESS_PASSWORD }}
+        run: |
+          node --input-type=module <<'NODE'
+          const origin = "https://nomotecnia-full-staging.maurizio-deangelis2708.workers.dev";
+          const authorization = "Basic " + Buffer.from("nomotecnia:" + process.env.STAGING_ACCESS_PASSWORD).toString("base64");
+          const response = await fetch(origin + "/auth", { headers: { authorization }, redirect: "manual", signal: AbortSignal.timeout(20000) });
+          console.log("Authenticated staging gate HTTP status:", response.status);
+          if (response.status === 401 || response.status === 403) {
+            console.error("STAGING_GATE_CREDENTIAL_REJECTED: GitHub staging secret must match the existing Cloudflare staging gate. No test users created.");
+            process.exit(1);
+          }
+          if (response.status !== 200) {
+            console.error("STAGING_GATE_UNEXPECTED_RESPONSE: expected login page HTTP 200. No test users created.");
+            process.exit(1);
+          }
+          console.log("PASS: authenticated staging login page reachable");
+          NODE
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
