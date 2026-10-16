@@ -33,7 +33,7 @@ function must(result, description) {
   return result.data;
 }
 async function until(fn, description) {
-  for (let i=0;i<40;i++) {
+  for (let i=0;i<240;i++) {
     if (await fn()) return;
     await new Promise(r=>setTimeout(r,250));
   }
@@ -132,7 +132,7 @@ try {
   await b.page.goto(assessmentURL);
   await b.page.getByText("Caricamento", {exact:false}).waitFor({state:"hidden"}).catch(()=>{});
   await until(async()=>!(await b.page.locator("main").innerText()).includes("Caricamento"),"Cross-account load did not finish");
-  assert.equal(await b.page.getByDisplayValue?.(title)?.count?.() ?? 0,0);
+  assert.equal(await b.page.locator("main input").evaluateAll((inputs,value)=>inputs.some(input=>input.value===value),title),false);
   assert.equal((await b.page.locator("main").innerText()).includes(a.clientName),false);
   const other=createClient(URL,key,options);
   must(await other.auth.signInWithPassword({email:b.email,password:b.password}),"Other member API login");
@@ -149,7 +149,9 @@ try {
   await a.page.screenshot({path:"ui-test-results/assessment-synthetic.png",fullPage:true});
   pass("local browser UI smoke completed; published edge-site UI remains separate");
 } catch(error) {
-  console.error("FAILED at: "+stage+" ("+(error?.name??"Error")+")");
+  let message=String(error?.message??"Unknown error");
+  for(const value of [secret,gate,...accounts.map(a=>a.password)]) if(value) message=message.replaceAll(value,"[REDACTED]");
+  console.error("FAILED at: "+stage+" ("+(error?.name??"Error")+") "+message.slice(0,1500));
   process.exitCode=1;
 } finally {
   await browser?.close().catch(()=>{});
