@@ -1,10 +1,4 @@
-import {
-  act,
-  fireEvent,
-  render,
-  screen,
-  waitFor,
-} from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { DocumentPrefillSandbox } from "./DocumentPrefillSandbox";
 
@@ -23,18 +17,14 @@ const pages = [
 function selectPdf() {
   fireEvent.change(screen.getByLabelText("Seleziona PDF dell’impresa"), {
     target: {
-      files: [
-        new File(["%PDF-test"], "impresa.pdf", { type: "application/pdf" }),
-      ],
+      files: [new File(["%PDF-test"], "impresa.pdf", { type: "application/pdf" })],
     },
   });
 }
 
 describe("Lettura PDF operativa locale", () => {
   it("parte senza esempi e consente la selezione del PDF senza consenso fittizio", () => {
-    render(
-      <DocumentPrefillSandbox mode="local" answers={{}} onApply={vi.fn()} />,
-    );
+    render(<DocumentPrefillSandbox mode="local" answers={{}} onApply={vi.fn()} />);
     expect(screen.getByLabelText("Seleziona PDF dell’impresa")).toBeEnabled();
     expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
     expect(screen.queryByText(/AZIENDA DEMO/)).not.toBeInTheDocument();
@@ -56,12 +46,8 @@ describe("Lettura PDF operativa locale", () => {
     );
     selectPdf();
     await screen.findByText("Analizzato localmente: impresa.pdf");
-    expect(
-      screen.getByRole("checkbox", { name: "Conferma Partita IVA" }),
-    ).toBeDisabled();
-    fireEvent.click(
-      screen.getByRole("checkbox", { name: "Conferma Codice ATECO" }),
-    );
+    expect(screen.getByRole("checkbox", { name: "Conferma Partita IVA" })).toBeDisabled();
+    fireEvent.click(screen.getByRole("checkbox", { name: "Conferma Codice ATECO" }));
     expect(onApply).not.toHaveBeenCalled();
     fireEvent.click(
       screen.getByRole("button", {
@@ -77,12 +63,8 @@ describe("Lettura PDF operativa locale", () => {
   });
 
   it("scarta i dati precedenti quando il PDF successivo non è leggibile", async () => {
-    extract
-      .mockResolvedValueOnce(pages)
-      .mockRejectedValueOnce(new Error("PDF non leggibile"));
-    render(
-      <DocumentPrefillSandbox mode="local" answers={{}} onApply={vi.fn()} />,
-    );
+    extract.mockResolvedValueOnce(pages).mockRejectedValueOnce(new Error("PDF non leggibile"));
+    render(<DocumentPrefillSandbox mode="local" answers={{}} onApply={vi.fn()} />);
     selectPdf();
     await screen.findByText("Analizzato localmente: impresa.pdf");
     selectPdf();
@@ -104,20 +86,14 @@ describe("Lettura PDF operativa locale", () => {
         finish = resolve;
       }),
     );
-    render(
-      <DocumentPrefillSandbox mode="local" answers={{}} onApply={vi.fn()} />,
-    );
+    render(<DocumentPrefillSandbox mode="local" answers={{}} onApply={vi.fn()} />);
     selectPdf();
     await waitFor(() => expect(extract).toHaveBeenCalled());
-    fireEvent.click(
-      screen.getByRole("button", { name: "Rimuovi PDF dalla memoria" }),
-    );
+    fireEvent.click(screen.getByRole("button", { name: "Rimuovi PDF dalla memoria" }));
     await act(async () => {
       finish(pages);
     });
-    expect(
-      screen.queryByText("Analizzato localmente: impresa.pdf"),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByText("Analizzato localmente: impresa.pdf")).not.toBeInTheDocument();
     expect(
       screen.queryByRole("checkbox", { name: "Conferma Codice ATECO" }),
     ).not.toBeInTheDocument();
@@ -136,9 +112,7 @@ describe("Lettura PDF operativa locale", () => {
         name: "Confermo appartenenza documento alla impresa",
       }),
     );
-    fireEvent.click(
-      screen.getByRole("checkbox", { name: "Conferma Codice ATECO" }),
-    );
+    fireEvent.click(screen.getByRole("checkbox", { name: "Conferma Codice ATECO" }));
     rerender(
       <DocumentPrefillSandbox
         mode="local"
