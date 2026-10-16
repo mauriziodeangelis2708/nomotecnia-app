@@ -76,6 +76,7 @@ export function mergeFragments(parts: GrantDefinition[], expectedCount: number):
     throw new Error("Analisi incompleta: manca almeno un passaggio. Nessuna bozza utilizzabile.");
   const first = parts[0]!;
   const result: GrantDefinition = { ...first, questions: [], rules: [], unresolved: [] };
+  if (parts.some((p) => p.requirements !== undefined)) result.requirements = [];
   const questionIndex = new Map<string, number>(),
     ruleIndex = new Map<string, number>();
   for (const [partIndex, raw] of parts.entries()) {
@@ -110,6 +111,7 @@ export function mergeFragments(parts: GrantDefinition[], expectedCount: number):
         );
       result.questions.push({ ...mapped, id: newId });
     }
+    const ruleFields = new Map<string, string>();
     for (const [i, rule] of part.rules.entries()) {
       const mapped = remap(rule, fields) as typeof rule;
       const key = signature(mapped),
@@ -119,6 +121,7 @@ export function mergeFragments(parts: GrantDefinition[], expectedCount: number):
         const citations = combineCitations(existing.citations, rule.citations);
         if (citations.length <= 20) {
           existing.citations = citations;
+          ruleFields.set(rule.id, existing.id);
           continue;
         }
       }
@@ -131,7 +134,17 @@ export function mergeFragments(parts: GrantDefinition[], expectedCount: number):
           `Possibile conflitto nella regola «${mapped.label}»: confrontare i passaggi e impedire doppi conteggi.`,
         );
       ruleIndex.set(key, result.rules.length);
-      result.rules.push({ ...mapped, id: `r_${partIndex + 1}_${i + 1}` });
+      const newId = `r_${partIndex + 1}_${i + 1}`;
+      ruleFields.set(rule.id, newId);
+      result.rules.push({ ...mapped, id: newId });
+    }
+    for (const [i, requirement] of (part.requirements ?? []).entries()) {
+      result.requirements!.push({
+        ...requirement,
+        id: `req_${partIndex + 1}_${i + 1}`,
+        questionIds: requirement.questionIds.map((id) => fields.get(id)!),
+        ruleIds: requirement.ruleIds.map((id) => ruleFields.get(id)!),
+      });
     }
     result.unresolved.push(...part.unresolved);
   }

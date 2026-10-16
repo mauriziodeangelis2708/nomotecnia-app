@@ -37,6 +37,10 @@ export function runScenarios(d: GrantDefinition, scenarios: GrantScenario[]) {
 export function publicationProblems(input: unknown, review: GrantReview): string[] {
   const d = parseDefinition(input),
     problems = [...d.unresolved];
+  if (d.requirements?.some((r) => r.gap || !r.questionIds.length || !r.ruleIds.length))
+    problems.push("Completare la copertura di tutti i requisiti dell'inventario.");
+  if (d.requirements?.some((r) => !review.items.includes(`requirement:${r.id}`)))
+    problems.push("Revisionare ogni requisito dell'inventario e i relativi collegamenti.");
   if (
     d.sources.some((s) =>
       s.pages.some((p) => !review.sources.includes(sourceReviewKey(s.id, p.page))),

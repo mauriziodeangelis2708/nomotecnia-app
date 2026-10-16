@@ -356,6 +356,11 @@ export function GrantStudio() {
             {[
               ...definition.questions.map((q) => ({ ...q, key: `question:${q.id}`, kind: q.type })),
               ...definition.rules.map((r) => ({ ...r, key: `rule:${r.id}` })),
+              ...(definition.requirements ?? []).map((r) => ({
+                ...r,
+                key: `requirement:${r.id}`,
+                kind: "requisito e copertura",
+              })),
             ].map((item) => (
               <details className="rounded border p-3" key={item.key}>
                 <summary className="break-words">

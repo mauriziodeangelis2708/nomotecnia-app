@@ -21,12 +21,13 @@ const request = (body: unknown = input, headers = {}) =>
   });
 const modelOutput = () => {
   const { description, questions, rules, unresolved } = syntheticGrant();
-  return { description, questions, rules, unresolved };
+  return { description, questions, rules, unresolved, coverage: [] };
 };
 function setup(admin = true) {
   const ai = vi
     .fn()
     .mockResolvedValue({ response: { findings: [] } })
+    .mockResolvedValueOnce({ response: { requirements: [] } })
     .mockResolvedValueOnce({ response: JSON.stringify(modelOutput()) });
   const http = vi
     .fn()
@@ -107,26 +108,32 @@ describe("admin-only generation gateway", () => {
     expect(response.headers.get("Cache-Control")).toBe("no-store");
     const body = await response.json();
     expect(body.reviewed).toBe(false);
-    expect(body.definition).toEqual({ ...d, unresolved: [HUMAN_COVERAGE_REVIEW] });
+    expect(body.definition).toEqual({
+      ...d,
+      requirements: [],
+      unresolved: [HUMAN_COVERAGE_REVIEW],
+    });
     expect(s.http.mock.calls.every((c) => String(c[0]).startsWith(s.env.SUPABASE_URL!))).toBe(true);
   });
   it("fails closed if the independent audit fails instead of returning a partial draft", async () => {
     const s = setup();
     s.ai
       .mockReset()
+      .mockResolvedValueOnce({ response: { requirements: [] } })
       .mockResolvedValueOnce({ response: modelOutput() })
       .mockRejectedValueOnce(new Error("private provider detail"));
     const response = await handleGrantGeneration(request(), s.env, s.http);
     expect(response.status).toBe(502);
     expect(await response.text()).not.toContain("private provider detail");
-    expect(s.ai).toHaveBeenCalledTimes(2);
+    expect(s.ai).toHaveBeenCalledTimes(3);
   });
   it("accepts the live synthetic provider response and evaluates its generated rules", async () => {
     const s = setup();
     s.ai
       .mockReset()
       .mockResolvedValue({ response: { findings: [] } })
-      .mockResolvedValueOnce({ response: observed.response });
+      .mockResolvedValueOnce({ response: { requirements: [] } })
+      .mockResolvedValueOnce({ response: { ...observed.response, coverage: [] } });
     const response = await handleGrantGeneration(
       request({
         ...input,
@@ -156,11 +163,13 @@ describe("admin-only generation gateway", () => {
     s.ai
       .mockReset()
       .mockResolvedValue({ response: { findings: [] } })
+      .mockResolvedValueOnce({ response: { requirements: [] } })
       .mockResolvedValueOnce({ response: modelOutput() });
     const response = await handleGrantGeneration(request(), s.env, s.http);
     expect(response.status).toBe(200);
     expect((await response.json()).definition).toEqual({
       ...d,
+      requirements: [],
       unresolved: [HUMAN_COVERAGE_REVIEW],
     });
     const payload = modelOutput();
@@ -170,6 +179,7 @@ describe("admin-only generation gateway", () => {
     s.ai
       .mockReset()
       .mockResolvedValue({ response: { findings: [] } })
+      .mockResolvedValueOnce({ response: { requirements: [] } })
       .mockResolvedValueOnce({ response: payload });
     expect((await handleGrantGeneration(request(), s.env, s.http)).status).toBe(502);
   });
@@ -182,6 +192,7 @@ describe("admin-only generation gateway", () => {
     s.ai
       .mockReset()
       .mockResolvedValue({ response: { findings: [] } })
+      .mockResolvedValueOnce({ response: { requirements: [] } })
       .mockResolvedValueOnce({ response: JSON.stringify(payload) });
     expect((await handleGrantGeneration(request(), s.env, s.http)).status).toBe(502);
   });
@@ -204,6 +215,7 @@ describe("admin-only generation gateway", () => {
     s.ai
       .mockReset()
       .mockResolvedValue({ response: { findings: [] } })
+      .mockResolvedValueOnce({ response: { requirements: [] } })
       .mockResolvedValueOnce({ response: "PRIVATE_SOURCE_TEXT invalid json" });
     const r = await handleGrantGeneration(request(), s.env, s.http);
     expect(r.status).toBe(502);

@@ -44,6 +44,7 @@ await page.route("**/api/grants/generate", async route => {
   if (failSecondPass && input.chunkIndex === 1) return route.fulfill({status:502,contentType:"application/json",body:JSON.stringify({error:"Secondo passaggio sintetico non riuscito"})});
   const d = syntheticGrant(); d.id = input.id; d.title = input.title; d.sources = input.sources;
   for (const item of [...d.questions, ...d.rules]) item.citations = [{ documentId: input.sources[0].id, page: 1, quote: input.sources[0].pages[0].text.slice(0,300) }];
+  d.requirements = [{ id: "requisito_sintetico", label: "Inventario sintetico: impresa attiva", citations: d.questions[0].citations, questionIds: [d.questions[0].id], ruleIds: [d.rules[0].id] }];
   await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ definition: d, reviewed: false, chunkIndex: input.chunkIndex, chunkCount: planSourceChunks(input.sources).length }) });
 });
 try {
@@ -66,6 +67,7 @@ try {
   const publish = page.getByRole("button", { name: "Approva e attiva questa versione" });
   assert.equal(await publish.isDisabled(), true);
   pass("real local PDF extraction produces a draft from simulated model output, never auto-published");
+  await page.getByText("Inventario sintetico: impresa attiva · requisito e copertura", {exact:true}).waitFor();
   await page.locator("details").evaluateAll(elements => elements.forEach(e => e.open = true));
   await page.getByLabel(/Pagina 1 verificata/).check();
   for (const control of await page.getByLabel("Logica, soglie e riferimenti verificati sull'originale", { exact: true }).all()) await control.check();

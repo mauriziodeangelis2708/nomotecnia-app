@@ -1,4 +1,6 @@
 import { addCoverageFindings, COVERAGE_SYSTEM } from "./coverage";
+import { acceptInventory, attachInventory, INVENTORY_FORMAT, INVENTORY_SYSTEM } from "./inventory";
+import { GENERATION_FORMAT } from "./output-format";
 import { planSourceChunks } from "./multipass";
 import {
   acceptGeneratedDefinition,
@@ -101,9 +103,30 @@ export async function handleGrantGeneration(
     try {
       const definition = await Promise.race([
         (async () => {
+          const extracted = await env.AI!.run(GENERATOR_MODEL, {
+            messages: [
+              { role: "system", content: INVENTORY_SYSTEM },
+              { role: "user", content: JSON.stringify({ excerpts: chunk }) },
+            ],
+            response_format: INVENTORY_FORMAT,
+            max_tokens: 4000,
+            temperature: 0,
+          });
+          const inventory = acceptInventory(
+            typeof extracted.response === "string"
+              ? JSON.parse(extracted.response)
+              : extracted.response,
+            chunk,
+          );
+          if (expired) throw new Error("timeout");
           const response = await env.AI!.run(GENERATOR_MODEL, {
             messages: [
-              { role: "system", content: GENERATOR_SYSTEM },
+              {
+                role: "system",
+                content:
+                  GENERATOR_SYSTEM +
+                  "\nAggiungi un campo coverage all'output: [{requirementId:string,questionIds:string[],ruleIds:string[],gap?:string}]. Collega OGNI requisito dell'inventario alle domande e alle regole che lo implementano; se non è coperto indica gap e non inventare. Non modificare l'inventario.",
+              },
               {
                 role: "user",
                 content: JSON.stringify({
@@ -111,10 +134,11 @@ export async function handleGrantGeneration(
                   chunkIndex: parsed.data.chunkIndex,
                   chunkCount: chunks.length,
                   excerpts: chunk,
+                  inventory,
                 }),
               },
             ],
-            response_format: { type: "json_object" },
+            response_format: GENERATION_FORMAT,
             max_tokens: 8000,
             temperature: 0,
           });
@@ -122,7 +146,14 @@ export async function handleGrantGeneration(
             typeof response.response === "string"
               ? JSON.parse(response.response)
               : response.response;
-          const draft = acceptGeneratedDefinition(raw, parsed.data);
+          if (!raw || typeof raw !== "object" || Array.isArray(raw))
+            throw new Error("Formato non valido.");
+          const { coverage, ...generated } = raw as Record<string, unknown>;
+          const draft = attachInventory(
+            acceptGeneratedDefinition(generated, parsed.data),
+            inventory,
+            coverage,
+          );
           if (expired) throw new Error("timeout");
           const audit = await env.AI!.run(GENERATOR_MODEL, {
             messages: [

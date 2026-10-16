@@ -51,6 +51,16 @@ const expression: z.ZodType<Expression> = z.lazy(() =>
 const citation = z
   .object({ documentId: id, page: z.number().int().min(1).max(500), quote: text })
   .strict();
+export const requirementSchema = z
+  .object({
+    id,
+    label: text,
+    citations: z.array(citation).min(1).max(20),
+    questionIds: z.array(id).max(150),
+    ruleIds: z.array(id).max(250),
+    gap: text.optional(),
+  })
+  .strict();
 export const sourceSchema = z
   .object({
     id,
@@ -114,6 +124,7 @@ export const definitionSchema = z
       .min(1)
       .max(250),
     unresolved: z.array(text).max(100),
+    requirements: z.array(requirementSchema).max(500).optional(),
   })
   .strict();
 export type GrantDefinition = z.infer<typeof definitionSchema>;
@@ -221,10 +232,30 @@ function parseGrant(input: unknown, fragment: boolean): GrantDefinition {
     const calculated = rule.kind === "score" || rule.kind === "grant";
     if (calculated ? !rule.formula || !!rule.condition : !rule.condition || !!rule.formula)
       throw new Error(`Regola incompleta o ambigua: ${rule.id}`);
+    if (
+      rule.kind === "eligibility" &&
+      rule.when &&
+      JSON.stringify(rule.when) === JSON.stringify(rule.condition)
+    )
+      throw new Error(
+        `Requisito auto-condizionato: il mancato rispetto verrebbe ignorato (${rule.id}).`,
+      );
   }
   if (!fragment && !result.rules.some((r) => r.kind === "eligibility" || r.kind === "exclusion"))
     throw new Error("Mancano regole di ammissibilità o esclusione.");
-  for (const item of [...result.questions, ...result.rules])
+  const requirementIds = new Set<string>();
+  for (const requirement of result.requirements ?? []) {
+    if (requirementIds.has(requirement.id)) throw new Error("Requisito duplicato.");
+    requirementIds.add(requirement.id);
+    if (
+      requirement.questionIds.some((id) => !ids.has(id)) ||
+      requirement.ruleIds.some((id) => !ruleIds.has(id))
+    )
+      throw new Error("Collegamento del requisito inesistente.");
+    if ((!requirement.questionIds.length || !requirement.ruleIds.length) && !requirement.gap)
+      throw new Error("Requisito privo di copertura o motivo della lacuna.");
+  }
+  for (const item of [...result.questions, ...result.rules, ...(result.requirements ?? [])])
     for (const c of item.citations) {
       const page = sources.get(c.documentId)?.pages.find((p) => p.page === c.page);
       if (
