@@ -24,7 +24,7 @@ This is an unfinished development feature, not a production release or a replace
 1. Real model connection and billing safeguards. Cloudflare subscriptions read returned authentication error; account settings reveal standard usage but do not prove a free account. No inference has been invoked and no paid service has been enabled. Workers AI offers a free allocation but paid accounts can incur overage; verify the account and enforce a reliable budget/rate cap before setting the enable flag.
 2. Long-document semantic review: multipass now retains all text up to 180,000 characters, bounded chunks, original pages, deterministic remapping/deduplication and explicit conflict flags. Grant uploads accept 200 pages per PDF (company documents keep 45); OCR stays limited to eight pages. Cross-document legal implications still need expert review. The model has not been benchmarked on the complete Lazio source package.
 3. Run real model generation against all Lazio reference documents and compare rule/question coverage, calculations and independent edge cases with the existing audited engine. A matching citation alone does not establish that its interpretation is correct or complete.
-4. Authenticated draft UI checks are prepared for real staging save/reload, revision conflicts and disabled AI gateway role enforcement. Actual publication, per-client saves/reloads and printable reports remain covered at separate UI/SQL layers, not yet by a single fully authenticated end-to-end test. No activated test fixtures are left in staging.
+4. Authenticated draft UI checks PASSED for real staging save/reload, revision conflicts and disabled AI gateway role enforcement. Actual publication, per-client saves/reloads and printable reports remain covered at separate UI/SQL layers, not yet by a single fully authenticated end-to-end test. No activated test fixtures are left in staging.
 5. Re-evaluate schema, migrations and generated-bundle behavior before any production rollout. Do not enable model bindings by copying unreviewed examples or expose provider keys in VITE variables.
 
 ## Staging operation
@@ -36,3 +36,10 @@ supabase/tests/configurable_grants.sql executes entirely in a transaction ending
 Documentation consulted: https://developers.cloudflare.com/workers-ai/platform/pricing/ ; https://developers.cloudflare.com/workers-ai/models/llama-3.3-70b-instruct-fp8-fast/ ; https://developers.cloudflare.com/workers-ai/features/json-mode/ ; https://supabase.com/docs/guides/api/securing-your-api .
 
 The protected staging-rls environment allows only feature/document-intelligence-sandbox-20261015. Authenticated tests run from that existing authorized development branch after promotion of the tested prototype. No environment protection is relaxed and no secrets are copied to the new branch. PR #12 remains a draft against main.
+
+## Verified workflow evidence
+
+- 338 tests plus three-browser multipass studio checks: https://github.com/mauriziodeangelis2708/nomotecnia-app/actions/runs/38918772736 (all three engines passed).
+- Main app checks/build: https://github.com/mauriziodeangelis2708/nomotecnia-app/actions/runs/38918772568 (passed).
+- Actual authenticated grant draft lifecycle and full existing operational regression: https://github.com/mauriziodeangelis2708/nomotecnia-app/actions/runs/38919070078 (passed; fixture cleanup passed).
+- Existing reader regression: Firefox exercised the 60-second bounded initializer fallback after worker network abort; its harness originally waited only 30 seconds. The harness now accepts either immediate recoverable initialization error or the documented 60-second deadline (75-second observation limit), then still requires a subsequent text PDF to work. No production OCR timeout was shortened or disabled.
