@@ -16,12 +16,12 @@ export const generationRequest = z
       (n, s) => n + s.pages.reduce((a, p) => a + p.text.length, 0),
       0,
     );
-    // Conservative bound for the model's 24k-token context, including the output.
-    if (characters > 180000)
+    // Bound the complete job; only one 10k-character chunk enters model context.
+    if (characters > 600000)
       ctx.addIssue({
         code: "custom",
         message:
-          "Il generatore accetta fino a 180.000 caratteri complessivi. Il documento non verrà troncato: ridurre le fonti o usare una configurazione revisionata.",
+          "Il generatore accetta fino a 600.000 caratteri complessivi. Il documento non verrà troncato: ridurre le fonti o usare una configurazione revisionata.",
       });
     if (!planSourceChunks(v.sources)[v.chunkIndex])
       ctx.addIssue({ code: "custom", message: "Passaggio di analisi inesistente." });

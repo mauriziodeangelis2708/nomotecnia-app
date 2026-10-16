@@ -6,6 +6,44 @@ import { syntheticGrant, SYNTHETIC_ANSWERS } from "./fixtures.test-support";
 import { parseDefinition, parseFragment } from "./schema";
 
 describe("multipass source coverage and deterministic merging", () => {
+  it("accepts a complete 121-page 366127-character dossier without changing chunk bounds", () => {
+    const d = syntheticGrant();
+    const counts = [50, 43, 6, 22],
+      totals = [139747, 161363, 15470, 49547];
+    d.sources = counts.map((count, i) => {
+      let remaining = totals[i]!;
+      return {
+        id: `documento_${i + 1}`,
+        name: `synthetic_${i}.pdf`,
+        sha256: "a".repeat(64),
+        pages: Array.from({ length: count }, (_, page) => {
+          const length = Math.ceil(remaining / (count - page));
+          remaining -= length;
+          return { page: page + 1, text: String(i).repeat(length) };
+        }),
+      };
+    });
+    const input = generationRequest.parse({
+      title: d.title,
+      id: d.id,
+      version: 1,
+      sources: d.sources,
+    });
+    const chunks = planSourceChunks(input.sources);
+    expect(chunks).toHaveLength(37);
+    expect(chunks.every((c) => c.reduce((n, p) => n + p.text.length, 0) <= CHUNK_CHARACTERS)).toBe(
+      true,
+    );
+    for (const s of d.sources)
+      for (const p of s.pages)
+        expect(
+          chunks
+            .flat()
+            .filter((c) => c.documentId === s.id && c.page === p.page)
+            .map((c) => c.text)
+            .join(""),
+        ).toBe(p.text);
+  });
   it("retains every character, original page number and document ID across chunks", () => {
     const d = syntheticGrant();
     d.sources[0]!.pages = [
@@ -32,7 +70,7 @@ describe("multipass source coverage and deterministic merging", () => {
     const d = syntheticGrant(),
       r = { title: d.title, id: d.id, version: 1, sources: d.sources };
     expect(() => generationRequest.parse({ ...r, chunkIndex: 1 })).toThrow("inesistente");
-    d.sources[0]!.pages[0]!.text = "a".repeat(180001);
+    d.sources[0]!.pages = [1, 2, 3].map((page) => ({ page, text: "a".repeat(200001) }));
     expect(() => generationRequest.parse(r)).toThrow("non verrà troncato");
   });
   it("accepts non-normative fragments but never activates a complete empty assessment", () => {

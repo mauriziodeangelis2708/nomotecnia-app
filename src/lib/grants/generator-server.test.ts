@@ -188,7 +188,7 @@ describe("admin-only generation gateway", () => {
   it("rejects overlong sources before inference", async () => {
     const s = setup(),
       body = structuredClone(input);
-    body.sources[0]!.pages[0]!.text = "a".repeat(180001);
+    body.sources[0]!.pages = [1, 2, 3].map((page) => ({ page, text: "a".repeat(200001) }));
     expect((await handleGrantGeneration(request(body), s.env, s.http)).status).toBe(400);
     expect(s.ai).not.toHaveBeenCalled();
   });

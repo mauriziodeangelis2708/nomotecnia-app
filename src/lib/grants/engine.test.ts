@@ -190,9 +190,9 @@ describe("untrusted definitions and lifecycle", () => {
   it("rejects oversized or blank sources without truncation", () => {
     const d = syntheticGrant(),
       req = { id: d.id, version: 1, title: d.title, sources: d.sources };
-    d.sources[0]!.pages[0]!.text = "a".repeat(180001);
+    d.sources[0]!.pages = [1, 2, 3].map((page) => ({ page, text: "a".repeat(200001) }));
     expect(() => generationRequest.parse(req)).toThrow("non verrà troncato");
-    d.sources[0]!.pages[0]!.text = "";
+    d.sources[0]!.pages = [{ page: 1, text: "" }];
     expect(() => generationRequest.parse(req)).toThrow("priva di testo");
   });
 });

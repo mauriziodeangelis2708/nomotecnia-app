@@ -1,0 +1,43 @@
+{
+  "status": "local_preflight_passed_external_inference_not_authorized",
+  "documents": [
+    {
+      "id": "documento_1",
+      "name": "Allegato-2-Modulistica-e-Istruzioni-Voucher-Digitalizzazione-PMI-2026(1).pdf",
+      "sha256": "574874f51b8a860cd2770ec8d63a53038f8f769ad1de8b5af181ef9d6d91612f",
+      "pages": 50,
+      "characters": 139747
+    },
+    {
+      "id": "documento_2",
+      "name": "Avviso-Pubblico-Voucher-digitalizzazione-PMI-2026(1).pdf",
+      "sha256": "5441b7a46164e51b91b824027836b47ec2a935a8b6a0d855f04acaa54885bd57",
+      "pages": 43,
+      "characters": 161363
+    },
+    {
+      "id": "documento_3",
+      "name": "Determina-Voucher-Digitalizzazione(1).pdf",
+      "sha256": "d2f9206512a99886c200832b483f0bd73ef8d1e5fffff3140a9b23f87af8586d",
+      "pages": 6,
+      "characters": 15470
+    },
+    {
+      "id": "documento_4",
+      "name": "Uso-GeCoWEB-e-doc-rend-Voucher-Digitalizzazione-PMI-2026-DEF(1).pdf",
+      "sha256": "17b06050a5e2fea9d779f11ab6636e8911ec88331112ebd9767fb79715215250",
+      "pages": 22,
+      "characters": 49547
+    }
+  ],
+  "pdf_pages": 121,
+  "characters": 366127,
+  "chunks": 37,
+  "all_characters_retained": true,
+  "not_included_in_pdf_generator": [
+    "Modello-1-Diagnosi-Digitale.docx",
+    "Modello-2-Relazione-Digitalizzazione.docx",
+    "Griglia-punteggi-7-settembre-2026 (1)(1).xlsx"
+  ],
+  "real_model_results": null
+}
