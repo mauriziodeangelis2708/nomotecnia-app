@@ -11,8 +11,10 @@ export interface LocalReadOptions {
 export function createLocalOcr(options: LocalReadOptions) {
   let worker: Worker | undefined;
   let stopped = false;
+  let stopInitializing: (() => void) | undefined;
   const stop = () => {
     stopped = true;
+    stopInitializing?.();
     if (worker) void worker.terminate().catch(() => {});
   };
   options.signal?.addEventListener("abort", stop, { once: true });
@@ -23,19 +25,49 @@ export function createLocalOcr(options: LocalReadOptions) {
       options.onProgress?.(`OCR locale: pagina ${number}…`);
       if (!worker) {
         const { createWorker, OEM } = await import("tesseract.js");
-        worker = await createWorker("ita", OEM.LSTM_ONLY, {
+        options.signal?.throwIfAborted();
+        if (stopped) throw new Error("Lettura annullata.");
+        let abandoned = false;
+        let rejectInitialization: (reason: Error) => void = () => {};
+        const initializationFailed = new Promise<never>((_, reject) => {
+          rejectInitialization = reject;
+        });
+        stopInitializing = () => {
+          abandoned = true;
+          rejectInitialization(new Error("Lettura annullata."));
+        };
+        const timeout = setTimeout(() => {
+          abandoned = true;
+          rejectInitialization(
+            new Error("Avvio OCR troppo lento: controlla la connessione e riprova."),
+          );
+        }, 60000);
+        const initializing = createWorker("ita", OEM.LSTM_ONLY, {
           workerPath: new URL("/ocr/v7/worker.min.js", location.origin).href,
           corePath: new URL("/ocr/v7/core", location.origin).href,
           langPath: new URL("/ocr/v7/lang", location.origin).href,
           workerBlobURL: false,
           cacheMethod: "none",
           gzip: true,
-          // Never log OCR text or document names.
-          errorHandler: () => {},
+          // Some model-loading errors do not settle Tesseract's initialization promise.
+          errorHandler: () => {
+            abandoned = true;
+            rejectInitialization(
+              new Error("Impossibile avviare l’OCR: controlla la connessione e riprova."),
+            );
+          },
+        }).then(async (ready) => {
+          if (abandoned || stopped || options.signal?.aborted) {
+            await ready.terminate();
+            throw new Error("Lettura annullata.");
+          }
+          return ready;
         });
-        if (stopped || options.signal?.aborted) {
-          await worker.terminate();
-          throw new Error("Lettura annullata.");
+        try {
+          worker = await Promise.race([initializing, initializationFailed]);
+        } finally {
+          clearTimeout(timeout);
+          stopInitializing = undefined;
         }
       }
       const natural = page.getViewport({ scale: 1 });
@@ -50,6 +82,12 @@ export function createLocalOcr(options: LocalReadOptions) {
         rejectAbort = reject;
       });
       options.signal?.addEventListener("abort", onAbort, { once: true });
+      const deadline = setTimeout(() => {
+        stop();
+        rejectAbort(
+          new Error("OCR troppo lento: usa un estratto più breve o compila manualmente."),
+        );
+      }, 60000);
       try {
         const reading = (async () => {
           options.signal?.throwIfAborted();
@@ -65,6 +103,7 @@ export function createLocalOcr(options: LocalReadOptions) {
         }
         return result.data.text;
       } finally {
+        clearTimeout(deadline);
         options.signal?.removeEventListener("abort", onAbort);
         canvas.width = 0;
         canvas.height = 0;
@@ -72,6 +111,7 @@ export function createLocalOcr(options: LocalReadOptions) {
     },
     async destroy() {
       options.signal?.removeEventListener("abort", stop);
+      stopInitializing?.();
       if (!stopped && worker) await worker.terminate();
       worker = undefined;
       stopped = true;
