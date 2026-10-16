@@ -172,7 +172,8 @@ try {
   await newClient.click();
   await a.page.getByRole("dialog").waitFor();
   await a.page.keyboard.press("Escape");
-  await a.page.screenshot({path:"ui-test-results/mobile-dashboard.png",fullPage:true});
+  await a.page.getByRole("dialog").waitFor({state:"hidden"});
+  await a.page.screenshot({path:"ui-test-results/mobile-dashboard.png",fullPage:true,animations:"disabled"});
   pass("mobile dashboard has no horizontal overflow and new-client dialog opens");
 
   stage="mobile assessment editing and persistence";
