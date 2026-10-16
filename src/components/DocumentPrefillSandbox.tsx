@@ -8,9 +8,13 @@ import {
 } from "@/lib/document-prefill-demo";
 import type { Answers } from "@/lib/engine";
 import { Button } from "@/components/ui/button";
-import { canImportForIdentity, reviewDocumentIdentity } from "@/lib/document-prefill-identity";
+import {
+  canImportForIdentity,
+  reviewDocumentIdentity,
+} from "@/lib/document-prefill-identity";
 
-const PDF_LAB_ENABLED = import.meta.env["VITE_ENABLE_DOCUMENT_PDF_LAB"] === "true";
+const PDF_LAB_ENABLED =
+  import.meta.env["VITE_ENABLE_DOCUMENT_PDF_LAB"] === "true";
 
 export function DocumentPrefillSandbox({
   answers,
@@ -50,14 +54,25 @@ export function DocumentPrefillSandbox({
     setOwnershipConfirmed(false);
     setSelected({});
   }, [answers["partita_iva"]]);
-  const sourcePages = useMemo(() => pages ?? [{ page: 1, text }], [pages, text]);
-  const preview = useMemo(() => previewDocumentPages(sourcePages, kind), [kind, sourcePages]);
+  const sourcePages = useMemo(
+    () => pages ?? [{ page: 1, text }],
+    [pages, text],
+  );
+  const preview = useMemo(
+    () => previewDocumentPages(sourcePages, kind),
+    [kind, sourcePages],
+  );
   const companyReview = useMemo(
     () => reviewDocumentIdentity(sourcePages, answers["partita_iva"]),
     [sourcePages, answers],
   );
-  const identityAllowed = canImportForIdentity(companyReview.status, ownershipConfirmed);
-  const fiscalAllowed = !(kind === "iva" && answers["regime_fiscale"] === "forfettario");
+  const identityAllowed = canImportForIdentity(
+    companyReview.status,
+    ownershipConfirmed,
+  );
+  const fiscalAllowed = !(
+    kind === "iva" && answers["regime_fiscale"] === "forfettario"
+  );
   const eligible = preview.proposals.filter(
     (candidate) =>
       answers[candidate.field] === undefined ||
@@ -101,7 +116,9 @@ export function DocumentPrefillSandbox({
       setPdfName(file.name);
     } catch (e) {
       if (generation.current !== token) return;
-      setError(e instanceof Error ? e.message : "Errore durante la lettura del PDF.");
+      setError(
+        e instanceof Error ? e.message : "Errore durante la lettura del PDF.",
+      );
     } finally {
       if (generation.current === token) setBusy(false);
       if (fileInput.current) fileInput.current.value = "";
@@ -124,17 +141,26 @@ export function DocumentPrefillSandbox({
   return (
     <section className="mb-5 rounded-lg border border-dashed bg-card p-4">
       <h2 className="font-semibold">
-        {localMode ? "Leggi PDF e compila la pratica" : "Document Intelligence — laboratorio riservato"}
+        {localMode
+          ? "Leggi PDF e compila la pratica"
+          : "Document Intelligence — laboratorio riservato"}
       </h2>
       <p className="mt-1 text-sm text-muted-foreground">
         {localMode ? (
-          <>Seleziona un documento dell’impresa. Il PDF viene letto sul tuo dispositivo e non viene
-          archiviato né inviato a servizi esterni. Controlla le proposte sull’originale: solo i valori
-          che confermi entrano nella bozza e saranno salvati con il comando Salva della pratica.</>
+          <>
+            Seleziona un documento dell’impresa. Il PDF viene letto sul tuo
+            dispositivo e non viene archiviato né inviato a servizi esterni.
+            Controlla le proposte sull’originale: solo i valori che confermi
+            entrano nella bozza e saranno salvati con il comando Salva della
+            pratica.
+          </>
         ) : (
-          <>Prototipo con controllo umano. Di base accetta solo esempi sintetici; non usa AI esterna,
-          non invia dati fuori dal browser e non memorizza PDF. Non incollare dati reali nel
-          laboratorio. Le proposte non attestano validità o autenticità dei documenti.</>
+          <>
+            Prototipo con controllo umano. Di base accetta solo esempi
+            sintetici; non usa AI esterna, non invia dati fuori dal browser e
+            non memorizza PDF. Non incollare dati reali nel laboratorio. Le
+            proposte non attestano validità o autenticità dei documenti.
+          </>
         )}
       </p>
       <div className="mt-4 space-y-2">
@@ -145,7 +171,9 @@ export function DocumentPrefillSandbox({
           id="sandbox-kind"
           className="w-full rounded-md border bg-background p-2 text-sm sm:max-w-sm"
           value={kind}
-          onChange={(event) => changeKind(event.target.value as DemoDocumentKind)}
+          onChange={(event) =>
+            changeKind(event.target.value as DemoDocumentKind)
+          }
         >
           <option value="visura">Visura camerale</option>
           <option value="iva">Dichiarazione IVA 2026</option>
@@ -154,20 +182,24 @@ export function DocumentPrefillSandbox({
         {pdfEnabled && (
           <div className="rounded-md border bg-muted/20 p-3">
             <label htmlFor="sandbox-file" className="block text-sm font-medium">
-              {localMode ? "Seleziona PDF dell’impresa" : "PDF locale per collaudo tecnico (non caricare documenti reali dei clienti)"}
+              {localMode
+                ? "Seleziona PDF dell’impresa"
+                : "PDF locale per collaudo tecnico (non caricare documenti reali dei clienti)"}
             </label>
-            {!localMode && <label className="mt-2 flex items-start gap-2 text-xs">
-              <input
-                type="checkbox"
-                checked={syntheticOnly}
-                onChange={(e) => setSyntheticOnly(e.target.checked)}
-                className="mt-0.5"
-              />
-              <span>
-                Confermo che userò esclusivamente PDF inventati per test, senza dati reali di
-                persone o aziende.
-              </span>
-            </label>}
+            {!localMode && (
+              <label className="mt-2 flex items-start gap-2 text-xs">
+                <input
+                  type="checkbox"
+                  checked={syntheticOnly}
+                  onChange={(e) => setSyntheticOnly(e.target.checked)}
+                  className="mt-0.5"
+                />
+                <span>
+                  Confermo che userò esclusivamente PDF inventati per test,
+                  senza dati reali di persone o aziende.
+                </span>
+              </label>
+            )}
             <input
               id="sandbox-file"
               ref={fileInput}
@@ -178,11 +210,21 @@ export function DocumentPrefillSandbox({
               onChange={(e) => void inspectFile(e.target.files?.[0])}
             />
             <p className="mt-1 text-xs text-muted-foreground">
-              Solo sul dispositivo; massimo 8 MB, 45 pagine. OCR e PDF cifrati non supportati.
+              Solo sul dispositivo; massimo 8 MB, 45 pagine. OCR e PDF cifrati
+              non supportati.
             </p>
-            {pdfName && <p className="mt-2 text-sm">Analizzato localmente: {pdfName}</p>}
-            <Button type="button" variant="outline" className="mt-2" onClick={clearFile}>
-              {localMode ? "Rimuovi PDF dalla memoria" : "Svuota PDF dalla memoria del laboratorio"}
+            {pdfName && (
+              <p className="mt-2 text-sm">Analizzato localmente: {pdfName}</p>
+            )}
+            <Button
+              type="button"
+              variant="outline"
+              className="mt-2"
+              onClick={clearFile}
+            >
+              {localMode
+                ? "Rimuovi PDF dalla memoria"
+                : "Svuota PDF dalla memoria del laboratorio"}
             </Button>
           </div>
         )}
@@ -244,7 +286,8 @@ export function DocumentPrefillSandbox({
         </h3>
         {!fiscalAllowed && (
           <p role="alert" className="mb-3 text-sm text-destructive">
-            Regime forfettario: i righi IVA VE50 e VF25 non sono applicabili a questa pratica.
+            Regime forfettario: i righi IVA VE50 e VF25 non sono applicabili a
+            questa pratica.
           </p>
         )}
         {companyReview.status === "unverified" && (
@@ -257,38 +300,52 @@ export function DocumentPrefillSandbox({
               aria-label="Confermo appartenenza documento alla impresa"
             />
             <span>
-              {companyReview.explanation} Ho verificato manualmente che il documento appartiene a
-              questa impresa.
+              {companyReview.explanation} Ho verificato manualmente che il
+              documento appartiene a questa impresa.
             </span>
           </label>
         )}
-        {(companyReview.status === "mismatch" || companyReview.status === "conflict") && (
+        {(companyReview.status === "mismatch" ||
+          companyReview.status === "conflict") && (
           <p role="alert" className="mb-3 text-sm text-destructive">
             {companyReview.explanation}
           </p>
         )}
         {companyReview.status === "matched" && (
-          <p className="mb-3 text-sm text-muted-foreground">{companyReview.explanation}</p>
+          <p className="mb-3 text-sm text-muted-foreground">
+            {companyReview.explanation}
+          </p>
         )}
         {preview.proposals.length === 0 && (
-          <p className="text-sm text-muted-foreground">Nessun campo univoco riconosciuto.</p>
+          <p className="text-sm text-muted-foreground">
+            Nessun campo univoco riconosciuto.
+          </p>
         )}
         <ul className="space-y-2">
           {preview.proposals.map((candidate) => {
             const original = answers[candidate.field];
-            const occupied = original !== undefined && original !== null && original !== "";
+            const occupied =
+              original !== undefined && original !== null && original !== "";
             const different = occupied && original !== candidate.value;
             return (
-              <li key={candidate.field} className="rounded-md border bg-background p-3 text-sm">
+              <li
+                key={candidate.field}
+                className="rounded-md border bg-background p-3 text-sm"
+              >
                 <label className="flex items-start gap-2">
                   <input
                     aria-label={"Conferma " + candidate.label}
                     type="checkbox"
                     className="mt-1"
-                    disabled={occupied || busy || !identityAllowed || !fiscalAllowed}
+                    disabled={
+                      occupied || busy || !identityAllowed || !fiscalAllowed
+                    }
                     checked={!!selected[candidate.field] && !occupied}
                     onChange={(e) =>
-                      setSelected((s) => ({ ...s, [candidate.field]: e.target.checked }))
+                      setSelected((s) => ({
+                        ...s,
+                        [candidate.field]: e.target.checked,
+                      }))
                     }
                   />
                   <span className="font-medium">
@@ -304,8 +361,8 @@ export function DocumentPrefillSandbox({
                 </p>
                 {different && (
                   <p className="mt-1 text-xs text-destructive">
-                    Campo già valorizzato: confronto obbligatorio, nessuna sovrascrittura
-                    automatica.
+                    Campo già valorizzato: confronto obbligatorio, nessuna
+                    sovrascrittura automatica.
                   </p>
                 )}
                 {occupied && !different && (
@@ -326,20 +383,25 @@ export function DocumentPrefillSandbox({
           type="button"
           className="mt-3"
           disabled={
-            busy || !identityAllowed || !fiscalAllowed || !eligible.some((p) => selected[p.field])
+            busy ||
+            !identityAllowed ||
+            !fiscalAllowed ||
+            !eligible.some((p) => selected[p.field])
           }
           onClick={apply}
         >
           Conferma campi selezionati nella bozza
         </Button>
         <p className="mt-2 text-xs text-muted-foreground">
-          I dati restano da controllare sull'originale. Nessuna evidenza diventa “verificata”, e
-          nessuna modifica viene salvata senza usare il comando Salva della pratica.
+          I dati restano da controllare sull'originale. Nessuna evidenza diventa
+          “verificata”, e nessuna modifica viene salvata senza usare il comando
+          Salva della pratica.
         </p>
         <p className="mt-2 text-xs text-muted-foreground">
-          Per stimare il punteggio Lazio occorre inoltre compilare e verificare il regime fiscale,
-          le eventuali vendite OSS e integrazioni editoriali, le certificazioni e la checklist. La
-          lettura del PDF non rende automaticamente completa o ammissibile la domanda.
+          Per stimare il punteggio Lazio occorre inoltre compilare e verificare
+          il regime fiscale, le eventuali vendite OSS e integrazioni editoriali,
+          le certificazioni e la checklist. La lettura del PDF non rende
+          automaticamente completa o ammissibile la domanda.
         </p>
       </div>
     </section>
