@@ -1,4 +1,4 @@
-import { createLocalOcr, type LocalReadOptions } from "./local-ocr";
+import { createLocalOcr, type LocalReadOptions } from "./local-ocr.ts";
 import type { DocumentPage } from "./document-prefill-demo";
 
 const MAX_PDF_BYTES = 8 * 1024 * 1024;

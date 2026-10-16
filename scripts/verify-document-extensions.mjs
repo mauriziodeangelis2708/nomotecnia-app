@@ -114,6 +114,12 @@ export async function verifyDocumentExtensions({ root, own, other, admin, assess
     console.log("PASS: private archive UI upload/cancel/download/reload/delete; foreign/anonymous/outsider access, overwrite, public URL and malformed paths denied; deletion guard prevents orphan originals");
   } finally {
     page.off("request", watch);
+    const remaining = await admin.storage.from("assessment-documents").list(assessmentId, { limit: 1000 });
+    assert.equal(remaining.error, null, "Synthetic archive cleanup must list remaining originals");
+    for (const item of remaining.data ?? []) if (item.id) {
+      const path = `${assessmentId}/${item.name}`;
+      if (!paths.includes(path)) paths.push(path);
+    }
     if (paths.length) {
       const removed = await admin.storage.from("assessment-documents").remove(paths);
       assert.equal(removed.error, null, "Synthetic originals cleanup must succeed");
