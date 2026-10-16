@@ -3,7 +3,8 @@
  * Never deploy with the default production wrangler config.
  */
 import { existsSync, readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
-import { resolve, dirname, join } from "node:path";
+import { resolve, join } from "node:path";
+import { spawnSync } from "node:child_process";
 
 const stagingRef = "vknvadzsjuixcuwegxto";
 const stagingURL = "https://" + stagingRef + ".supabase.co";
@@ -67,8 +68,30 @@ function walk(directory) {
 walk(resolve(".output/public"));
 walk(buildDir);
 
+// Apply the gate at the actual Worker entry, before Nitro serves either
+// static assets or SSR. An inner TanStack handler does not receive raw bindings.
+const compiledGate = spawnSync("bun", [
+  "build", "src/lib/staging-gate.ts", "--target=browser",
+  "--outfile=" + join(buildDir, "staging-gate.mjs"),
+], { stdio: "inherit" });
+if (compiledGate.error || compiledGate.status !== 0) {
+  throw new Error("Cannot compile the outer staging access gate");
+}
+const originalEntry = "./" + manifest.main.replace(/^\\.\\//, "");
+writeFileSync(join(buildDir, "staging-entry.mjs"), [
+  "import app from " + JSON.stringify(originalEntry) + ";",
+  'import { denyUnauthenticatedStagingRequest } from "./staging-gate.mjs";',
+  "export default { ...app, async fetch(request, env, ctx) {",
+  "  const refusal = denyUnauthenticatedStagingRequest(request, env);",
+  "  if (refusal) return refusal;",
+  "  return app.fetch(request, env, ctx);",
+  "} };",
+  "",
+].join("\\n"));
+manifest.main = "./staging-entry.mjs";
 manifest.name = "nomotecnia-full-staging";
 manifest.workers_dev = true;
+manifest.preview_urls = false;
 manifest.assets.run_worker_first = true;
 const output = join(buildDir, "wrangler.staging.json");
 writeFileSync(output, JSON.stringify(manifest, null, 2) + "\n");
