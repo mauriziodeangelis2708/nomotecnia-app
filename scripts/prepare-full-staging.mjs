@@ -77,7 +77,7 @@ const compiledGate = spawnSync("bun", [
 if (compiledGate.error || compiledGate.status !== 0) {
   throw new Error("Cannot compile the outer staging access gate");
 }
-const originalEntry = "./" + manifest.main.replace(/^\\.\\//, "");
+const originalEntry = manifest.main.startsWith("./") ? manifest.main : "./" + manifest.main;
 writeFileSync(join(buildDir, "staging-entry.mjs"), [
   "import app from " + JSON.stringify(originalEntry) + ";",
   'import { denyUnauthenticatedStagingRequest } from "./staging-gate.mjs";',
@@ -87,7 +87,7 @@ writeFileSync(join(buildDir, "staging-entry.mjs"), [
   "  return app.fetch(request, env, ctx);",
   "} };",
   "",
-].join("\\n"));
+].join("\n"));
 manifest.main = "./staging-entry.mjs";
 manifest.name = "nomotecnia-full-staging";
 manifest.workers_dev = true;
