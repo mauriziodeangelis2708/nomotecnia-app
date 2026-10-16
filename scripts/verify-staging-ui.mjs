@@ -6,7 +6,7 @@
 import assert from "node:assert/strict";
 import { randomBytes } from "node:crypto";
 import { spawn } from "node:child_process";
-import { writeFile, rm, mkdir } from "node:fs/promises";
+import { writeFile, readFile, rm, mkdir } from "node:fs/promises";
 import { createClient } from "@supabase/supabase-js";
 import { chromium } from "/tmp/nomotecnia-ui/node_modules/playwright/index.mjs";
 
@@ -65,7 +65,7 @@ try {
   browser = await chromium.launch({headless:true,env:safeEnv});
   for(const account of accounts) {
     stage = "UI login "+account.name;
-    const context=await browser.newContext({httpCredentials:{username:"nomotecnia",password:gate},
+    const context=await browser.newContext({httpCredentials:{origin:base,username:"nomotecnia",password:gate},
       viewport:{width:1365,height:900}});
     contexts.push(context);
     account.context=context;
@@ -93,6 +93,7 @@ try {
     await account.page.getByRole("button",{name:"Nuovo cliente",exact:true}).click();
     const dialog=account.page.getByRole("dialog");
     await dialog.getByRole("textbox").nth(0).fill(account.clientName);
+    if(account.name==="MEMBER_A") await dialog.getByRole("textbox").nth(3).fill("=1+1");
     await dialog.getByRole("button",{name:"Salva",exact:true}).click();
     await account.page.getByRole("heading",{name:account.clientName,exact:true}).waitFor();
     pass("client created through UI "+account.name);
@@ -113,7 +114,7 @@ try {
   stage="UI assessment create and persistence";
   await a.page.getByRole("button",{name:"Voucher Lazio",exact:true}).click();
   await a.page.getByRole("tab",{name:"Questionario",exact:true}).waitFor();
-  const title="COLLAUDO UI "+nonce;
+  let title="COLLAUDO UI "+nonce;
   // The only text input in the assessment page header is its title.
   const titleInput=a.page.locator("main .no-print input").first();
   await titleInput.fill(title);
@@ -132,6 +133,110 @@ try {
   assert.equal(saved.created_by,a.id);
   assert.equal(saved.answers.ragione_sociale,a.clientName);
   pass("assessment created through UI and reloaded from staging database");
+
+  await mkdir("ui-test-results",{recursive:true});
+  stage="UI notes and assessment history";
+  const note="NOTA SINTETICA UI "+nonce;
+  await a.page.getByRole("tab",{name:"Note",exact:true}).click();
+  await a.page.getByPlaceholder("Nuova nota…",{exact:true}).fill(note);
+  await a.page.getByRole("button",{name:"Aggiungi nota",exact:true}).click();
+  await a.page.getByText(note,{exact:true}).waitFor();
+  a.page.once("dialog",dialog=>dialog.accept("STORICO SINTETICO "+nonce));
+  await a.page.getByRole("button",{name:"Registra valutazione",exact:true}).click();
+  await a.page.getByRole("tab",{name:"Storico",exact:true}).click();
+  await a.page.getByText("STORICO SINTETICO "+nonce,{exact:false}).waitFor();
+  pass("note and historical snapshot saved through UI");
+
+  stage="CSV owner export and formula neutralization";
+  await a.page.goto(base+"/dashboard");
+  await a.page.getByRole("heading",{name:a.clientName,exact:true}).waitFor();
+  const pendingDownload=a.page.waitForEvent("download");
+  await a.page.getByRole("button",{name:"Esporta CSV",exact:true}).click();
+  const download=await pendingDownload;
+  await download.saveAs("ui-test-results/owner-export.csv");
+  const csv=await readFile("ui-test-results/owner-export.csv","utf8");
+  assert.ok(csv.includes(a.clientName));
+  assert.ok(csv.includes(title));
+  assert.ok(csv.includes(note));
+  assert.equal(csv.includes(b.clientName),false);
+  assert.ok(csv.includes("'=1+1"),"CSV spreadsheet formula must be neutralized");
+  pass("CSV contains owner data and notes, excludes other member and neutralizes formulas");
+
+  stage="mobile dashboard and client dialog";
+  await a.page.setViewportSize({width:390,height:844});
+  const newClient=a.page.getByRole("button",{name:"Nuovo cliente",exact:true});
+  await newClient.waitFor({state:"visible"});
+  const rect=await newClient.boundingBox();
+  assert.ok(rect && rect.x>=0 && rect.x+rect.width<=391,"Mobile new-client button outside viewport");
+  assert.ok(await a.page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth+1),"Mobile dashboard horizontal overflow");
+  await newClient.click();
+  await a.page.getByRole("dialog").waitFor();
+  await a.page.keyboard.press("Escape");
+  await a.page.screenshot({path:"ui-test-results/mobile-dashboard.png",fullPage:true});
+  pass("mobile dashboard has no horizontal overflow and new-client dialog opens");
+
+  stage="mobile assessment editing and persistence";
+  await a.page.goto(assessmentURL);
+  await a.page.getByRole("tab",{name:"Questionario",exact:true}).waitFor();
+  title += " mobile";
+  await titleInput.fill(title);
+  const mobileSave=a.page.getByRole("button",{name:"Salva",exact:true});
+  await mobileSave.click();
+  await a.page.getByRole("button",{name:"Salvato",exact:true}).waitFor();
+  await a.page.reload();
+  await a.page.getByRole("tab",{name:"Questionario",exact:true}).waitFor();
+  await until(async()=>await titleInput.inputValue()===title,"Mobile change not restored");
+  assert.ok(await a.page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth+1),"Mobile assessment horizontal overflow");
+  pass("mobile assessment edit survives database save and reload without horizontal overflow");
+
+  stage="mobile report and print controls";
+  await a.page.goto(base+"/report/"+assessmentId);
+  const report=a.page.locator(".report-document");
+  await report.getByRole("heading",{name:a.clientName,exact:true}).waitFor();
+  await report.getByText(note,{exact:true}).waitFor();
+  assert.ok((await report.innerText()).includes(title));
+  assert.ok(await a.page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth+1),"Mobile report horizontal overflow");
+  await a.page.evaluate(()=>{window.__nomotecniaPrintCalled=false;window.print=()=>{window.__nomotecniaPrintCalled=true;};});
+  await a.page.getByRole("button",{name:"Stampa / Salva PDF",exact:true}).click();
+  assert.equal(await a.page.evaluate(()=>window.__nomotecniaPrintCalled),true);
+  await a.page.screenshot({path:"ui-test-results/mobile-report.png",fullPage:true});
+  pass("mobile report shows saved assessment and note; print button invokes browser print");
+
+  stage="A4 PDF generation and content validation";
+  await a.page.emulateMedia({media:"print"});
+  assert.equal(await a.page.locator(".report-actions").isVisible(),false,"Print action toolbar must be hidden");
+  const pdf=await a.page.pdf({path:"ui-test-results/assessment-synthetic.pdf",format:"A4",printBackground:true,preferCSSPageSize:true});
+  assert.equal(pdf.subarray(0,5).toString(),"%PDF-");
+  const {getDocument}=await import("pdfjs-dist/legacy/build/pdf.mjs");
+  const task=getDocument({data:new Uint8Array(pdf),useSystemFonts:true});
+  try {
+    const doc=await task.promise;
+    assert.ok(doc.numPages>0 && doc.numPages<60,"Unexpected PDF page count");
+    let text="";
+    for(let pageNumber=1;pageNumber<=doc.numPages;pageNumber++) {
+      const page=await doc.getPage(pageNumber);
+      const data=await page.getTextContent();
+      const viewport=page.getViewport({scale:1});
+      assert.ok(Math.abs(viewport.width-595.28)<2 && Math.abs(viewport.height-841.89)<2,"PDF must use A4");
+      text+=data.items.filter(item=>"str" in item).map(item=>item.str).join(" ")+" ";
+    }
+    assert.ok(text.includes(a.clientName),"PDF company identity missing");
+    assert.ok(text.includes(title),"PDF saved title missing");
+    assert.ok(text.includes(note),"PDF saved note missing");
+    assert.ok(text.includes("Non compilato"),"Incomplete fields must remain explicit");
+    assert.equal(text.includes(b.clientName),false);
+    assert.equal(text.includes("Stampa / Salva PDF"),false);
+    pass("A4 PDF validated: "+doc.numPages+" pages, owner identity/title/note, explicit incomplete fields, no foreign data or toolbar");
+  } finally {await task.destroy();}
+  await a.page.emulateMedia({media:"screen"});
+  await a.page.setViewportSize({width:1365,height:900});
+
+  stage="report isolation";
+  await b.page.goto(base+"/report/"+assessmentId);
+  await b.page.getByRole("alert").getByText("Impossibile caricare il report completo.",{exact:false}).waitFor();
+  assert.equal(await b.page.locator(".report-document").count(),0);
+  pass("cross-member report is denied without rendering owner document");
+
   stage="UI cross-account assessment isolation";
   await b.page.goto(assessmentURL);
   await b.page.getByText("Caricamento", {exact:false}).waitFor({state:"hidden"}).catch(()=>{});
