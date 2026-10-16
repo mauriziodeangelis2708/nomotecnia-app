@@ -37,11 +37,13 @@ page.on("console", message => { if (message.text().startsWith("SYNTHETIC_READER_
 const pass = label => console.log(`PASS ${engine}: ${label}`);
 
 let requests = 0;
+let failSecondPass = false;
 await page.route("**/api/grants/generate", async route => {
   const input = route.request().postDataJSON(); requests++;
+  if (failSecondPass && input.chunkIndex === 1) return route.fulfill({status:502,contentType:"application/json",body:JSON.stringify({error:"Secondo passaggio sintetico non riuscito"})});
   const d = syntheticGrant(); d.id = input.id; d.title = input.title; d.sources = input.sources;
-  for (const item of [...d.questions, ...d.rules]) item.citations = [{ documentId: input.sources[0].id, page: 1, quote: input.sources[0].pages[0].text }];
-  await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ definition: d, reviewed: false }) });
+  for (const item of [...d.questions, ...d.rules]) item.citations = [{ documentId: input.sources[0].id, page: 1, quote: input.sources[0].pages[0].text.slice(0,300) }];
+  await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ definition: d, reviewed: false, chunkIndex: input.chunkIndex, chunkCount: Math.ceil(input.sources.reduce((n,s) => n+s.pages.reduce((m,p)=>m+p.text.length,0),0)/10000) }) });
 });
 try {
   await mkdir("reader-test-results", { recursive: true });
@@ -50,6 +52,10 @@ try {
   assert.equal(requests, 0);
   await page.getByLabel("Nome del nuovo bando").fill("Bando sintetico browser");
   const quote = syntheticGrant().sources[0].pages[0].text;
+  await page.locator('input[type="file"]').setInputFiles({ name: "avviso-46-pagine-sintetico.pdf", mimeType: "application/pdf", buffer: textPdf([quote],46) });
+  await page.getByRole("status").filter({ hasText: "Documenti letti localmente" }).waitFor();
+  await page.getByText("avviso-46-pagine-sintetico.pdf · 46 pagine", {exact:true}).waitFor();
+  pass("grant-only page limit accepts 46 pages while the operational company reader keeps its existing limit");
   await page.locator('input[type="file"]').setInputFiles({ name: "avviso-sintetico.pdf", mimeType: "application/pdf", buffer: textPdf([quote]) });
   await page.getByRole("status").filter({ hasText: "Documenti letti localmente" }).waitFor();
   assert.equal(requests, 0, "No model call before explicit generation action");
@@ -62,7 +68,7 @@ try {
   await page.locator("details").evaluateAll(elements => elements.forEach(e => e.open = true));
   await page.getByLabel(/Pagina 1 verificata/).check();
   for (const control of await page.getByLabel("Logica, soglie e riferimenti verificati sull'originale", { exact: true }).all()) await control.check();
-  await page.getByLabel("Scenari di collaudo").fill(JSON.stringify(SYNTHETIC_SCENARIOS));
+  await page.getByLabel("Scenari di collaudo").fill(JSON.stringify(SYNTHETIC_SCENARIOS.map(s => ({...s, answers: Object.fromEntries(Object.entries(s.answers).map(([id,value]) => [`q_1_${syntheticGrant().questions.findIndex(q => q.id === id)+1}`,value])), grants: Object.fromEntries(Object.entries(s.grants ?? {}).map(([id,value]) => [`r_1_${syntheticGrant().rules.findIndex(r => r.id === id)+1}`,value]))}))));
   await page.getByRole("button", { name: "Esegui collaudo", exact: true }).click();
   assert.equal(await page.getByText(/^PASS:/).count(), 3);
   assert.equal(await publish.isDisabled(), true, "Must save a draft before activation");
@@ -86,6 +92,14 @@ try {
   await page.locator("details").evaluateAll(elements => elements.forEach(e => e.open = true));
   assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1), "No horizontal overflow on mobile viewport");
   await page.screenshot({ path: `reader-test-results/grant-studio-${engine}.png`, fullPage: true });
+  failSecondPass = true;
+  await page.locator('input[type="file"]').setInputFiles({ name: "avviso-multipass-sintetico.pdf", mimeType: "application/pdf", buffer: textPdf(Array.from({length:30},()=>quote),3) });
+  await page.getByRole("status").filter({hasText:"Documenti letti localmente"}).waitFor();
+  await page.getByRole("button", {name:"Genera assessment dai documenti"}).click();
+  await page.getByRole("status").filter({hasText:"Secondo passaggio sintetico non riuscito"}).waitFor();
+  assert.equal(requests,3,"The job reached the second pass");
+  assert.equal(await page.getByRole("button", {name:"Salva bozza",exact:true}).count(),0,"No partial draft can be saved after an interrupted job");
+  pass("multipass provider failure cannot expose or save a partial assessment");
   assert.deepEqual(blocked, []); assert.deepEqual(errors, []);
   pass("mobile review layout and no unexpected external requests or uncaught browser errors");
 } finally { await context.close(); await browser.close(); await new Promise(resolve => server.close(resolve)); }

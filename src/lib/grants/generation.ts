@@ -1,5 +1,6 @@
 import { z } from "zod";
-import { parseDefinition, sourceSchema, type GrantDefinition, type GrantSource } from "./schema";
+import { planSourceChunks } from "./multipass";
+import { parseFragment, sourceSchema, type GrantDefinition, type GrantSource } from "./schema";
 
 export const generationRequest = z
   .object({
@@ -7,6 +8,7 @@ export const generationRequest = z
     id: z.string().regex(/^[a-z][a-z0-9_]{0,63}$/),
     version: z.number().int().min(1).max(100000),
     sources: z.array(sourceSchema).min(1).max(12),
+    chunkIndex: z.number().int().min(0).max(99).default(0),
   })
   .strict()
   .superRefine((v, ctx) => {
@@ -15,12 +17,14 @@ export const generationRequest = z
       0,
     );
     // Conservative bound for the model's 24k-token context, including the output.
-    if (characters > 24000)
+    if (characters > 180000)
       ctx.addIssue({
         code: "custom",
         message:
-          "Il generatore attuale accetta fino a 24.000 caratteri complessivi. Il documento non verrà troncato: occorre il flusso multipass per bandi più estesi.",
+          "Il generatore accetta fino a 180.000 caratteri complessivi. Il documento non verrà troncato: ridurre le fonti o usare una configurazione revisionata.",
       });
+    if (!planSourceChunks(v.sources)[v.chunkIndex])
+      ctx.addIssue({ code: "custom", message: "Passaggio di analisi inesistente." });
     if (v.sources.some((s) => s.pages.some((p) => !p.text.trim())))
       ctx.addIssue({
         code: "custom",
@@ -40,7 +44,7 @@ eligibility/document: condition vera significa requisito soddisfatto. exclusion:
 Citation: {documentId:string,page:integer,quote:string}.
 Predicate: {op:'eq'|'ne'|'gt'|'gte'|'lt'|'lte',field:questionId,value:string|number|boolean} oppure {op:'in',field:questionId,values:scalar[]} oppure {op:'all'|'any',args:Predicate[]} oppure {op:'not',arg:Predicate}.
 Expression: {op:'constant',value:number} oppure {op:'field',field:questionId} oppure {op:'add'|'multiply'|'min'|'max',args:Expression[]} oppure {op:'subtract'|'divide',left:Expression,right:Expression} oppure {op:'if',when:Predicate,then:Expression,otherwise:Expression}.
-Ordina le domande in modo che showIf dipenda SOLO da domande precedenti. Le formule usano SOLO domande numeriche. Non usare stringhe numeriche o date come numeri. Per le condizioni temporali chiedi una verifica booleana motivata, se non hai un operatore adatto. id unici, citazioni verificabili. La risposta deve includere almeno una regola eligibility o exclusion. Un requisito opzionale mancante non vale automaticamente zero punti: il trattamento dei dati mancanti deve essere esplicito nelle fonti.`;
+Ordina le domande in modo che showIf dipenda SOLO da domande precedenti. Le formule usano SOLO domande numeriche. Non usare stringhe numeriche o date come numeri. Per le condizioni temporali chiedi una verifica booleana motivata, se non hai un operatore adatto. id unici, citazioni verificabili. Analizza SOLO l’estratto fornito, con pagina originale. Se non contiene regole o domande restituisci array vuoti; non inventare requisiti per riempirli. Indica rimandi e possibili conflitti in unresolved. Non ripetere criteri sintetici e totale come due punteggi da sommare. Un requisito opzionale mancante non vale automaticamente zero punti: il trattamento dei dati mancanti deve essere esplicito nelle fonti.`;
 
 export function acceptGeneratedDefinition(
   raw: unknown,
@@ -57,7 +61,7 @@ export function acceptGeneratedDefinition(
     })
     .strict()
     .parse(raw);
-  return parseDefinition({
+  return parseFragment({
     schemaVersion: 1,
     id: request.id,
     version: request.version,
@@ -75,7 +79,7 @@ export async function prepareGrantSource(
 ): Promise<GrantSource> {
   if (!file.name.toLowerCase().endsWith(".pdf")) throw new Error("Selezionare un PDF.");
   const { extractLocalPdfText } = await import("../local-pdf-reader");
-  const pages = await extractLocalPdfText(file, { signal, onProgress, ocr });
+  const pages = await extractLocalPdfText(file, { signal, onProgress, ocr, maxPages: 200 });
   signal.throwIfAborted();
   const digest = await crypto.subtle.digest("SHA-256", await file.arrayBuffer());
   return sourceSchema.parse({

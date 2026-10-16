@@ -63,6 +63,16 @@ describe("admin-only generation gateway", () => {
     expect((await handleGrantGeneration(request(), s.env, s.http)).status).toBe(403);
     expect(s.ai).not.toHaveBeenCalled();
   });
+  it("keeps the protected staging Basic gate separate from Supabase authentication", async () => {
+    const s = setup();
+    const req = request(input, {
+      Authorization: "Basic synthetic-staging-gate",
+      "X-Nomotecnia-Session": "Bearer synthetic-user-session",
+    });
+    const r = await handleGrantGeneration(req, s.env, s.http);
+    expect(r.status).toBe(200);
+    expect(s.http.mock.calls[0]?.[1]?.headers.Authorization).toBe("Bearer synthetic-user-session");
+  });
   it("does not trust editable user metadata", async () => {
     const s = setup(false);
     s.http
@@ -106,14 +116,14 @@ describe("admin-only generation gateway", () => {
   it("rejects overlong sources before inference", async () => {
     const s = setup(),
       body = structuredClone(input);
-    body.sources[0]!.pages[0]!.text = "a".repeat(24001);
+    body.sources[0]!.pages[0]!.text = "a".repeat(180001);
     expect((await handleGrantGeneration(request(body), s.env, s.http)).status).toBe(400);
     expect(s.ai).not.toHaveBeenCalled();
   });
   it("bounds body size even with chunked transfer", async () => {
     const s = setup();
     expect(
-      (await handleGrantGeneration(request({ x: "a".repeat(250001) }), s.env, s.http)).status,
+      (await handleGrantGeneration(request({ x: "a".repeat(1500001) }), s.env, s.http)).status,
     ).toBe(413);
     expect(s.ai).not.toHaveBeenCalled();
   });

@@ -1,3 +1,4 @@
+import { planSourceChunks } from "./multipass";
 import {
   acceptGeneratedDefinition,
   generationRequest,
@@ -25,7 +26,8 @@ export async function handleGrantGeneration(
   if (request.method !== "POST") return reply({ error: "Metodo non consentito." }, 405);
   if (request.headers.get("Origin") !== new URL(request.url).origin)
     return reply({ error: "Origine non consentita." }, 403);
-  const token = request.headers.get("Authorization");
+  // Staging Basic auth belongs to the outer gate. Keep the Supabase session separate.
+  const token = request.headers.get("X-Nomotecnia-Session") ?? request.headers.get("Authorization");
   if (!token?.startsWith("Bearer ") || token.length > 9000)
     return reply({ error: "Accesso richiesto." }, 401);
   if (
@@ -62,7 +64,7 @@ export async function handleGrantGeneration(
     if (!request.headers.get("Content-Type")?.startsWith("application/json"))
       return reply({ error: "Formato non valido." }, 415);
     const declaredSize = Number(request.headers.get("Content-Length"));
-    if (declaredSize > 250000) return reply({ error: "Documenti troppo estesi." }, 413);
+    if (declaredSize > 1500000) return reply({ error: "Documenti troppo estesi." }, 413);
     // Bound bytes while reading, including chunked transfer bodies.
     const reader = request.body?.getReader();
     if (!reader) return reply({ error: "Documenti mancanti." }, 400);
@@ -73,7 +75,7 @@ export async function handleGrantGeneration(
         const { done, value } = await reader.read();
         if (done) break;
         size += value.byteLength;
-        if (size > 250000) {
+        if (size > 1500000) {
           await reader.cancel();
           return reply({ error: "Documenti troppo estesi." }, 413);
         }
@@ -91,13 +93,23 @@ export async function handleGrantGeneration(
     const parsed = generationRequest.safeParse(JSON.parse(new TextDecoder().decode(bytes)));
     if (!parsed.success)
       return reply({ error: parsed.error.issues.map((i) => i.message).join("; ") }, 400);
+    const chunks = planSourceChunks(parsed.data.sources);
+    const chunk = chunks[parsed.data.chunkIndex]!;
     let timer: ReturnType<typeof setTimeout> | undefined;
     try {
       const response = await Promise.race([
         env.AI.run(GENERATOR_MODEL, {
           messages: [
             { role: "system", content: GENERATOR_SYSTEM },
-            { role: "user", content: JSON.stringify(parsed.data) },
+            {
+              role: "user",
+              content: JSON.stringify({
+                title: parsed.data.title,
+                chunkIndex: parsed.data.chunkIndex,
+                chunkCount: chunks.length,
+                excerpts: chunk,
+              }),
+            },
           ],
           response_format: { type: "json_object" },
           max_tokens: 8000,
@@ -110,7 +122,16 @@ export async function handleGrantGeneration(
       if (typeof response.response !== "string")
         return reply({ error: "Il modello non ha restituito una configurazione valida." }, 502);
       const definition = acceptGeneratedDefinition(JSON.parse(response.response), parsed.data);
-      return reply({ definition, model: GENERATOR_MODEL, reviewed: false }, 200);
+      return reply(
+        {
+          definition,
+          model: GENERATOR_MODEL,
+          reviewed: false,
+          chunkIndex: parsed.data.chunkIndex,
+          chunkCount: chunks.length,
+        },
+        200,
+      );
     } finally {
       if (timer) clearTimeout(timer);
     }

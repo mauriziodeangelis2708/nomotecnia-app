@@ -147,9 +147,21 @@ export function normalizeQuote(value: string): string {
 
 /** Model output is data only. No scripts, expressions or arbitrary HTML can execute. */
 export function parseDefinition(input: unknown): GrantDefinition {
+  return parseGrant(input, false);
+}
+export function parseFragment(input: unknown): GrantDefinition {
+  return parseGrant(input, true);
+}
+function parseGrant(input: unknown, fragment: boolean): GrantDefinition {
   if (JSON.stringify(input).length > 1500000) throw new Error("Configurazione superiore a 1,5 MB.");
   checkDepth(input);
-  const result = definitionSchema.parse(input);
+  const schema = fragment
+    ? definitionSchema.extend({
+        questions: definitionSchema.shape.questions.min(0),
+        rules: definitionSchema.shape.rules.min(0),
+      })
+    : definitionSchema;
+  const result = schema.parse(input);
   const sources = new Map<string, GrantSource>();
   for (const source of result.sources) {
     if (sources.has(source.id)) throw new Error("Documento duplicato.");
@@ -210,7 +222,7 @@ export function parseDefinition(input: unknown): GrantDefinition {
     if (calculated ? !rule.formula || !!rule.condition : !rule.condition || !!rule.formula)
       throw new Error(`Regola incompleta o ambigua: ${rule.id}`);
   }
-  if (!result.rules.some((r) => r.kind === "eligibility" || r.kind === "exclusion"))
+  if (!fragment && !result.rules.some((r) => r.kind === "eligibility" || r.kind === "exclusion"))
     throw new Error("Mancano regole di ammissibilità o esclusione.");
   for (const item of [...result.questions, ...result.rules])
     for (const c of item.citations) {

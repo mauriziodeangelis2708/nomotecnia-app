@@ -2,9 +2,11 @@ import { useEffect, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
+import { mergeFragments, planSourceChunks } from "@/lib/grants/multipass";
 import { generationRequest, prepareGrantSource } from "@/lib/grants/generation";
 import {
   parseDefinition,
+  parseFragment,
   type GrantAnswers,
   type GrantDefinition,
   type GrantSource,
@@ -90,7 +92,7 @@ export function GrantStudio() {
     setMessage("");
     const controller = new AbortController();
     abort.current = controller;
-    const timeout = setTimeout(() => controller.abort(), 110000);
+    let timeout: ReturnType<typeof setTimeout> | undefined;
     try {
       const input = generationRequest.parse({
         title,
@@ -100,18 +102,37 @@ export function GrantStudio() {
       });
       const { data } = await supabase.auth.getSession();
       if (!data.session) throw new Error("Accedi nuovamente.");
-      const response = await fetch("/api/grants/generate", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${data.session.access_token}`,
-        },
-        body: JSON.stringify(input),
-        signal: controller.signal,
-      });
-      const output = (await response.json()) as { definition?: unknown; error?: string };
-      if (!response.ok) throw new Error(output.error || "Generazione non riuscita.");
-      resetReview(parseDefinition(output.definition));
+      const chunks = planSourceChunks(input.sources);
+      const fragments: GrantDefinition[] = [];
+      for (let chunkIndex = 0; chunkIndex < chunks.length; chunkIndex++) {
+        controller.signal.throwIfAborted();
+        setMessage(`Analisi del bando: passaggio ${chunkIndex + 1} di ${chunks.length}…`);
+        timeout = setTimeout(() => controller.abort(), 110000);
+        try {
+          const response = await fetch("/api/grants/generate", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "X-Nomotecnia-Session": `Bearer ${data.session.access_token}`,
+            },
+            body: JSON.stringify({ ...input, chunkIndex }),
+            signal: controller.signal,
+          });
+          const output = (await response.json()) as {
+            definition?: unknown;
+            error?: string;
+            chunkIndex?: number;
+            chunkCount?: number;
+          };
+          if (!response.ok) throw new Error(output.error || "Generazione non riuscita.");
+          if (output.chunkIndex !== chunkIndex || output.chunkCount !== chunks.length)
+            throw new Error("Sequenza di analisi non valida: nessuna bozza utilizzabile.");
+          fragments.push(parseFragment(output.definition));
+        } finally {
+          clearTimeout(timeout);
+        }
+      }
+      resetReview(mergeFragments(fragments, chunks.length));
       setRow(null);
       setMessage(
         "Bozza generata. Revisionare fonti, regole e casi di prova prima dell'attivazione.",
@@ -206,7 +227,7 @@ export function GrantStudio() {
           Usa OCR locale per le scansioni (massimo 8 pagine per PDF)
         </label>
         <label className="block space-y-1 text-sm">
-          Avviso e allegati PDF (massimo 12 file, 8 MB e 45 pagine ciascuno)
+          Avviso e allegati PDF (massimo 12 file, 8 MB e 200 pagine ciascuno)
           <Input
             type="file"
             accept="application/pdf,.pdf"

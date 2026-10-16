@@ -421,6 +421,11 @@ try {
     const {verifyDocumentExtensions}=await import("./verify-document-extensions.mjs");
     await verifyDocumentExtensions({root,own,other,admin,assessmentId,base,fixture,createClient,key,outsider:accounts.find(account=>account.name==="OUTSIDER")});
   }
+  if (process.env.STAGING_GRANT_STUDIO === "true") {
+    stage="authenticated grant studio drafts and role gateway";
+    const {verifyGrantStudioStaging}=await import("./verify-grant-studio-staging.mjs");
+    await verifyGrantStudioStaging({accounts,admin,base,nonce,createClient,key,options});
+  }
   await own.auth.signOut();
   await other.auth.signOut();
   stage="network and browser checks";

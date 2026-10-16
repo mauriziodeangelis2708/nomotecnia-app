@@ -73,8 +73,11 @@ function looksLikePdf(header: Uint8Array): boolean {
  */
 export async function extractLocalPdfText(
   file: File,
-  options: LocalReadOptions = {},
+  options: LocalReadOptions & { maxPages?: number } = {},
 ): Promise<DocumentPage[]> {
+  const maxPages = options.maxPages ?? MAX_PDF_PAGES;
+  if (!Number.isInteger(maxPages) || maxPages < 1 || maxPages > 200)
+    throw new LocalPdfError("Limite pagine non valido.");
   if (typeof window === "undefined")
     throw new LocalPdfError("Funzione disponibile solo nel browser.");
   if (file.size < 5 || file.size > MAX_PDF_BYTES) {
@@ -104,8 +107,8 @@ export async function extractLocalPdfText(
   let pdf: Awaited<typeof loadingTask.promise> | undefined;
   try {
     pdf = await loadingTask.promise;
-    if (pdf.numPages < 1 || pdf.numPages > MAX_PDF_PAGES) {
-      throw new LocalPdfError("PDF con troppe pagine: massimo 45, seleziona un estratto.");
+    if (pdf.numPages < 1 || pdf.numPages > maxPages) {
+      throw new LocalPdfError(`PDF con troppe pagine: massimo ${maxPages}, seleziona un estratto.`);
     }
     const pages: DocumentPage[] = [];
     let textLength = 0;
