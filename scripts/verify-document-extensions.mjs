@@ -75,6 +75,11 @@ export async function verifyDocumentExtensions({ root, own, other, admin, assess
     const restrictedDelete = await own.from("assessments").delete().eq("id", assessmentId);
     assert.ok(restrictedDelete.error, "Assessment deletion must not orphan archived originals");
     assert.equal(restrictedDelete.error.code, "23503");
+    const parent = await own.from("assessments").select("client_id").eq("id", assessmentId).single();
+    assert.equal(parent.error, null);
+    const restrictedClientDelete = await own.from("clients").delete().eq("id", parent.data.client_id);
+    assert.ok(restrictedClientDelete.error, "Client cascading deletion must not orphan originals");
+    assert.equal(restrictedClientDelete.error.code, "23503");
 
     const anonymous = createClient("https://vknvadzsjuixcuwegxto.supabase.co", key, { auth: { persistSession: false } });
     const outsiderApi = createClient("https://vknvadzsjuixcuwegxto.supabase.co", key, { auth: { persistSession: false } });
@@ -92,6 +97,9 @@ export async function verifyDocumentExtensions({ root, own, other, admin, assess
     assert.ok((await bucket.update(path, fixture, { contentType: "application/pdf" })).error, "Overwrites must be denied");
     assert.ok((await bucket.upload(`${assessmentId}/bad.pdf`, fixture, { contentType: "application/pdf" })).error, "Unscoped object names must be denied");
     assert.ok((await bucket.upload(`${assessmentId}/${crypto.randomUUID()}--bad.pdf`, fixture, { contentType: "text/plain" })).error, "Wrong MIME type must be denied");
+    const tooLarge = Buffer.alloc(8388609);
+    fixture.copy(tooLarge, 0, 0, Math.min(fixture.length, tooLarge.length));
+    assert.ok((await bucket.upload(`${assessmentId}/${crypto.randomUUID()}--oversized.pdf`, tooLarge, { contentType: "application/pdf" })).error, "Storage must enforce 8 MB limit server-side");
     const publicURL = bucket.getPublicUrl(path).data.publicUrl;
     assert.notEqual((await fetch(publicURL)).status, 200, "Bucket must never serve public originals");
     await outsiderApi.auth.signOut();

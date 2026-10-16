@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { PDFPageProxy } from "pdfjs-dist";
 import { createLocalOcr } from "./local-ocr";
 
@@ -8,6 +8,9 @@ const { recognize, terminate, createWorker } = vi.hoisted(() => ({
   createWorker: vi.fn(),
 }));
 vi.mock("tesseract.js", () => ({ OEM: { LSTM_ONLY: 1 }, createWorker }));
+beforeEach(() => {
+  terminate.mockResolvedValue({});
+});
 afterEach(() => vi.resetAllMocks());
 const page = {
   getViewport: ({ scale }: { scale: number }) => ({ width: 600 * scale, height: 800 * scale }),
@@ -32,6 +35,19 @@ describe("OCR locale", () => {
     const ocr = createLocalOcr({});
     await expect(ocr.read(page, 1)).rejects.toThrow("poco leggibile");
     await ocr.destroy();
+  });
+  it("rimuove il gestore di annullamento anche se il rendering fallisce", async () => {
+    createWorker.mockResolvedValue({ recognize, terminate });
+    const controller = new AbortController();
+    const ocr = createLocalOcr({ signal: controller.signal });
+    const broken = {
+      ...page,
+      render: () => ({ promise: Promise.reject(new Error("pagina danneggiata")) }),
+    } as unknown as PDFPageProxy;
+    await expect(ocr.read(broken, 1)).rejects.toThrow("pagina danneggiata");
+    controller.abort();
+    await ocr.destroy();
+    expect(recognize).not.toHaveBeenCalled();
   });
   it("annulla una lettura pendente e termina il worker", async () => {
     recognize.mockReturnValue(new Promise(() => {}));

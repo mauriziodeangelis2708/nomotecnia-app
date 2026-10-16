@@ -13,7 +13,7 @@ export function createLocalOcr(options: LocalReadOptions) {
   let stopped = false;
   const stop = () => {
     stopped = true;
-    if (worker) void worker.terminate();
+    if (worker) void worker.terminate().catch(() => {});
   };
   options.signal?.addEventListener("abort", stop, { once: true });
   return {
@@ -44,16 +44,20 @@ export function createLocalOcr(options: LocalReadOptions) {
       const canvas = document.createElement("canvas");
       canvas.width = Math.ceil(viewport.width);
       canvas.height = Math.ceil(viewport.height);
+      let rejectAbort: (reason: Error) => void = () => {};
+      const onAbort = () => rejectAbort(new Error("Lettura annullata."));
       const abort = new Promise<never>((_, reject) => {
-        if (options.signal?.aborted) reject(new Error("Lettura annullata."));
-        else
-          options.signal?.addEventListener("abort", () => reject(new Error("Lettura annullata.")), {
-            once: true,
-          });
+        rejectAbort = reject;
       });
+      options.signal?.addEventListener("abort", onAbort, { once: true });
       try {
-        await page.render({ canvas, viewport }).promise;
-        const result = await Promise.race([worker.recognize(canvas), abort]);
+        const reading = (async () => {
+          options.signal?.throwIfAborted();
+          await page.render({ canvas, viewport }).promise;
+          options.signal?.throwIfAborted();
+          return worker!.recognize(canvas);
+        })();
+        const result = await Promise.race([reading, abort]);
         if (!result.data.text.trim() || result.data.confidence < 60) {
           throw new Error(
             "Scansione poco leggibile: usa un originale più nitido o compila manualmente.",
@@ -61,6 +65,7 @@ export function createLocalOcr(options: LocalReadOptions) {
         }
         return result.data.text;
       } finally {
+        options.signal?.removeEventListener("abort", onAbort);
         canvas.width = 0;
         canvas.height = 0;
       }
