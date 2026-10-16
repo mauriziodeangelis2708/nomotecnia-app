@@ -64,7 +64,11 @@ export function DocumentArchive({ assessmentId }: { assessmentId: string }) {
   async function download(name: string) {
     setBusy(true);
     try {
-      const { data, error } = await bucket.download(`${assessmentId}/${name}`);
+      const { data, error } = await bucket.download(
+        `${assessmentId}/${name}`,
+        { cacheNonce: crypto.randomUUID() },
+        { cache: "no-store" },
+      );
       if (error || !data) throw new Error("Download non riuscito o accesso negato.");
       const url = URL.createObjectURL(data);
       const link = document.createElement("a");

@@ -34,6 +34,7 @@ export async function verifyDocumentExtensions({ root, own, other, admin, assess
   const archive = page.locator("section").filter({ has: page.getByRole("heading", { name: "Archivio PDF della pratica", exact: true }) });
   const paths = [];
   const bucket = own.storage.from("assessment-documents");
+  const freshDownload = (storage, path) => storage.download(path, { cacheNonce: crypto.randomUUID() }, { cache: "no-store" });
   const requests = [];
   const watch = (request) => { if (["POST","PUT","PATCH"].includes(request.method())) requests.push(request.url()); };
   try {
@@ -66,7 +67,7 @@ export async function verifyDocumentExtensions({ root, own, other, admin, assess
     const name = listed.data[0].name;
     const path = `${assessmentId}/${name}`;
     paths.push(path);
-    const downloaded = await bucket.download(path);
+    const downloaded = await freshDownload(bucket, path);
     assert.equal(downloaded.error, null);
     assert.deepEqual(Buffer.from(await downloaded.data.arrayBuffer()), fixture);
     const downloadPromise = page.waitForEvent("download");
@@ -87,13 +88,13 @@ export async function verifyDocumentExtensions({ root, own, other, admin, assess
     assert.equal((await outsiderApi.auth.signInWithPassword({ email: outsider.email, password: outsider.password })).error, null);
     for (const client of [other, anonymous, outsiderApi]) {
       const storage = client.storage.from("assessment-documents");
-      assert.ok((await storage.download(path)).error, "Foreign and anonymous downloads must be denied");
+      assert.ok((await freshDownload(storage, path)).error, "Foreign and anonymous downloads must be denied");
       const hidden = await storage.list(assessmentId);
       assert.equal(hidden.data?.length ?? 0, 0);
       const forbidden = `${assessmentId}/${crypto.randomUUID()}--foreign.pdf`;
       assert.ok((await storage.upload(forbidden, fixture, { contentType: "application/pdf" })).error, "Foreign upload must be denied");
       await storage.remove([path]);
-      assert.equal((await bucket.download(path)).error, null, "Foreign removal must not remove owner original");
+      assert.equal((await freshDownload(bucket, path)).error, null, "Foreign removal must not remove owner original");
     }
     assert.ok((await bucket.update(path, fixture, { contentType: "application/pdf" })).error, "Overwrites must be denied");
     assert.ok((await bucket.upload(`${assessmentId}/bad.pdf`, fixture, { contentType: "application/pdf" })).error, "Unscoped object names must be denied");
@@ -111,7 +112,7 @@ export async function verifyDocumentExtensions({ root, own, other, admin, assess
     page.once("dialog", dialog => dialog.accept());
     await archive.getByRole("button", { name: "Elimina PDF", exact: true }).click();
     await archive.getByText("Nessun PDF archiviato.", { exact: true }).waitFor();
-    assert.ok((await bucket.download(path)).error);
+    assert.ok((await freshDownload(bucket, path)).error);
     console.log("PASS: private archive UI upload/cancel/download/reload/delete; foreign/anonymous/outsider access, overwrite, public URL and malformed paths denied; deletion guard prevents orphan originals");
   } finally {
     page.off("request", watch);
