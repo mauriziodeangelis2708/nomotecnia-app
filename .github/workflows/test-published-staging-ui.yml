@@ -34,7 +34,17 @@ jobs:
           node --input-type=module <<'NODE'
           const origin = "https://nomotecnia-full-staging.maurizio-deangelis2708.workers.dev";
           const authorization = "Basic " + Buffer.from("nomotecnia:" + process.env.STAGING_ACCESS_PASSWORD).toString("base64");
-          const response = await fetch(origin + "/auth", { headers: { authorization }, redirect: "manual", signal: AbortSignal.timeout(20000) });
+          let target = origin + "/auth";
+          let response;
+          for (let hop = 0; hop < 5; hop++) {
+            response = await fetch(target, { headers: { authorization }, redirect: "manual", signal: AbortSignal.timeout(20000) });
+            if (![301, 302, 303, 307, 308].includes(response.status)) break;
+            const location = response.headers.get("location");
+            if (!location) break;
+            const next = new URL(location, target);
+            if (next.origin !== origin) throw new Error("Refusing redirect outside staging origin");
+            target = next.href;
+          }
           console.log("Authenticated staging gate HTTP status:", response.status);
           if (response.status === 401 || response.status === 403) {
             console.error("STAGING_GATE_CREDENTIAL_REJECTED: GitHub staging secret must match the existing Cloudflare staging gate. No test users created.");
