@@ -11,6 +11,8 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AlertTriangle } from "lucide-react";
+import { GrantStudio } from "@/components/grants/GrantStudio";
+import { GRANT_STUDIO_ENABLED } from "@/lib/grants/repository";
 
 export const Route = createFileRoute("/_authenticated/admin")({
   head: () => ({
@@ -59,6 +61,7 @@ function Admin() {
           <TabsTrigger value="rules">Regole</TabsTrigger>
           <TabsTrigger value="users">Soci</TabsTrigger>
           <TabsTrigger value="arch">Architettura</TabsTrigger>
+          {GRANT_STUDIO_ENABLED && <TabsTrigger value="grants">Gestione bandi</TabsTrigger>}
         </TabsList>
         <TabsContent value="rules" className="mt-4 space-y-3">
           {list.map((r) => (
@@ -68,6 +71,11 @@ function Admin() {
         <TabsContent value="users" className="mt-4">
           <Users />
         </TabsContent>
+        {GRANT_STUDIO_ENABLED && (
+          <TabsContent value="grants" className="mt-4">
+            <GrantStudio />
+          </TabsContent>
+        )}
         <TabsContent value="arch" className="mt-4">
           <div className="space-y-2 rounded-lg border bg-card p-5 text-sm">
             <p>

@@ -1,0 +1,91 @@
+import assert from "node:assert/strict";
+import { createServer } from "node:http";
+import { readFile, mkdir } from "node:fs/promises";
+import { resolve, extname, sep } from "node:path";
+import * as browsers from "/tmp/nomotecnia-local-browser/node_modules/playwright/index.mjs";
+import { textPdf } from "./document-reader-fixtures.mjs";
+import { syntheticGrant, SYNTHETIC_SCENARIOS } from "../src/lib/grants/fixtures.test-support.ts";
+
+const engine = process.env.READER_BROWSER || "chromium";
+assert.ok(["chromium", "firefox", "webkit"].includes(engine));
+const root = resolve("dist/grant-studio");
+const types = { ".html": "text/html", ".js": "text/javascript", ".mjs": "text/javascript", ".css": "text/css", ".wasm": "application/wasm", ".gz": "application/gzip" };
+const server = createServer(async (request, response) => {
+  try {
+    const path = new URL(request.url, "http://localhost").pathname;
+    const file = resolve(root, "." + (path === "/" ? "/index.html" : decodeURIComponent(path)));
+    if (!file.startsWith(root + sep)) throw new Error("Invalid path");
+    response.setHeader("content-type", types[extname(file)] || "application/octet-stream");
+    response.setHeader("cache-control", "no-store");
+    response.end(await readFile(file));
+  } catch { response.writeHead(404).end(); }
+});
+await new Promise(resolve => server.listen(0, "127.0.0.1", resolve));
+const base = "http://127.0.0.1:" + server.address().port;
+const browser = await browsers[engine].launch({ headless: true });
+const context = await browser.newContext({ viewport: { width: 1365, height: 900 } });
+const blocked = [], errors = [];
+await context.route("**/*", route => {
+  const url = new URL(route.request().url());
+  if (url.origin === base || ["blob:", "data:"].includes(url.protocol)) return route.continue();
+  if (!["fonts.googleapis.com", "fonts.gstatic.com"].includes(url.hostname)) blocked.push(url.hostname);
+  return route.abort();
+});
+const page = await context.newPage();
+page.on("pageerror", error => errors.push(error.name));
+page.on("console", message => { if (message.text().startsWith("SYNTHETIC_READER_DIAGNOSTIC")) console.log(message.text()); });
+const pass = label => console.log(`PASS ${engine}: ${label}`);
+
+let requests = 0;
+await page.route("**/api/grants/generate", async route => {
+  const input = route.request().postDataJSON(); requests++;
+  const d = syntheticGrant(); d.id = input.id; d.title = input.title; d.sources = input.sources;
+  for (const item of [...d.questions, ...d.rules]) item.citations = [{ documentId: input.sources[0].id, page: 1, quote: input.sources[0].pages[0].text }];
+  await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ definition: d, reviewed: false }) });
+});
+try {
+  await mkdir("reader-test-results", { recursive: true });
+  await page.goto(base);
+  await page.getByRole("heading", { name: /Gestione bandi/ }).waitFor();
+  assert.equal(requests, 0);
+  await page.getByLabel("Nome del nuovo bando").fill("Bando sintetico browser");
+  const quote = syntheticGrant().sources[0].pages[0].text;
+  await page.locator('input[type="file"]').setInputFiles({ name: "avviso-sintetico.pdf", mimeType: "application/pdf", buffer: textPdf([quote]) });
+  await page.getByRole("status").filter({ hasText: "Documenti letti localmente" }).waitFor();
+  assert.equal(requests, 0, "No model call before explicit generation action");
+  await page.getByRole("button", { name: "Genera assessment dai documenti" }).click();
+  await page.getByRole("heading", { name: "Bando sintetico browser · v1", exact: true }).waitFor();
+  assert.equal(requests, 1);
+  const publish = page.getByRole("button", { name: "Approva e attiva questa versione" });
+  assert.equal(await publish.isDisabled(), true);
+  pass("real local PDF extraction produces a draft from simulated model output, never auto-published");
+  await page.locator("details").evaluateAll(elements => elements.forEach(e => e.open = true));
+  await page.getByLabel(/Pagina 1 verificata/).check();
+  for (const control of await page.getByLabel("Logica, soglie e riferimenti verificati sull'originale", { exact: true }).all()) await control.check();
+  await page.getByLabel("Scenari di collaudo").fill(JSON.stringify(SYNTHETIC_SCENARIOS));
+  await page.getByRole("button", { name: "Esegui collaudo", exact: true }).click();
+  assert.equal(await page.getByText(/^PASS:/).count(), 3);
+  assert.equal(await publish.isDisabled(), true, "Must save a draft before activation");
+  await page.getByRole("button", { name: "Salva bozza", exact: true }).click();
+  await page.getByRole("status").filter({ hasText: "Bozza salvata" }).waitFor();
+  assert.equal(await publish.isEnabled(), true);
+  await publish.click();
+  await page.getByRole("status").filter({ hasText: "Versione attivata e immutabile" }).waitFor();
+  assert.equal(await publish.isDisabled(), true);
+  pass("page and rule reviews plus independent scenarios gate publication; published version is locked");
+  await page.reload();
+  await page.getByRole("button", { name: "Bando sintetico browser · v1 · Attivo", exact: true }).click();
+  await page.getByRole("status").filter({ hasText: "Versione pubblicata" }).waitFor();
+  assert.equal(await page.getByRole("button", { name: "Salva bozza", exact: true }).isDisabled(), true);
+  await page.getByRole("button", { name: "Crea nuova versione", exact: true }).click();
+  await page.getByRole("heading", { name: "Bando sintetico browser · v2", exact: true }).waitFor();
+  assert.equal(await publish.isDisabled(), true);
+  assert.equal(await page.getByRole("button", { name: "Bando sintetico browser · v1 · Attivo", exact: true }).count(), 1);
+  pass("reloading preserves published version; new version resets every review without replacing the prior one");
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.locator("details").evaluateAll(elements => elements.forEach(e => e.open = true));
+  assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1), "No horizontal overflow on mobile viewport");
+  await page.screenshot({ path: `reader-test-results/grant-studio-${engine}.png`, fullPage: true });
+  assert.deepEqual(blocked, []); assert.deepEqual(errors, []);
+  pass("mobile review layout and no unexpected external requests or uncaught browser errors");
+} finally { await context.close(); await browser.close(); await new Promise(resolve => server.close(resolve)); }

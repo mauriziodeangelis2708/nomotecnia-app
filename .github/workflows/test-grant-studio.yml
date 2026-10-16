@@ -1,0 +1,54 @@
+name: Configurable grant studio (synthetic only)
+on:
+  push:
+    branches: [feature/configurable-grant-studio-20261016]
+  pull_request:
+    paths:
+      - "src/lib/grants/**"
+      - "src/components/grants/**"
+      - "src/routes/_authenticated/grant.$id.tsx"
+      - "tests/grant-studio/**"
+      - "scripts/test-grant-studio.mjs"
+      - ".github/workflows/test-grant-studio.yml"
+concurrency:
+  group: grant-studio-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+permissions:
+  contents: read
+jobs:
+  browser:
+    strategy:
+      fail-fast: false
+      matrix:
+        browser: [chromium, firefox, webkit]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - name: Frozen dependencies
+        run: bun install --frozen-lockfile
+      - name: Typecheck and regression tests
+        run: |
+          bunx tsc --noEmit
+          bun run test
+          bunx eslint src/lib/grants src/components/grants 'src/routes/_authenticated/grant.$id.tsx' src/server.ts
+      - name: Build isolated synthetic studio
+        run: bunx vite build --config tests/grant-studio/vite.config.ts
+      - name: Install pinned browser runtime
+        run: |
+          npm install --prefix /tmp/nomotecnia-local-browser --no-audit --no-fund playwright@1.56.1
+          node /tmp/nomotecnia-local-browser/node_modules/playwright/cli.js install --with-deps ${{ matrix.browser }}
+      - name: Upload, simulated generation, review, publication and version browser test
+        env:
+          READER_BROWSER: ${{ matrix.browser }}
+        run: node scripts/test-grant-studio.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: synthetic-grant-studio-${{ matrix.browser }}
+          path: reader-test-results/
+          retention-days: 3
