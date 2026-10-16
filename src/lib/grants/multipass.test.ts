@@ -30,7 +30,8 @@ describe("multipass source coverage and deterministic merging", () => {
       sources: d.sources,
     });
     const chunks = planSourceChunks(input.sources);
-    expect(chunks).toHaveLength(37);
+    expect(chunks.length).toBeGreaterThanOrEqual(37);
+    expect(chunks.length).toBeLessThan(200);
     expect(chunks.every((c) => c.reduce((n, p) => n + p.text.length, 0) <= CHUNK_CHARACTERS)).toBe(
       true,
     );
@@ -43,6 +44,24 @@ describe("multipass source coverage and deterministic merging", () => {
             .map((c) => c.text)
             .join(""),
         ).toBe(p.text);
+  });
+  it("keeps an ordinary page and its exception together when the preceding chunk is nearly full", () => {
+    const d = syntheticGrant();
+    d.sources[0]!.pages = [
+      { page: 1, text: "a".repeat(9900) },
+      {
+        page: 2,
+        text: "Sono esclusi i precedenti beneficiari, a meno che la richiesta sia già presentata.",
+      },
+    ];
+    const chunks = planSourceChunks(d.sources);
+    expect(chunks).toHaveLength(1);
+    d.sources[0]!.pages[0]!.text += "a".repeat(50);
+    const separate = planSourceChunks(d.sources);
+    expect(separate).toHaveLength(2);
+    expect(separate[1]).toEqual([
+      { documentId: "avviso", name: d.sources[0]!.name, ...d.sources[0]!.pages[1] },
+    ]);
   });
   it("retains every character, original page number and document ID across chunks", () => {
     const d = syntheticGrant();

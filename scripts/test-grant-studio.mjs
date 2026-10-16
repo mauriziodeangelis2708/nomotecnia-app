@@ -5,6 +5,7 @@ import { resolve, extname, sep } from "node:path";
 import * as browsers from "/tmp/nomotecnia-local-browser/node_modules/playwright/index.mjs";
 import { textPdf } from "./document-reader-fixtures.mjs";
 import { syntheticGrant, SYNTHETIC_SCENARIOS } from "../src/lib/grants/fixtures.test-support.ts";
+import { planSourceChunks } from "../src/lib/grants/multipass.ts";
 
 const engine = process.env.READER_BROWSER || "chromium";
 assert.ok(["chromium", "firefox", "webkit"].includes(engine));
@@ -43,7 +44,7 @@ await page.route("**/api/grants/generate", async route => {
   if (failSecondPass && input.chunkIndex === 1) return route.fulfill({status:502,contentType:"application/json",body:JSON.stringify({error:"Secondo passaggio sintetico non riuscito"})});
   const d = syntheticGrant(); d.id = input.id; d.title = input.title; d.sources = input.sources;
   for (const item of [...d.questions, ...d.rules]) item.citations = [{ documentId: input.sources[0].id, page: 1, quote: input.sources[0].pages[0].text.slice(0,300) }];
-  await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ definition: d, reviewed: false, chunkIndex: input.chunkIndex, chunkCount: Math.ceil(input.sources.reduce((n,s) => n+s.pages.reduce((m,p)=>m+p.text.length,0),0)/10000) }) });
+  await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ definition: d, reviewed: false, chunkIndex: input.chunkIndex, chunkCount: planSourceChunks(input.sources).length }) });
 });
 try {
   await mkdir("reader-test-results", { recursive: true });

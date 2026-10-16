@@ -1,5 +1,5 @@
 {
-  "status": "local_preflight_passed_external_inference_not_authorized",
+  "status": "real_model_quality_gate_failed",
   "documents": [
     {
       "id": "documento_1",
@@ -32,12 +32,21 @@
   ],
   "pdf_pages": 121,
   "characters": 366127,
-  "chunks": 37,
+  "chunks": 44,
   "all_characters_retained": true,
   "not_included_in_pdf_generator": [
     "Modello-1-Diagnosi-Digitale.docx",
     "Modello-2-Relazione-Digitalizzazione.docx",
     "Griglia-punteggi-7-settembre-2026 (1)(1).xlsx"
   ],
-  "real_model_results": null
+  "real_model_results": {
+    "scope": "First 10000-character Avviso excerpt only, not full package",
+    "initial_schema": "accepted",
+    "initial_semantics": "failed",
+    "initial_audit": "missed key errors",
+    "revised_schema": "rejected",
+    "alternative_model_schema": "rejected",
+    "production_ai": "disabled"
+  },
+  "all_pdf_pages_retained_whole": true
 }

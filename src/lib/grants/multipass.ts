@@ -14,6 +14,13 @@ export function planSourceChunks(sources: GrantSource[]): SourceChunk[][] {
     count = 0;
   for (const source of sources)
     for (const page of source.pages) {
+      // Keep ordinary pages intact: cutting a page can detach an exclusion
+      // from its exception or split a table before its values reach the model.
+      if (page.text.length <= CHUNK_CHARACTERS && count + page.text.length > CHUNK_CHARACTERS) {
+        chunks.push(current);
+        current = [];
+        count = 0;
+      }
       let start = 0;
       while (start < page.text.length) {
         if (count === CHUNK_CHARACTERS) {
