@@ -416,6 +416,11 @@ try {
   const hidden=must(await other.from("assessments").select("id").eq("id",assessmentId),"Other member SELECT");
   assert.equal(hidden.length,0);
   pass("direct cross-member assessment URL does not expose owner data");
+  if (localDocumentMode && process.env.STAGING_DOCUMENT_EXTENSIONS === "true") {
+    stage="OCR and private document archive";
+    const {verifyDocumentExtensions}=await import("./verify-document-extensions.mjs");
+    await verifyDocumentExtensions({root,own,other,admin,assessmentId,base,fixture,createClient,key,outsider:accounts.find(account=>account.name==="OUTSIDER")});
+  }
   await own.auth.signOut();
   await other.auth.signOut();
   stage="network and browser checks";
@@ -453,3 +458,4 @@ try {
   if(cleanupFailed) {console.error("FAILED: disposable staging fixture cleanup");process.exitCode=1;}
   else pass("disposable UI identities and owned clients/assessments removed");
 }
+

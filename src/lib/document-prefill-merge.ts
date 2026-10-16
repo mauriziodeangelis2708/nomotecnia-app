@@ -6,6 +6,7 @@ import type { DemoDocumentKind, DocumentProposal } from "./document-prefill-demo
  * An extracted value is NEVER evidence that the document itself is valid.
  */
 export const IMPORTABLE_FIELDS: Record<DemoDocumentKind, readonly string[]> = {
+  altro: [],
   visura: ["ragione_sociale", "partita_iva", "ateco_codice", "sede_legale_indirizzo"],
   iva: ["iva_ve50_2025", "iva_vf25_2025"],
   inps: ["addetti_inps_luglio_2026"],

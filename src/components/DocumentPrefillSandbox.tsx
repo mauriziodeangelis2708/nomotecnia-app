@@ -32,6 +32,9 @@ export function DocumentPrefillSandbox({
   const [text, setText] = useState(localMode ? "" : SYNTHETIC_EXAMPLES.visura);
   const [pages, setPages] = useState<DocumentPage[] | null>(null);
   const [pdfName, setPdfName] = useState("");
+  const [ocrEnabled, setOcrEnabled] = useState(false);
+  const [progress, setProgress] = useState("");
+  const controller = useRef<AbortController | null>(null);
   const [busy, setBusy] = useState(false);
   const [syntheticOnly, setSyntheticOnly] = useState(false);
   const [ownershipConfirmed, setOwnershipConfirmed] = useState(false);
@@ -43,6 +46,7 @@ export function DocumentPrefillSandbox({
   useEffect(
     () => () => {
       generation.current++;
+      controller.current?.abort();
     },
     [],
   );
@@ -68,6 +72,8 @@ export function DocumentPrefillSandbox({
 
   function clearFile() {
     generation.current++;
+    controller.current?.abort();
+    setProgress("");
     setPages(null);
     setText("");
     setPdfName("");
@@ -85,6 +91,9 @@ export function DocumentPrefillSandbox({
   }
   async function inspectFile(file?: File) {
     if (!pdfEnabled || !file || (!localMode && !syntheticOnly)) return;
+    controller.current?.abort();
+    const active = new AbortController();
+    controller.current = active;
     const token = ++generation.current;
     setPages(null);
     setText(""); // Fail-closed: never show synthetic proposals after a PDF error.
@@ -96,7 +105,13 @@ export function DocumentPrefillSandbox({
     try {
       // No upload, network request, server-side storage or external AI call.
       const { extractLocalPdfText } = await import("@/lib/local-pdf-reader");
-      const extracted = await extractLocalPdfText(file);
+      const extracted = await extractLocalPdfText(file, {
+        ocr: ocrEnabled,
+        signal: active.signal,
+        onProgress: (message) => {
+          if (generation.current === token) setProgress(message);
+        },
+      });
       if (generation.current !== token) return;
       setPages(extracted);
       setPdfName(file.name);
@@ -158,6 +173,9 @@ export function DocumentPrefillSandbox({
           <option value="visura">Visura camerale</option>
           <option value="iva">Dichiarazione IVA 2026</option>
           <option value="inps">Attestazione INPS luglio 2026</option>
+          {localMode && (
+            <option value="altro">Altri PDF: bilanci, DURC, certificazioni e allegati</option>
+          )}
         </select>
         {pdfEnabled && (
           <div className="rounded-md border bg-muted/20 p-3">
@@ -180,6 +198,18 @@ export function DocumentPrefillSandbox({
                 </span>
               </label>
             )}
+            <label className="mt-2 flex items-start gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={ocrEnabled}
+                disabled={busy}
+                onChange={(e) => {
+                  clearFile();
+                  setOcrEnabled(e.target.checked);
+                }}
+              />
+              <span>Leggi scansioni con OCR sul dispositivo (massimo 8 pagine)</span>
+            </label>
             <input
               id="sandbox-file"
               ref={fileInput}
@@ -190,7 +220,8 @@ export function DocumentPrefillSandbox({
               onChange={(e) => void inspectFile(e.target.files?.[0])}
             />
             <p className="mt-1 text-xs text-muted-foreground">
-              Solo sul dispositivo; massimo 8 MB, 45 pagine. OCR e PDF cifrati non supportati.
+              Solo sul dispositivo; massimo 8 MB, 45 pagine. OCR facoltativo per scansioni; PDF
+              cifrati non supportati.
             </p>
             {pdfName && <p className="mt-2 text-sm">Analizzato localmente: {pdfName}</p>}
             <Button type="button" variant="outline" className="mt-2" onClick={clearFile}>
@@ -241,7 +272,7 @@ export function DocumentPrefillSandbox({
         )}
         {busy && (
           <p role="status" className="text-sm">
-            Lettura PDF locale in corso…
+            {progress || "Lettura PDF locale in corso…"}
           </p>
         )}
         {error && (
@@ -250,6 +281,29 @@ export function DocumentPrefillSandbox({
           </p>
         )}
       </div>
+      {pages && ocrEnabled && (
+        <p className="mt-3 text-sm">
+          OCR attivo: il riconoscimento può contenere errori. Confronta sempre i valori con il PDF
+          originale.
+        </p>
+      )}
+      {localMode && kind === "altro" && pages && (
+        <div className="mt-3">
+          <label htmlFor="document-local-text" className="text-sm font-medium">
+            Testo letto dal documento (non salvato)
+          </label>
+          <textarea
+            id="document-local-text"
+            readOnly
+            value={pages.map((p) => `Pagina ${p.page}\n${p.text}`).join("\n\n")}
+            className="mt-2 min-h-48 w-full rounded-md border bg-background p-3 text-sm"
+          />
+          <p className="text-sm text-muted-foreground">
+            Per questa tipologia non è prevista la compilazione automatica: usa il testo come
+            supporto e verifica i dati sull’originale.
+          </p>
+        </div>
+      )}
       <div className="mt-4">
         <h3 className="mb-2 text-sm font-semibold">
           Proposte da verificare ({preview.proposals.length})

@@ -17,6 +17,7 @@ import {
 import { getGeCoWebFormMissing, isIntegerQuestion, STEPS } from "@/lib/questions";
 import { CHECKLIST, DOC_STATUS, dt, eur } from "@/lib/checklist";
 import { QuestionField } from "@/components/QuestionField";
+import { DocumentArchive } from "@/components/DocumentArchive";
 import { DocumentPrefillSandbox } from "@/components/DocumentPrefillSandbox";
 import { mergeReviewedDocumentFields } from "@/lib/document-prefill-review";
 import { ResultView } from "@/components/ResultView";
@@ -567,14 +568,15 @@ function AssessmentPage() {
                   );
                   return;
                 }
-                setAnswers((previous) =>
-                  mergeReviewedDocumentFields(
-                    previous,
-                    kind,
-                    proposals,
-                    sourcePages,
-                    ownershipConfirmed,
-                  ).answers,
+                setAnswers(
+                  (previous) =>
+                    mergeReviewedDocumentFields(
+                      previous,
+                      kind,
+                      proposals,
+                      sourcePages,
+                      ownershipConfirmed,
+                    ).answers,
                 );
                 setDirty(true);
                 if (outcome.blocked.length > 0) {
@@ -582,6 +584,12 @@ function AssessmentPage() {
                 }
               }}
             />
+          )}
+          {!isNew && me.data?.isMember && <DocumentArchive key={id} assessmentId={id} />}
+          {isNew && (
+            <p className="mb-4 text-sm text-muted-foreground">
+              Salva prima la nuova pratica per archiviare gli originali PDF.
+            </p>
           )}
           <div className="rounded-lg border bg-card">
             {CHECKLIST.map((d) => {

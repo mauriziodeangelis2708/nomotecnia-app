@@ -1,3 +1,4 @@
+import { createLocalOcr, type LocalReadOptions } from "./local-ocr";
 import type { DocumentPage } from "./document-prefill-demo";
 
 const MAX_PDF_BYTES = 8 * 1024 * 1024;
@@ -69,7 +70,10 @@ function looksLikePdf(header: Uint8Array): boolean {
  * Must only be invoked in client-side event handlers, never during SSR.
  * The PDF worker is bundled as a first-party asset (?url), not a CDN.
  */
-export async function extractLocalPdfText(file: File): Promise<DocumentPage[]> {
+export async function extractLocalPdfText(
+  file: File,
+  options: LocalReadOptions = {},
+): Promise<DocumentPage[]> {
   if (typeof window === "undefined")
     throw new LocalPdfError("Funzione disponibile solo nel browser.");
   if (file.size < 5 || file.size > MAX_PDF_BYTES) {
@@ -83,12 +87,19 @@ export async function extractLocalPdfText(file: File): Promise<DocumentPage[]> {
     import("pdfjs-dist/build/pdf.worker.min.mjs?url"),
   ]);
   pdfjs.GlobalWorkerOptions.workerSrc = workerModule.default;
+  options.signal?.throwIfAborted();
   const bytes = new Uint8Array(await file.arrayBuffer());
   const loadingTask = pdfjs.getDocument({
     data: bytes,
     enableXfa: false,
     useSystemFonts: false,
   });
+  const ocr = createLocalOcr(options);
+  const abort = () => {
+    void loadingTask.destroy();
+  };
+  options.signal?.addEventListener("abort", abort, { once: true });
+  let ocrPages = 0;
   let pdf: Awaited<typeof loadingTask.promise> | undefined;
   try {
     pdf = await loadingTask.promise;
@@ -98,6 +109,8 @@ export async function extractLocalPdfText(file: File): Promise<DocumentPage[]> {
     const pages: DocumentPage[] = [];
     let textLength = 0;
     for (let n = 1; n <= pdf.numPages; n++) {
+      options.signal?.throwIfAborted();
+      options.onProgress?.(`Lettura pagina ${n} di ${pdf.numPages}…`);
       const p = await pdf.getPage(n);
       const content = await p.getTextContent();
       const items = content.items
@@ -110,7 +123,16 @@ export async function extractLocalPdfText(file: File): Promise<DocumentPage[]> {
           transform: item.transform,
           hasEOL: item.hasEOL,
         }));
-      const text = pdfItemsToLines(items).join("\n");
+      let text = pdfItemsToLines(items).join("\n");
+      if (options.ocr && text.trim().length < 80) {
+        if (++ocrPages > 8)
+          throw new LocalPdfError("OCR limitato a 8 pagine per documento: seleziona un estratto.");
+        try {
+          text = await ocr.read(p, n);
+        } catch (error) {
+          throw new LocalPdfError(error instanceof Error ? error.message : "OCR non riuscito.");
+        }
+      }
       textLength += text.length;
       if (textLength > MAX_PDF_TEXT) {
         throw new LocalPdfError(
@@ -121,7 +143,9 @@ export async function extractLocalPdfText(file: File): Promise<DocumentPage[]> {
       p.cleanup();
     }
     if (!pages.some((p) => p.text.trim())) {
-      throw new LocalPdfError("PDF senza testo selezionabile: serve OCR (non ancora attivo).");
+      throw new LocalPdfError(
+        "PDF senza testo selezionabile: abilita la lettura OCR delle scansioni.",
+      );
     }
     return pages;
   } catch (err) {
@@ -130,6 +154,8 @@ export async function extractLocalPdfText(file: File): Promise<DocumentPage[]> {
       "Impossibile leggere il PDF: potrebbe essere protetto da password, danneggiato o non supportato.",
     );
   } finally {
+    options.signal?.removeEventListener("abort", abort);
+    await ocr.destroy();
     await loadingTask.destroy();
   }
 }
