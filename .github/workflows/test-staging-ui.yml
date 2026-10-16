@@ -1,6 +1,9 @@
 name: Isolated staging UI smoke (synthetic users)
 on:
   workflow_dispatch:
+  push:
+    branches: ["feature/document-intelligence-sandbox-20261015"]
+    paths: [".github/workflows/test-staging-ui.yml"]
 permissions:
   contents: read
 concurrency:
