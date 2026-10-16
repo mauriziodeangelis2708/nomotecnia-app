@@ -33,6 +33,7 @@ await context.route("**/*", route => {
 });
 const page = await context.newPage();
 page.on("pageerror", error => errors.push(error.name));
+page.on("console", message => { if (message.text().startsWith("SYNTHETIC_READER_DIAGNOSTIC")) console.log(message.text()); });
 const pass = label => console.log(`PASS ${engine}: ${label}`);
 const input = page.locator('input[type="file"]');
 const alert = page.getByRole("alert");
