@@ -1,6 +1,6 @@
 /**
- * Disposable UI smoke test: LOCAL Cloudflare runtime + isolated Supabase staging.
- * Does not access the deployed workers.dev site or change its security controls.
+ * Disposable UI smoke test: local runtime or the exact published STAGING site.
+ * Public mode uses its existing Basic authentication; security controls stay enabled.
  * Never records passwords, sessions or privileged keys in test artifacts.
  */
 import assert from "node:assert/strict";
@@ -11,7 +11,11 @@ import { createClient } from "@supabase/supabase-js";
 import { chromium } from "/tmp/nomotecnia-ui/node_modules/playwright/index.mjs";
 
 const URL = "https://vknvadzsjuixcuwegxto.supabase.co";
-const base = "http://127.0.0.1:8787";
+const publicMode = process.env.STAGING_UI_TARGET === "published";
+assert.ok(!process.env.STAGING_UI_TARGET || publicMode, "Unknown UI target");
+const base = publicMode
+  ? "https://nomotecnia-full-staging.maurizio-deangelis2708.workers.dev"
+  : "http://127.0.0.1:8787";
 assert.equal(process.env.STAGING_SUPABASE_URL, URL, "Staging URL required");
 const secret = process.env.STAGING_SUPABASE_SECRET_KEY;
 const key = process.env.STAGING_SUPABASE_PUBLISHABLE_KEY;
@@ -20,7 +24,8 @@ assert.ok(secret?.startsWith("sb_secret_") && key?.startsWith("sb_publishable_")
 const options = { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } };
 const admin = createClient(URL, secret, options);
 const nonce = randomBytes(8).toString("hex");
-const gate = randomBytes(32).toString("base64url");
+const gate = publicMode ? process.env.STAGING_ACCESS_PASSWORD : randomBytes(32).toString("base64url");
+assert.ok(gate?.length >= 18, "Protected environment secret STAGING_ACCESS_PASSWORD is required for published UI tests");
 const accounts = [];
 const contexts = [];
 let browser, server;
@@ -61,17 +66,20 @@ function syntheticPdf(lines) {
 }
 
 try {
-  stage = "local Cloudflare runtime";
-  await writeFile(".output/server/.dev.vars", "STAGING_ACCESS_PASSWORD=" + gate + "\n", {mode:0o600});
   const safeEnv = Object.fromEntries(["PATH","HOME","CI"].filter(k=>process.env[k]).map(k=>[k,process.env[k]]));
+  stage = publicMode ? "published staging gate" : "local Cloudflare runtime";
+  if (!publicMode) {
+  await writeFile(".output/server/.dev.vars", "STAGING_ACCESS_PASSWORD=" + gate + "\n", {mode:0o600});
   server = spawn("/tmp/nomotecnia-ui/node_modules/.bin/wrangler", ["dev","--local","--ip","127.0.0.1","--port","8787",
     "--config",".output/server/wrangler.staging.json"], {env:safeEnv,stdio:["ignore","pipe","pipe"]});
   server.on("error",e=>{serverLog+=e.message;});
   for(const stream of [server.stdout,server.stderr]) stream.on("data",chunk=>{serverLog=(serverLog+chunk.toString()).slice(-6000);});
   await until(async()=>{try{return (await fetch(base)).status===401;}catch{return false;}}, "Local server did not start");
-  assert.equal((await fetch(base,{headers:{Authorization:"Basic "+Buffer.from("nomotecnia:wrong").toString("base64")}})).status,401);
-  assert.equal((await fetch(base+"/favicon.svg")).status,401);
-  pass("local staging gate denies anonymous, wrong-password and static-asset requests");
+  }
+  assert.equal((await fetch(base,{signal:AbortSignal.timeout(20000)})).status,401,"Staging gate must deny anonymous traffic");
+  assert.equal((await fetch(base,{signal:AbortSignal.timeout(20000),headers:{Authorization:"Basic "+Buffer.from("nomotecnia:wrong").toString("base64")}})).status,401);
+  assert.equal((await fetch(base+"/favicon.svg",{signal:AbortSignal.timeout(20000)})).status,401);
+  pass((publicMode ? "published" : "local")+" staging gate denies anonymous, wrong-password and static-asset requests");
   stage = "disposable staging identities";
   for (const [name,role] of [["ADMIN","admin"],["MEMBER_A","socio"],["MEMBER_B","socio"],["OUTSIDER",null]]) {
     const email = "nomotecnia-staging-ui-"+nonce+"-"+name.toLowerCase()+"@example.com";
@@ -407,10 +415,10 @@ try {
   stage="network and browser checks";
   assert.deepEqual(blocked,[],"Unexpected external origin requested");
   assert.deepEqual(consoleErrors,[],"Browser uncaught errors");
-  pass("backend requests confined to localhost and staging Supabase; external fonts disabled");
+  pass("backend requests confined to the selected staging origin and staging Supabase; external fonts disabled");
   await mkdir("ui-test-results",{recursive:true});
   await a.page.screenshot({path:"ui-test-results/assessment-synthetic.png",fullPage:true});
-  pass("local browser UI smoke completed; published edge-site UI remains separate");
+  pass(publicMode ? "published staging browser UI smoke completed" : "local browser UI smoke completed; published edge-site UI remains separate");
 } catch(error) {
   let message=String(error?.message??"Unknown error")+(stage==="local Cloudflare runtime" ? "\\n"+serverLog : "");
   for(const value of [secret,gate,...accounts.map(a=>a.password)]) if(value) message=message.replaceAll(value,"[REDACTED]");
@@ -419,7 +427,7 @@ try {
 } finally {
   await browser?.close().catch(()=>{});
   server?.kill("SIGTERM");
-  await rm(".output/server/.dev.vars",{force:true});
+  if (!publicMode) await rm(".output/server/.dev.vars",{force:true});
   let cleanupFailed=false;
   const ids=accounts.map(a=>a.id);
   if(ids.length) {
