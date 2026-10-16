@@ -1,6 +1,6 @@
 # NomotecnIA – full-app staging (Supabase Free + Cloudflare)
 
-**Stato al 16 ottobre 2026: pubblicato sul Worker separato di staging e protetto; collaudo UI end-to-end non completato.**
+**Stato al 16 ottobre 2026: pubblicato sul Worker separato di staging e protetto; collaudo UI sul runtime locale Cloudflare con Supabase staging superato. Verifica UI sul dominio pubblico ancora limitata dal browser cloud.**
 
 ## Progetto
 
@@ -18,8 +18,8 @@
   `scripts/prepare-full-staging.mjs`. Si rifiuta di proseguire se non trova
   la build, se compare la produzione o se compaiono binding Cloudflare inattesi.
 - Per tutte le risorse Cloudflare è impostato
-  `assets.run_worker_first=true`: è essenziale perché `src/server.ts`
-  protegge ogni richiesta con password di staging.
+  `assets.run_worker_first=true`: è essenziale perché il wrapper esterno del Worker generato da `scripts/prepare-full-staging.mjs`
+  protegge ogni richiesta prima di Nitro, inclusi HTML e asset.
 - Il login Google Lovable è nascosto in staging: si usano soltanto account
   Supabase Auth **appositamente creati nel progetto staging** con email e password.
   È nascosto anche l'ingresso al portale clienti perché la relativa migrazione
@@ -139,3 +139,57 @@ Il Worker di produzione `nomotecnia-app` conserva:
 identici a quelli letti prima di iniziare il deploy staging.
 
 Solo dati sintetici; nessuna modifica al progetto Supabase di produzione.
+
+
+## Collaudo UI effettivo e correzione del gate – 16 ottobre 2026
+
+Workflow **Isolated staging UI smoke (synthetic users)**:
+https://github.com/mauriziodeangelis2708/nomotecnia-app/actions/runs/38856539093
+
+**Esito: SUCCESSO**, commit testato
+`8e1e420dbce40bd9978f84f53531e96c86375fb9`.
+
+Per distinguere il comportamento dell'app dal rifiuto del client sul dominio
+pubblico, la build reale è stata avviata con `wrangler dev --local` in GitHub
+Actions, su `127.0.0.1:8787`, con quattro utenti temporanei del solo progetto
+Supabase staging. Non sono stati cambiati IP, firma del browser o controlli
+di sicurezza del dominio pubblico.
+
+Il test ha individuato e corretto un difetto reale: l'handler interno
+TanStack/Nitro non riceve i binding grezzi del Worker e rimaneva chiuso con 503.
+Il gate è ora applicato all'**entrypoint esterno del Worker**, prima di Nitro:
+lo stesso controllo protegge sia SSR sia asset. La build staging genera il
+wrapper e compila il modulo gate, lasciando invariato il manifest di produzione.
+`preview_urls=false` è ora esplicito nel manifest staging.
+
+Controlli realmente superati nel browser Chromium del runner:
+
+- 401 senza password, con password errata e per un asset statico senza password.
+- Login indipendenti admin, socio A, socio B e outsider senza ruolo.
+- Creazione tramite interfaccia di un cliente sintetico per ciascun socio.
+- Isolamento delle dashboard dei due soci; admin vede entrambi i clienti.
+- Outsider fermato alla schermata di attesa autorizzazione.
+- Creazione di un assessment attraverso l'interfaccia, salvataggio, ricaricamento
+  e verifica nel database di titolo, proprietario e ragione sociale.
+- Accesso diretto del socio B all'URL dell'assessment A senza esposizione dei dati;
+  SELECT con la sessione separata B restituisce zero righe.
+- Richieste backend limitate a localhost e Supabase staging. Font esterni
+  disabilitati soltanto dal test. Nessun errore JavaScript non gestito.
+- Rimozione di tutte le identità temporanee e dei relativi dati.
+  Conteggi SQL successivi: utenti UI = 0, clienti UI = 0, assessment UI = 0.
+
+La schermata sintetica del test è conservata come artifact
+`synthetic-ui-screenshots` per tre giorni. Il trigger push temporaneo è stato
+rimosso: il workflow UI è tornato a `workflow_dispatch` soltanto.
+
+### Deploy della correzione
+
+Cloudflare Build manuale `5800b325-1402-46bc-bfb0-428c24a5c006`: **SUCCESSO**.
+È stato compilato lo stesso commit testato sopra e pubblicato esclusivamente
+su `nomotecnia-full-staging`, versione
+`196029f4-a009-4f99-9994-16155255dd28`.
+
+Il successo del test UI locale non certifica ancora il percorso HTTP completo
+sul dominio workers.dev dal browser cloud: quel controllo rimane non concluso.
+Questa sessione non ha eseguito un collaudo completo di PDF, mobile,
+tutte le combinazioni dei bandi o portale clienti.
