@@ -191,5 +191,50 @@ su `nomotecnia-full-staging`, versione
 
 Il successo del test UI locale non certifica ancora il percorso HTTP completo
 sul dominio workers.dev dal browser cloud: quel controllo rimane non concluso.
-Questa sessione non ha eseguito un collaudo completo di PDF, mobile,
-tutte le combinazioni dei bandi o portale clienti.
+Le prove mobile, CSV e PDF sono state ampliate nel seguito. Restano esclusi
+tutte le combinazioni dei bandi e il portale clienti.
+
+
+## Estensione mobile, CSV, note, storico e PDF – 16 ottobre 2026
+
+Esecuzione finale **SUCCESSO**:
+https://github.com/mauriziodeangelis2708/nomotecnia-app/actions/runs/38857475183
+
+Commit testato: `26f10ef463346292b19be2df90a1e47c1c7d5352`.
+Anche il controllo completo `Document intelligence draft checks` è stato avviato
+sul medesimo commit; il suo esito va letto separatamente da quello UI.
+
+Oltre ai controlli desktop e RLS già descritti, sono stati eseguiti:
+
+- Nota separata e snapshot storico salvati attraverso i rispettivi comandi UI.
+- Download effettivo del CSV della dashboard: cliente, titolo e nota del socio A
+  presenti; cliente del socio B assente. Il valore sintetico referente
+  `=1+1` viene esportato con apostrofo protettivo per neutralizzare formule.
+- Viewport 390 × 844: pulsante Nuovo cliente visibile e dentro lo schermo,
+  dialogo apribile e chiudibile; dashboard priva di scorrimento orizzontale.
+- Modifica del titolo da mobile, salvataggio nel database e ripristino
+  dopo ricaricamento; questionario senza scorrimento orizzontale.
+- Report mobile con titolo aggiornato e nota salvata, senza scorrimento
+  orizzontale; pulsante stampa richiama `window.print()`.
+- Generazione effettiva PDF con Chromium e CSS di stampa dell'app.
+  PDF.js verifica formato A4 di tutte le 19 pagine, ragione sociale, titolo
+  aggiornato, nota, indicazione esplicita “Non compilato”, assenza di dati
+  dell'altro socio e assenza dei comandi UI di stampa.
+- Apertura del report A da socio B: messaggio di accesso fallito e nessun
+  documento del proprietario renderizzato.
+- Tutti i precedenti controlli sui quattro utenti e sui backend autorizzati
+  sono stati ripetuti con successo.
+
+Il PDF sintetico della prima esecuzione ampliata (38857163530) è stato anche
+renderizzato con Poppler e controllato visivamente su tutte le 19 pagine:
+nessun taglio o sovrapposizione evidente. La cattura della dashboard mobile
+è stata stabilizzata attendendo la chiusura del dialogo prima dello screenshot;
+l'esecuzione finale valida anche questa modifica alle prove.
+
+L'artifact `synthetic-ui-screenshots` della run finale contiene schermate,
+CSV e PDF esclusivamente sintetici ed è conservato per tre giorni.
+Le prove verificano il comportamento descritto nel runtime locale Cloudflare
+con Supabase staging; non sono una certificazione su ogni dispositivo reale,
+su ogni combinazione dei bandi o sul dominio pubblico bloccato al browser cloud.
+Non è stato necessario cambiare il codice applicativo o fare un nuovo deploy
+per questa estensione dei test. Workflow UI di nuovo solo manuale.
