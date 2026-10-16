@@ -14,7 +14,7 @@ export default defineConfig({
         if (id.endsWith("/src/lib/local-pdf-reader.ts"))
           return code.replace(
             "} catch (err) {",
-            '} catch (err) { console.info("SYNTHETIC_READER_DIAGNOSTIC", err instanceof Error ? err.name + ": " + err.message : String(err));',
+            '} catch (err) { console.info("SYNTHETIC_READER_DIAGNOSTIC", err instanceof Error ? err.stack || err.name + ": " + err.message : String(err));',
           );
       },
     },
