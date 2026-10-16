@@ -48,7 +48,14 @@ function isH3SwallowedErrorBody(body: string): boolean {
 export default {
   async fetch(request: Request, env: unknown, ctx: unknown) {
     if (import.meta.env["VITE_NOMOTECNIA_STAGING"] === "true") {
-      const refusal = denyUnauthenticatedStagingRequest(request, env);
+      // TanStack/Nitro does not pass the raw Worker bindings to this inner
+      // handler. With nodejs_compat and this Worker's compatibility date,
+      // Cloudflare exposes secret bindings through process.env as well.
+      const stagingBindings =
+        typeof env === "object" && env !== null && "STAGING_ACCESS_PASSWORD" in env
+          ? env
+          : { STAGING_ACCESS_PASSWORD: process.env["STAGING_ACCESS_PASSWORD"] };
+      const refusal = denyUnauthenticatedStagingRequest(request, stagingBindings);
       if (refusal) return refusal;
     }
     try {
