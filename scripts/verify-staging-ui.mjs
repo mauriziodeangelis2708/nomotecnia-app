@@ -10,6 +10,8 @@ import { writeFile, readFile, rm, mkdir } from "node:fs/promises";
 import { createClient } from "@supabase/supabase-js";
 import { chromium } from "/tmp/nomotecnia-ui/node_modules/playwright/index.mjs";
 
+const localDocumentMode = process.env.STAGING_DOCUMENT_MODE === "local";
+const documentHeading = localDocumentMode ? "Leggi PDF e compila la pratica" : "Document Intelligence — laboratorio riservato";
 const URL = "https://vknvadzsjuixcuwegxto.supabase.co";
 const publicMode = process.env.STAGING_UI_TARGET === "published";
 assert.ok(!process.env.STAGING_UI_TARGET || publicMode, "Unknown UI target");
@@ -270,11 +272,15 @@ try {
   stage="local PDF upload, human review and explicit save";
   await root.page.goto(assessmentURL);
   await root.page.getByRole("tab",{name:"Documenti",exact:true}).click();
-  const lab=root.page.locator("section").filter({has:root.page.getByRole("heading",{name:"Document Intelligence — laboratorio riservato",exact:true})});
-  await lab.getByRole("heading",{name:"Document Intelligence — laboratorio riservato",exact:true}).waitFor();
+  const lab=root.page.locator("section").filter({has:root.page.getByRole("heading",{name:documentHeading,exact:true})});
+  await lab.getByRole("heading",{name:documentHeading,exact:true}).waitFor();
   const input=lab.locator('input[type="file"]');
-  assert.equal(await input.isDisabled(),true,"PDF input must require synthetic-only consent");
-  await lab.getByRole("checkbox",{name:"Confermo che userò esclusivamente PDF inventati per test, senza dati reali di persone o aziende.",exact:true}).check();
+  assert.equal(await input.isDisabled(),!localDocumentMode,"PDF input availability follows document mode");
+  if(localDocumentMode) {
+    assert.equal(await lab.locator("textarea").count(),0,"Operational mode must never preload synthetic text");
+    assert.equal(await lab.getByRole("checkbox",{name:"Conferma Partita IVA",exact:true}).count(),0);
+  }
+  if(!localDocumentMode) await lab.getByRole("checkbox",{name:"Confermo che userò esclusivamente PDF inventati per test, senza dati reali di persone o aziende.",exact:true}).check();
   const fixture=syntheticPdf([
     "VISURA CAMERALE - FACSIMILE INVENTATO",
     "Denominazione: "+a.clientName,
@@ -323,7 +329,7 @@ try {
   pass("real local PDF parsed in browser, human consent/cancel/confirm checked; explicit save and reload preserve selected fields");
 
   stage="PDF wrong-company rejection and malformed-file fail-closed";
-  await lab.getByRole("checkbox",{name:"Confermo che userò esclusivamente PDF inventati per test, senza dati reali di persone o aziende.",exact:true}).check();
+  if(!localDocumentMode) await lab.getByRole("checkbox",{name:"Confermo che userò esclusivamente PDF inventati per test, senza dati reali di persone o aziende.",exact:true}).check();
   const wrong=syntheticPdf([
     "VISURA CAMERALE - FACSIMILE INVENTATO",
     "Denominazione: IMPRESA DIVERSA INVENTATA",
@@ -366,7 +372,7 @@ try {
   for(const fixture of periodFixtures) {
     stage="PDF import "+fixture.kind;
     await lab.getByLabel("Tipologia documento",{exact:true}).selectOption(fixture.kind);
-    await lab.getByRole("checkbox",{name:"Confermo che userò esclusivamente PDF inventati per test, senza dati reali di persone o aziende.",exact:true}).check();
+    if(!localDocumentMode) await lab.getByRole("checkbox",{name:"Confermo che userò esclusivamente PDF inventati per test, senza dati reali di persone o aziende.",exact:true}).check();
     await input.setInputFiles({name:fixture.name,mimeType:"application/pdf",buffer:syntheticPdf(fixture.lines)});
     await lab.getByText("Analizzato localmente: "+fixture.name,{exact:true}).waitFor();
     await lab.getByText("Partita IVA del documento coerente con quella della pratica. Verificare comunque il documento.",{exact:true}).waitFor();
@@ -389,7 +395,7 @@ try {
 
     stage="wrong-period PDF rejection "+fixture.kind;
     await lab.getByLabel("Tipologia documento",{exact:true}).selectOption(fixture.kind);
-    await lab.getByRole("checkbox",{name:"Confermo che userò esclusivamente PDF inventati per test, senza dati reali di persone o aziende.",exact:true}).check();
+    if(!localDocumentMode) await lab.getByRole("checkbox",{name:"Confermo che userò esclusivamente PDF inventati per test, senza dati reali di persone o aziende.",exact:true}).check();
     await input.setInputFiles({name:"periodo-errato-"+fixture.name,mimeType:"application/pdf",buffer:syntheticPdf(fixture.wrong)});
     await lab.getByText("Analizzato localmente: periodo-errato-"+fixture.name,{exact:true}).waitFor();
     await lab.getByText("Nessun campo univoco riconosciuto.",{exact:true}).waitFor();
