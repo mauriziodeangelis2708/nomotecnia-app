@@ -24,6 +24,7 @@ const gate = randomBytes(32).toString("base64url");
 const accounts = [];
 const contexts = [];
 let browser, server;
+let serverLog = "";
 let stage = "initialization";
 const blocked = [];
 const consoleErrors = [];
@@ -43,9 +44,10 @@ try {
   stage = "local Cloudflare runtime";
   await writeFile(".output/server/.dev.vars", "STAGING_ACCESS_PASSWORD=" + gate + "\n", {mode:0o600});
   const safeEnv = Object.fromEntries(["PATH","HOME","CI"].filter(k=>process.env[k]).map(k=>[k,process.env[k]]));
-  server = spawn("npx", ["--yes","wrangler@4","dev","--local","--ip","127.0.0.1","--port","8787",
-    "--config",".output/server/wrangler.staging.json"], {env:safeEnv,stdio:["ignore","ignore","ignore"]});
-  server.on("error",()=>{});
+  server = spawn("/tmp/nomotecnia-ui/node_modules/.bin/wrangler", ["dev","--local","--ip","127.0.0.1","--port","8787",
+    "--config",".output/server/wrangler.staging.json"], {env:safeEnv,stdio:["ignore","pipe","pipe"]});
+  server.on("error",e=>{serverLog+=e.message;});
+  for(const stream of [server.stdout,server.stderr]) stream.on("data",chunk=>{serverLog=(serverLog+chunk.toString()).slice(-6000);});
   await until(async()=>{try{return (await fetch(base)).status===401;}catch{return false;}}, "Local server did not start");
   assert.equal((await fetch(base,{headers:{Authorization:"Basic "+Buffer.from("nomotecnia:wrong").toString("base64")}})).status,401);
   pass("local staging gate denies anonymous and wrong-password requests");
@@ -150,7 +152,7 @@ try {
   await a.page.screenshot({path:"ui-test-results/assessment-synthetic.png",fullPage:true});
   pass("local browser UI smoke completed; published edge-site UI remains separate");
 } catch(error) {
-  let message=String(error?.message??"Unknown error");
+  let message=String(error?.message??"Unknown error")+(stage==="local Cloudflare runtime" ? "\\n"+serverLog : "");
   for(const value of [secret,gate,...accounts.map(a=>a.password)]) if(value) message=message.replaceAll(value,"[REDACTED]");
   console.error("FAILED at: "+stage+" ("+(error?.name??"Error")+") "+message.slice(0,1500));
   process.exitCode=1;
