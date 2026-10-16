@@ -119,9 +119,11 @@ export async function handleGrantGeneration(
           timer = setTimeout(() => reject(new Error("timeout")), 90000);
         }),
       ]);
-      if (typeof response.response !== "string")
+      const raw =
+        typeof response.response === "string" ? JSON.parse(response.response) : response.response;
+      if (!raw || typeof raw !== "object" || Array.isArray(raw))
         return reply({ error: "Il modello non ha restituito una configurazione valida." }, 502);
-      const definition = acceptGeneratedDefinition(JSON.parse(response.response), parsed.data);
+      const definition = acceptGeneratedDefinition(raw, parsed.data);
       return reply(
         {
           definition,

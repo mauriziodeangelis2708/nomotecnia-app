@@ -1,6 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { handleGrantGeneration, type GenerationEnv } from "./generator-server";
 import { syntheticGrant } from "./fixtures.test-support";
+import observed from "./workers-ai-observed.test-support.json";
+import { evaluateGrant } from "./engine";
 
 const origin = "https://test.nomotecnia.invalid";
 const d = syntheticGrant();
@@ -103,6 +105,46 @@ describe("admin-only generation gateway", () => {
     expect(body.reviewed).toBe(false);
     expect(body.definition).toEqual(d);
     expect(s.http.mock.calls.every((c) => String(c[0]).startsWith(s.env.SUPABASE_URL!))).toBe(true);
+  });
+  it("accepts the live synthetic provider response and evaluates its generated rules", async () => {
+    const s = setup();
+    s.ai.mockResolvedValue({ response: observed.response });
+    const response = await handleGrantGeneration(
+      request({
+        ...input,
+        sources: [
+          {
+            id: "documento_1",
+            name: "synthetic.pdf",
+            sha256: "a".repeat(64),
+            pages: [{ page: 1, text: observed.source }],
+          },
+        ],
+      }),
+      s.env,
+      s.http,
+    );
+    expect(response.status).toBe(200);
+    const { definition } = await response.json();
+    const answers = { sede_operativa: true, liquidazione: false, spesa_ammissibile: 20000 };
+    expect(evaluateGrant(definition, answers).grants[0]!.value).toBe(10000);
+    expect(evaluateGrant(definition, { ...answers, liquidazione: true }).status).toBe(
+      "not_eligible",
+    );
+    expect(evaluateGrant(definition, {}).status).toBe("incomplete");
+  });
+  it("validates structured JSON-mode responses observed from Workers AI", async () => {
+    const s = setup();
+    s.ai.mockResolvedValue({ response: modelOutput() });
+    const response = await handleGrantGeneration(request(), s.env, s.http);
+    expect(response.status).toBe(200);
+    expect((await response.json()).definition).toEqual(d);
+    const payload = modelOutput();
+    payload.rules[0]!.citations = [
+      { documentId: "avviso", page: 1, quote: "Il modello ha inventato questa frase." },
+    ];
+    s.ai.mockResolvedValue({ response: payload });
+    expect((await handleGrantGeneration(request(), s.env, s.http)).status).toBe(502);
   });
   it("rejects hallucinated citations and executable payloads", async () => {
     const s = setup();
