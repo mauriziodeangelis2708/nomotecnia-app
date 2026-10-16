@@ -51,3 +51,5 @@ jobs:
           name: synthetic-ui-screenshots
           path: ui-test-results/
           retention-days: 3
+
+# Validate the framework-to-Worker secret binding path in the local runtime.
