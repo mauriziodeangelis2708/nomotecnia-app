@@ -10,6 +10,12 @@ const scalar = z.union([
 export type Scalar = z.infer<typeof scalar>;
 export type Predicate =
   | {
+      op: "compare";
+      comparison: "eq" | "ne" | "gt" | "gte" | "lt" | "lte";
+      left: Expression;
+      right: Expression;
+    }
+  | {
       op: "compare_fields";
       field: string;
       otherField: string;
@@ -28,6 +34,14 @@ export type Expression =
 
 const predicate: z.ZodType<Predicate> = z.lazy(() =>
   z.union([
+    z
+      .object({
+        op: z.literal("compare"),
+        comparison: z.enum(["eq", "ne", "gt", "gte", "lt", "lte"]),
+        left: expression,
+        right: expression,
+      })
+      .strict(),
     z
       .object({
         op: z.literal("compare_fields"),

@@ -20,6 +20,35 @@ const raw = {
 };
 const mapping = [{ requirementId: "attiva", questionIds: ["attiva"], ruleIds: ["impresa_attiva"] }];
 describe("requirement inventory and traceability", () => {
+  it("keeps source-reference gaps after model mapping and clearing generic warnings", () => {
+    const definition = syntheticGrant();
+    definition.sources[0]!.pages[0]!.text +=
+      "\n\nLe condizioni tecniche sono definite nell’allegato 2.";
+    const excerpts = definition.sources[0]!.pages.map((p) => ({
+      ...p,
+      documentId: "avviso",
+      name: "Bando",
+    }));
+    const inventory = acceptInventory({ requirements: [] }, excerpts);
+    const requirement = inventory.requirements.find((r) => r.id.startsWith("source_reference_"))!;
+    const mapped = attachInventory(definition, inventory, [
+      { requirementId: requirement.id, questionIds: ["attiva"], ruleIds: ["impresa_attiva"] },
+    ]);
+    mapped.unresolved = [];
+    expect(evaluateGrant(mapped, SYNTHETIC_ANSWERS).status).toBe("incomplete");
+    expect(mapped.requirements![0]!.gap).toContain("rinvio");
+    expect(publicationProblems(mapped, { sources: [], items: [], scenarios: [] })).toContain(
+      "Completare la copertura di tutti i requisiti dell'inventario.",
+    );
+  });
+  it("rejects model impersonation of a deterministic source-reference identifier", () => {
+    expect(() =>
+      acceptInventory(
+        { requirements: [{ ...raw.requirements[0], id: "source_reference_1" }] },
+        chunk,
+      ),
+    ).toThrow("riservato");
+  });
   it("rejects the observed self-gated real eligibility rules instead of silently skipping failures", () => {
     const { coverage: _coverage, ...response } = generated.response;
     expect(() => parseFragment({ ...d, ...response })).toThrow("auto-condizionato");

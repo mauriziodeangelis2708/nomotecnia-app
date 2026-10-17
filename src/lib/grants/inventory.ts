@@ -70,7 +70,7 @@ export function acceptInventory(raw: unknown, chunk: SourceChunk[]): Requirement
   const inventory: RequirementInventory = inventorySchema.parse(raw),
     ids = new Set<string>();
   for (const requirement of inventory.requirements) {
-    if (ids.has(requirement.id) || requirement.id.startsWith("source_exception_"))
+    if (ids.has(requirement.id) || /^(source_exception_|source_reference_)/.test(requirement.id))
       throw new Error("Requisito duplicato o identificatore riservato nell'inventario.");
     ids.add(requirement.id);
     for (const c of requirement.citations)
@@ -85,18 +85,27 @@ export function acceptInventory(raw: unknown, chunk: SourceChunk[]): Requirement
       )
         throw new Error("Citazione inventario non riscontrata nell'estratto.");
   }
-  // This is a conservative text guard, not an interpretation of the exception.
+  // Conservative text guard: neither resolves references nor interprets conditions.
   // Preserve the entire original paragraph, independently of model omissions.
   for (const page of chunk)
     for (const paragraph of page.text.split(/\n\s*\n/)) {
       const quote = normalizeQuote(paragraph);
-      if (!/(a meno che|ad eccezione|a condizione che|fermo restando|purché|salvo)/iu.test(quote))
-        continue;
+      const exception =
+        /(a meno che|ad eccezione|a condizione che|fermo restando|purché|salvo)/iu.test(quote);
+      const reference =
+        /(?:all['’]|nell['’]|dell['’]|\b(?:al|alla|allo|alle|agli|ai|nel|nella|nello|nelle|nei|negli|del|della|dello|delle|dei|degli|in|vedi)\s+)(?:allegat[oi]|appendic[ei]|modell[oi]|articol[oi]|art\.|paragraf[oi]|tabell[ae])\s+(?:[a-z](?:[.-]\d+)+|\d+(?:[.-]\d+)*[a-z]?|[a-z])\b/iu.test(
+          quote,
+        );
+      if (!exception && !reference) continue;
       if (quote.length > 4000 || inventory.requirements.length >= 80)
-        throw new Error("Contesto delle deroghe troppo esteso: revisione manuale necessaria.");
+        throw new Error(
+          "Contesto di condizioni o rinvii troppo esteso: revisione manuale necessaria.",
+        );
       inventory.requirements.push({
-        id: `source_exception_${inventory.requirements.length + 1}`,
-        label: "Verificare integralmente la condizione o deroga nel contesto originale.",
+        id: `${exception ? "source_exception" : "source_reference"}_${inventory.requirements.length + 1}`,
+        label: exception
+          ? "Verificare integralmente la condizione o deroga nel contesto originale."
+          : "Verificare il rinvio e collegare la disposizione richiamata nelle fonti complete.",
         citations: [{ documentId: page.documentId, page: page.page, quote }],
         manualReview: true,
       });
@@ -138,7 +147,7 @@ export function attachInventory(
       ...(manualReview || !match || !match.questionIds.length || !match.ruleIds.length || match.gap
         ? {
             gap: manualReview
-              ? "Condizione o deroga da verificare manualmente nel contesto originale, anche se collegata dal modello."
+              ? "Condizione, deroga o rinvio da verificare manualmente nel contesto originale, anche se collegato dal modello."
               : (match?.gap ??
                 "Requisito non collegato a domande e regole: completare la copertura."),
           }

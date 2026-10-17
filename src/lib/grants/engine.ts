@@ -24,6 +24,13 @@ export function configurationIssues(d: GrantDefinition): string[] {
 const has = (a: GrantAnswers, key: string) =>
   Object.hasOwn(a, key) && a[key] !== null && a[key] !== undefined && a[key] !== "";
 export function testPredicate(p: Predicate, a: GrantAnswers): Truth {
+  if (p.op === "compare") {
+    const left = calculate(p.left, a),
+      right = calculate(p.right, a);
+    return left === null || right === null
+      ? null
+      : testPredicate({ op: p.comparison, field: "value", value: right }, { value: left });
+  }
   if (p.op === "all" || p.op === "any") {
     const states = p.args.map((x) => testPredicate(x, a));
     return p.op === "all"
