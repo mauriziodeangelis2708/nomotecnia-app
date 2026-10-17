@@ -1,5 +1,7 @@
 // Provider-side shape constraints complement, never replace, schema.ts validation.
 import { CALCULATION_PLAN_FORMAT } from "./calculation-plan";
+import { spanCitationFormat } from "./source-citations";
+import type { SourceSpan } from "./source-spans";
 type Schema = Record<string, unknown>;
 const text = { type: "string" };
 const id = { type: "string", pattern: "^[a-z][a-z0-9_]{0,63}$" };
@@ -30,6 +32,26 @@ const citations = {
   minItems: 1,
 };
 const baseRule = { id, label: text, when: predicate, citations };
+/** Request-local copy: no mutable enum shared across concurrent document requests. */
+export function spanGenerationFormat(spans: SourceSpan[], requirementIds: string[] = []) {
+  const substitute = (node: unknown): unknown => {
+    if (Array.isArray(node)) return node.map(substitute);
+    if (!node || typeof node !== "object") return node;
+    return Object.fromEntries(
+      Object.entries(node).map(([key, value]) => [
+        key,
+        key === "citations"
+          ? { ...array(spanCitationFormat(spans), 20), minItems: 1 }
+          : key === "requirementId" && requirementIds.length
+            ? { ...id, enum: requirementIds }
+            : key === "coverage" && !requirementIds.length
+              ? { ...(substitute(value) as Record<string, unknown>), maxItems: 0 }
+              : substitute(value),
+      ]),
+    );
+  };
+  return substitute(GENERATION_FORMAT);
+}
 export const GENERATION_FORMAT = {
   type: "json_schema",
   json_schema: {

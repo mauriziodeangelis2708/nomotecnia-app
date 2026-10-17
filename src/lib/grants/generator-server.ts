@@ -1,18 +1,24 @@
-import { addCoverageFindings, COVERAGE_SYSTEM } from "./coverage";
+import { addCoverageFindings, SPAN_COVERAGE_SYSTEM } from "./coverage";
+import {
+  resolveGeneratedCitations,
+  resolveAuditCitations,
+  spanAuditFormat,
+} from "./source-citations";
 import { attachInventory } from "./inventory";
+import { auditExecutableView } from "./audit-view";
 import {
   sourceSpans,
   spanInventoryFormat,
   acceptSpanInventory,
   SPAN_INVENTORY_SYSTEM,
 } from "./source-spans";
-import { GENERATION_FORMAT } from "./output-format";
+import { spanGenerationFormat } from "./output-format";
 import { planSourceChunks } from "./multipass";
 import {
   acceptGeneratedDefinition,
   generationRequest,
   GENERATOR_MODEL,
-  GENERATOR_SYSTEM,
+  SPAN_GENERATOR_SYSTEM,
 } from "./generation";
 
 export interface GenerationEnv {
@@ -132,7 +138,7 @@ export async function handleGrantGeneration(
               {
                 role: "system",
                 content:
-                  GENERATOR_SYSTEM +
+                  SPAN_GENERATOR_SYSTEM +
                   "\nAggiungi un campo coverage all'output: [{requirementId:string,questionIds:string[],ruleIds:string[],gap?:string}]. Collega OGNI requisito dell'inventario alle domande e alle regole che lo implementano; se non è coperto indica gap e non inventare. Non modificare l'inventario.",
               },
               {
@@ -141,12 +147,15 @@ export async function handleGrantGeneration(
                   title: parsed.data.title,
                   chunkIndex: parsed.data.chunkIndex,
                   chunkCount: chunks.length,
-                  excerpts: chunk,
+                  spans,
                   inventory,
                 }),
               },
             ],
-            response_format: GENERATION_FORMAT,
+            response_format: spanGenerationFormat(
+              spans,
+              inventory.requirements.map((r) => r.id),
+            ),
             max_tokens: 8000,
             temperature: 0,
           });
@@ -156,7 +165,7 @@ export async function handleGrantGeneration(
               : response.response;
           if (!raw || typeof raw !== "object" || Array.isArray(raw))
             throw new Error("Formato non valido.");
-          const { coverage, ...generated } = raw as Record<string, unknown>;
+          const { coverage, ...generated } = resolveGeneratedCitations(raw, spans, chunk);
           const draft = attachInventory(
             acceptGeneratedDefinition(generated, parsed.data),
             inventory,
@@ -165,28 +174,22 @@ export async function handleGrantGeneration(
           if (expired) throw new Error("timeout");
           const audit = await env.AI!.run(GENERATOR_MODEL, {
             messages: [
-              { role: "system", content: COVERAGE_SYSTEM },
+              { role: "system", content: SPAN_COVERAGE_SYSTEM },
               {
                 role: "user",
                 content: JSON.stringify({
-                  excerpts: chunk,
-                  draft: {
-                    description: draft.description,
-                    questions: draft.questions,
-                    rules: draft.rules,
-                    unresolved: draft.unresolved,
-                    requirements: draft.requirements,
-                  },
+                  spans,
+                  draft: auditExecutableView(draft),
                 }),
               },
             ],
-            response_format: { type: "json_object" },
+            response_format: spanAuditFormat(spans),
             max_tokens: 3500,
             temperature: 0,
           });
           const findings =
             typeof audit.response === "string" ? JSON.parse(audit.response) : audit.response;
-          return addCoverageFindings(draft, findings, chunk);
+          return addCoverageFindings(draft, resolveAuditCitations(findings, spans, chunk), chunk);
         })(),
         new Promise<never>((_, reject) => {
           timer = setTimeout(() => {

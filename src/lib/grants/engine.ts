@@ -132,35 +132,36 @@ export function activeAnswers(d: GrantDefinition, raw: GrantAnswers) {
   }
   return { answers, visible, pending };
 }
+/** Execute one already validated rule; shared by assessments and diagnostic traces. */
+export function evaluateRule(r: GrantDefinition["rules"][number], answers: GrantAnswers) {
+  const when = r.when ? testPredicate(r.when, answers) : true;
+  if (when === false) return { ...r, state: "not_applicable" as const, value: null };
+  if (when === null) return { ...r, state: "unknown" as const, value: null };
+  if (r.formula) {
+    const value = calculate(r.formula, answers);
+    if (value === null || value < 0 || (r.maximum !== undefined && value > r.maximum))
+      return { ...r, state: "unknown" as const, value: null };
+    return {
+      ...r,
+      state: "calculated" as const,
+      value: r.kind === "grant" ? Math.round((value + Number.EPSILON) * 100) / 100 : value,
+    };
+  }
+  const condition = testPredicate(r.condition!, answers);
+  const pass = condition === null ? null : r.kind === "exclusion" ? !condition : condition;
+  return {
+    ...r,
+    state: pass === null ? ("unknown" as const) : pass ? ("passed" as const) : ("failed" as const),
+    value: null,
+  };
+}
 export function evaluateGrant(input: unknown, raw: GrantAnswers) {
   const d = parseDefinition(input);
   const { answers, visible, pending } = activeAnswers(d, raw);
   const missing = d.questions
     .filter((q) => q.required && ((visible.has(q.id) && !has(answers, q.id)) || pending.has(q.id)))
     .map((q) => q.id);
-  const rules = d.rules.map((r) => {
-    const when = r.when ? testPredicate(r.when, answers) : true;
-    if (when === false) return { ...r, state: "not_applicable" as const, value: null };
-    if (when === null) return { ...r, state: "unknown" as const, value: null };
-    if (r.formula) {
-      const value = calculate(r.formula, answers);
-      if (value === null || value < 0 || (r.maximum !== undefined && value > r.maximum))
-        return { ...r, state: "unknown" as const, value: null };
-      return {
-        ...r,
-        state: "calculated" as const,
-        value: r.kind === "grant" ? Math.round((value + Number.EPSILON) * 100) / 100 : value,
-      };
-    }
-    const condition = testPredicate(r.condition!, answers);
-    const pass = condition === null ? null : r.kind === "exclusion" ? !condition : condition;
-    return {
-      ...r,
-      state:
-        pass === null ? ("unknown" as const) : pass ? ("passed" as const) : ("failed" as const),
-      value: null,
-    };
-  });
+  const rules = d.rules.map((r) => evaluateRule(r, answers));
   const failed = rules.filter(
     (r) => r.state === "failed" && ["eligibility", "exclusion"].includes(r.kind),
   );

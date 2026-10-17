@@ -4,6 +4,7 @@ import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
 import { mergeFragments, planSourceChunks } from "@/lib/grants/multipass";
 import { generationRequest, prepareGrantSource } from "@/lib/grants/generation";
+import { importGrantConfiguration, numericReviewPacket } from "@/lib/grants/numeric-import";
 import {
   parseDefinition,
   parseFragment,
@@ -206,8 +207,8 @@ export function GrantStudio() {
         </p>
         <p className="text-sm text-muted-foreground">
           Il generatore AI richiede un collegamento server attivo. Nessun servizio viene attivato da
-          questa schermata. Attuale limite di generazione: 24.000 caratteri complessivi, senza
-          troncamento.
+          questa schermata. Attuale limite di generazione: 600.000 caratteri complessivi, analizzati
+          in passaggi separati, senza troncamento.
         </p>
         <label className="block text-sm">
           Nome del nuovo bando
@@ -282,8 +283,36 @@ export function GrantStudio() {
       <details className="rounded-lg border p-4">
         <summary>Importa o correggi una configurazione strutturata</summary>
         <p className="my-2 text-sm">
-          Ogni modifica azzera la revisione precedente. L'importazione non attiva il bando.
+          Ogni modifica azzera la revisione precedente. L'importazione non attiva il bando. Puoi
+          importare anche requisiti strutturati verificati e collegati ai PDF caricati: il programma
+          costruisce domande e calcoli. Restano parziali fino alla verifica degli altri requisiti
+          del bando.
         </p>
+        <Button
+          variant="outline"
+          className="mb-2 h-auto max-w-full whitespace-normal text-left"
+          disabled={busy || !sources.length}
+          onClick={() => {
+            try {
+              const packet = numericReviewPacket(sources);
+              const url = URL.createObjectURL(
+                new Blob([JSON.stringify(packet, null, 2)], { type: "application/json" }),
+              );
+              const link = document.createElement("a");
+              link.href = url;
+              link.download = "requisiti-fonti.json";
+              link.click();
+              setTimeout(() => URL.revokeObjectURL(url), 1000);
+              setMessage(
+                "Testo e riferimenti esportati localmente. Fai verificare la specifica e importala qui; nessun testo è stato inviato a un modello.",
+              );
+            } catch (e) {
+              setMessage(err(e));
+            }
+          }}
+        >
+          Esporta fonti per la revisione dei requisiti
+        </Button>
         <Textarea
           aria-label="Configurazione del bando"
           rows={10}
@@ -296,11 +325,14 @@ export function GrantStudio() {
           disabled={locked || !json.trim()}
           onClick={() => {
             try {
-              const d = parseDefinition(JSON.parse(json));
+              const d = importGrantConfiguration(JSON.parse(json), sources);
               if (row && (d.id !== row.scheme_key || d.version !== row.version))
                 throw new Error("Per cambiare identità o versione crea prima una nuova versione.");
               resetReview(d);
               setSources(d.sources);
+              setMessage(
+                "Configurazione applicata in anteprima. Revisione azzerata; nessun bando attivato.",
+              );
             } catch (e) {
               setMessage(err(e));
             }

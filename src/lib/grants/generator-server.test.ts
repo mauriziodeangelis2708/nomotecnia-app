@@ -21,7 +21,13 @@ const request = (body: unknown = input, headers = {}) =>
   });
 const modelOutput = () => {
   const { description, questions, rules, unresolved } = syntheticGrant();
-  return { description, questions, rules, unresolved, coverage: [] };
+  return {
+    description,
+    questions: questions.map((q) => ({ ...q, citations: [{ spanId: "span_1" }] })),
+    rules: rules.map((r) => ({ ...r, citations: [{ spanId: "span_1" }] })),
+    unresolved,
+    coverage: [],
+  };
 };
 function setup(admin = true) {
   const ai = vi
@@ -69,7 +75,7 @@ describe("admin-only generation gateway", () => {
     ).not.toHaveProperty("calculation");
     const audit = JSON.parse(s.ai.mock.calls[2]![1].messages[1].content);
     expect(audit.draft).not.toHaveProperty("sources");
-    expect(audit.excerpts).toBeDefined();
+    expect(audit.spans).toBeDefined();
     expect(audit.draft.rules.find((r: { id: string }) => r.id === "planned_award").formula).toEqual(
       { op: "constant", value: 1234.56 },
     );
@@ -196,13 +202,23 @@ describe("admin-only generation gateway", () => {
     expect(await response.text()).not.toContain("private provider detail");
     expect(s.ai).toHaveBeenCalledTimes(3);
   });
-  it("accepts the live synthetic provider response and evaluates its generated rules", async () => {
+  it("replays the historical synthetic provider's rules with the new citation wire format", async () => {
     const s = setup();
     s.ai
       .mockReset()
       .mockResolvedValue({ response: { findings: [] } })
       .mockResolvedValueOnce({ response: { requirements: [] } })
-      .mockResolvedValueOnce({ response: { ...observed.response, coverage: [] } });
+      .mockResolvedValueOnce({
+        response: {
+          ...observed.response,
+          questions: observed.response.questions.map((q) => ({
+            ...q,
+            citations: [{ spanId: "span_1" }],
+          })),
+          rules: observed.response.rules.map((r) => ({ ...r, citations: [{ spanId: "span_1" }] })),
+          coverage: [],
+        },
+      });
     const response = await handleGrantGeneration(
       request({
         ...input,
@@ -242,9 +258,7 @@ describe("admin-only generation gateway", () => {
       unresolved: [HUMAN_COVERAGE_REVIEW],
     });
     const payload = modelOutput();
-    payload.rules[0]!.citations = [
-      { documentId: "avviso", page: 1, quote: "Il modello ha inventato questa frase." },
-    ];
+    payload.rules[0]!.citations = [{ spanId: "missing" }];
     s.ai
       .mockReset()
       .mockResolvedValue({ response: { findings: [] } })
@@ -255,9 +269,7 @@ describe("admin-only generation gateway", () => {
   it("rejects hallucinated citations and executable payloads", async () => {
     const s = setup();
     const payload = modelOutput();
-    payload.rules[0]!.citations = [
-      { documentId: "avviso", page: 1, quote: "Il modello ha inventato questa frase." },
-    ];
+    payload.rules[0]!.citations = [{ spanId: "missing" }];
     s.ai
       .mockReset()
       .mockResolvedValue({ response: { findings: [] } })

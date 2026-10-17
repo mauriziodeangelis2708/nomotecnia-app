@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import {readFile} from "node:fs/promises";
 import { syntheticGrant } from "../src/lib/grants/fixtures.test-support.ts";
 
 /** Actual staging UI + RLS. Never calls a model or activates a persistent test version. */
@@ -31,6 +32,25 @@ export async function verifyGrantStudioStaging({ accounts, admin, base, nonce, c
     await root.page.getByLabel("Configurazione del bando",{exact:true}).fill(JSON.stringify(d));
     await root.page.getByRole("button",{name:"Valida e applica la configurazione",exact:true}).click();
     await root.page.getByRole("heading",{name:title+" · v1",exact:true}).waitFor();
+    const downloading=root.page.waitForEvent("download");
+    await root.page.getByRole("button",{name:"Esporta fonti per la revisione dei requisiti",exact:true}).click();
+    const download=await downloading;
+    const packet=JSON.parse(await readFile(await download.path(),"utf8"));
+    assert.deepEqual(packet.sourceHashes,d.sources.map(s=>s.sha256));
+    assert.equal(packet.chunks[0].spans[0].text,d.sources[0].pages[0].text);
+    const specification={inputs:[{id:"budget",label:"Spesa ammissibile già verificata",unit:"EUR",spanId:"span_1"}],declarations:[{id:"active",label:"Impresa attiva verificata?",kind:"eligibility",expected:true,spanIds:["span_1"]},{id:"insolvent",label:"Procedura concorsuale presente?",kind:"exclusion",expected:true,spanIds:["span_1"]}],minimums:[{sumOf:["budget"],value:14000,spanId:"span_1"}],shares:[],fieldLimits:[],awardCaps:[],awards:[{id:"award",calculation:{method:"percentage",ratePercent:50,baseFields:["budget"],capAmount:10000},spanIds:["span_1"]}],unresolved:["Punteggio della certificazione e altri requisiti da verificare."]};
+    const reviewed={kind:"requirement_specification",id:schemeKey,title,version:1,sourceHashes:packet.sourceHashes,chunkIndex:0,specification};
+    await root.page.getByLabel("Configurazione del bando",{exact:true}).fill(JSON.stringify({...reviewed,sourceHashes:["b".repeat(64)]}));
+    await root.page.getByRole("button",{name:"Valida e applica la configurazione",exact:true}).click();
+    await root.page.getByRole("status").filter({hasText:"Le fonti caricate non corrispondono"}).waitFor();
+    await root.page.getByLabel("Configurazione del bando",{exact:true}).fill(JSON.stringify(reviewed));
+    await root.page.getByRole("button",{name:"Valida e applica la configurazione",exact:true}).click();
+    await root.page.getByRole("status").filter({hasText:"Configurazione applicata in anteprima"}).waitFor();
+    const compiled=JSON.parse(await root.page.getByLabel("Configurazione del bando",{exact:true}).inputValue());
+    assert.equal(compiled.rules.find(r=>r.id==="award").formula.op,"min");
+    assert.ok(compiled.unresolved.some(s=>s.startsWith("Specifica di requisiti parziale")));
+    assert.equal(compiled.questions.length,3);
+    console.log("PASS: local source export, reviewed-requirement import and foreign-source rejection; partial assessment remains blocked");
     assert.equal(await root.page.getByRole("button",{name:"Approva e attiva questa versione",exact:true}).isDisabled(),true);
     await root.page.getByRole("button",{name:"Salva bozza",exact:true}).click();
     await root.page.getByRole("status").filter({hasText:"Bozza salvata."}).waitFor();
