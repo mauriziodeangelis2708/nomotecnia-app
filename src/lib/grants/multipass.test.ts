@@ -130,6 +130,22 @@ describe("multipass source coverage and deterministic merging", () => {
     expect(merged.rules.length).toBe(6);
     expect(merged.unresolved.join(" ")).toContain("Possibile conflitto");
   });
+  it("preserves matching rules from distinct source scopes and flags possible double counting", () => {
+    const a = syntheticGrant(),
+      b = syntheticGrant();
+    const quote = a.sources[0]!.pages[0]!.text;
+    a.sources[0]!.pages.push({ page: 2, text: quote });
+    b.sources = structuredClone(a.sources);
+    // Same questions but two separately cited score/grant rules must not disappear.
+    for (const rule of b.rules.filter((r) => r.kind === "grant" || r.kind === "score"))
+      rule.citations = rule.citations.map((c) => ({ ...c, page: 2 }));
+    const merged = mergeFragments([a, b], 2);
+    expect(merged.rules.filter((r) => r.kind === "grant")).toHaveLength(2);
+    expect(merged.rules.filter((r) => r.kind === "score")).toHaveLength(2);
+    expect(merged.unresolved.join(" ")).toContain("Possibile doppio conteggio");
+    const repeated = mergeFragments([a, b, structuredClone(a)], 3);
+    expect(repeated.rules.filter((r) => r.kind === "grant")).toHaveLength(2);
+  });
   it("remaps visibility dependencies before canonical deduplication", () => {
     const a = syntheticGrant();
     a.questions[2]!.showIf = { op: "eq", field: "attiva", value: true };

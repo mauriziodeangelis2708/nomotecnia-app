@@ -1,11 +1,27 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { useState } from "react";
 import { describe, expect, it } from "vitest";
-import { syntheticGrant } from "@/lib/grants/fixtures.test-support";
+import { syntheticGrant, SYNTHETIC_ANSWERS } from "@/lib/grants/fixtures.test-support";
 import type { GrantAnswers } from "@/lib/grants/schema";
 import { GrantQuestionnaire, GrantResult } from "./GrantQuestionnaire";
 
 describe("generated assessment and report", () => {
+  it("shows persistent inventory gaps even when the generic warning list is cleared", () => {
+    const d = syntheticGrant();
+    d.requirements = [
+      {
+        id: "missing_requirement",
+        label: "Deroga non verificata",
+        citations: d.questions[0]!.citations,
+        questionIds: [],
+        ruleIds: [],
+        gap: "Manca la regola della deroga.",
+      },
+    ];
+    render(<GrantResult definition={d} answers={SYNTHETIC_ANSWERS} />);
+    expect(screen.getByText("Da completare / verificare")).toBeInTheDocument();
+    expect(screen.getByRole("alert")).toHaveTextContent("Manca la regola della deroga");
+  });
   it("keeps unknown answers distinct from explicit no", () => {
     const d = syntheticGrant();
     function Preview() {

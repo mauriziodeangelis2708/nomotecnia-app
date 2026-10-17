@@ -6,6 +6,8 @@ import { mergeFragments } from "./multipass";
 import observed from "./inventory-observed.test-support.json";
 import generated from "./inventory-generation-observed.test-support.json";
 import { parseFragment } from "./schema";
+import { evaluateGrant } from "./engine";
+import { SYNTHETIC_ANSWERS } from "./fixtures.test-support";
 
 const d = syntheticGrant();
 const chunk = d.sources[0]!.pages.map((p) => ({
@@ -27,6 +29,7 @@ describe("requirement inventory and traceability", () => {
       definition = attachInventory(d, inventory, []);
     expect(definition.requirements![0]!.gap).toBeTruthy();
     definition.unresolved = [];
+    expect(evaluateGrant(definition, SYNTHETIC_ANSWERS).status).toBe("incomplete");
     expect(publicationProblems(definition, { sources: [], items: [], scenarios: [] })).toContain(
       "Completare la copertura di tutti i requisiti dell'inventario.",
     );

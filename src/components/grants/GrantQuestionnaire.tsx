@@ -1,4 +1,4 @@
-import { activeAnswers, evaluateGrant } from "@/lib/grants/engine";
+import { activeAnswers, configurationIssues, evaluateGrant } from "@/lib/grants/engine";
 import type { GrantAnswers, GrantDefinition } from "@/lib/grants/schema";
 import { Input } from "@/components/ui/input";
 
@@ -128,7 +128,7 @@ export function GrantResult({
             .join("; ")}
         </p>
       )}
-      {definition.unresolved.map((s, i) => (
+      {configurationIssues(definition).map((s, i) => (
         <p role="alert" key={i}>
           {s}
         </p>

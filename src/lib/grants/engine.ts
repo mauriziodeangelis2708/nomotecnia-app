@@ -8,6 +8,19 @@ import {
 } from "./schema";
 
 export type Truth = boolean | null;
+export function configurationIssues(d: GrantDefinition): string[] {
+  return [
+    ...new Set([
+      ...d.unresolved,
+      ...(d.requirements ?? [])
+        .filter((r) => r.gap || !r.questionIds.length || !r.ruleIds.length)
+        .map(
+          (r) =>
+            `Requisito da verificare: ${r.label} — ${r.gap ?? "Copertura di domande e regole incompleta."}`,
+        ),
+    ]),
+  ];
+}
 const has = (a: GrantAnswers, key: string) =>
   Object.hasOwn(a, key) && a[key] !== null && a[key] !== undefined && a[key] !== "";
 export function testPredicate(p: Predicate, a: GrantAnswers): Truth {
@@ -138,7 +151,7 @@ export function evaluateGrant(input: unknown, raw: GrantAnswers) {
     !applicableEligibility ||
     !!missing.length ||
     rules.some((r) => r.state === "unknown") ||
-    d.unresolved.length > 0 ||
+    configurationIssues(d).length > 0 ||
     rules.some((r) => r.kind === "document" && r.state === "failed");
   return {
     status: failed.length

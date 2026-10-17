@@ -1,6 +1,7 @@
 import {
   parseDefinition,
   parseFragment,
+  normalizeQuote,
   type GrantDefinition,
   type GrantSource,
 } from "./schema.ts";
@@ -70,6 +71,19 @@ function signature(item: { id: string; citations: unknown[] }): string {
 function combineCitations<T>(a: T[], b: T[]): T[] {
   return [...new Map([...a, ...b].map((c) => [JSON.stringify(c), c])).values()];
 }
+function sameEvidence(
+  a: { citations: GrantDefinition["questions"][number]["citations"] },
+  b: { citations: GrantDefinition["questions"][number]["citations"] },
+): boolean {
+  return a.citations.some((x) =>
+    b.citations.some(
+      (y) =>
+        x.documentId === y.documentId &&
+        x.page === y.page &&
+        normalizeQuote(x.quote) === normalizeQuote(y.quote),
+    ),
+  );
+}
 /** Merge deterministically. No second model is allowed to silently summarize away rules. */
 export function mergeFragments(parts: GrantDefinition[], expectedCount: number): GrantDefinition {
   if (!parts.length || parts.length !== expectedCount)
@@ -77,8 +91,8 @@ export function mergeFragments(parts: GrantDefinition[], expectedCount: number):
   const first = parts[0]!;
   const result: GrantDefinition = { ...first, questions: [], rules: [], unresolved: [] };
   if (parts.some((p) => p.requirements !== undefined)) result.requirements = [];
-  const questionIndex = new Map<string, number>(),
-    ruleIndex = new Map<string, number>();
+  const questionIndex = new Map<string, number[]>(),
+    ruleIndex = new Map<string, number[]>();
   for (const [partIndex, raw] of parts.entries()) {
     const part = parseFragment(raw);
     if (
@@ -92,7 +106,8 @@ export function mergeFragments(parts: GrantDefinition[], expectedCount: number):
     for (const [i, question] of part.questions.entries()) {
       const mapped = remap(question, fields) as typeof question;
       const key = signature(mapped),
-        duplicate = questionIndex.get(key);
+        candidates = questionIndex.get(key) ?? [],
+        duplicate = candidates.find((i) => sameEvidence(result.questions[i]!, question));
       if (duplicate !== undefined) {
         const existing = result.questions[duplicate]!;
         const citations = combineCitations(existing.citations, question.citations);
@@ -104,7 +119,11 @@ export function mergeFragments(parts: GrantDefinition[], expectedCount: number):
       }
       const newId = `q_${partIndex + 1}_${i + 1}`;
       fields.set(question.id, newId);
-      questionIndex.set(key, result.questions.length);
+      if (candidates.length)
+        result.unresolved.push(
+          `Possibile domanda duplicata o con ambito diverso: «${mapped.label}». Verificare le fonti prima di accorparla.`,
+        );
+      questionIndex.set(key, [...candidates, result.questions.length]);
       if (result.questions.some((q) => q.label === mapped.label && signature(q) !== key))
         result.unresolved.push(
           `Possibile conflitto tra domande con etichetta «${mapped.label}»: verificare ambito, condizioni e fonti.`,
@@ -115,7 +134,8 @@ export function mergeFragments(parts: GrantDefinition[], expectedCount: number):
     for (const [i, rule] of part.rules.entries()) {
       const mapped = remap(rule, fields) as typeof rule;
       const key = signature(mapped),
-        duplicate = ruleIndex.get(key);
+        candidates = ruleIndex.get(key) ?? [],
+        duplicate = candidates.find((i) => sameEvidence(result.rules[i]!, rule));
       if (duplicate !== undefined) {
         const existing = result.rules[duplicate]!;
         const citations = combineCitations(existing.citations, rule.citations);
@@ -133,7 +153,11 @@ export function mergeFragments(parts: GrantDefinition[], expectedCount: number):
         result.unresolved.push(
           `Possibile conflitto nella regola «${mapped.label}»: confrontare i passaggi e impedire doppi conteggi.`,
         );
-      ruleIndex.set(key, result.rules.length);
+      if (candidates.length)
+        result.unresolved.push(
+          `Possibile doppio conteggio o ambito distinto nella regola «${mapped.label}»: conservate entrambe le regole per la revisione.`,
+        );
+      ruleIndex.set(key, [...candidates, result.rules.length]);
       const newId = `r_${partIndex + 1}_${i + 1}`;
       ruleFields.set(rule.id, newId);
       result.rules.push({ ...mapped, id: newId });
