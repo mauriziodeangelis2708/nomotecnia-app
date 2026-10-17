@@ -19,9 +19,31 @@ const sizeCitation = citation(4, "a. alla Data della Domanda", "b. sono iscritte
 const registryCitation = citation(4, "b. sono iscritte", "c. possiedono");
 const seatCitation = citation(4, "Tale requisito può essere acquisito", "24/09/2026");
 const previousCitation = citation(5, "Non sono ammissibili le PMI", "I Beneficiari devono inoltre");
+const activityCitation = citation(4, "c. possiedono", "Tale attività economica");
+const relocationCitation = citation(
+  4,
+  "Tale attività economica",
+  "Tale requisito può essere acquisito",
+);
 const eq = (field: string, value = true): Predicate => ({ op: "eq", field, value });
 export function lazioRuleReference(): GrantDefinition {
   const fields = [
+    ["pmi_period", "Requisiti PMI verificati dalla domanda fino alla concessione", sizeCitation],
+    [
+      "activity_allowed",
+      "Attività agevolata verificata rispetto alle Attività Escluse",
+      activityCitation,
+    ],
+    [
+      "relocated_before",
+      "Attività oggetto di Delocalizzazione nei due anni precedenti la domanda",
+      relocationCitation,
+    ],
+    [
+      "relocated_during",
+      "Attività oggetto di Delocalizzazione durante la realizzazione del progetto",
+      relocationCitation,
+    ],
     ["italian_registry", "Iscrizione italiana alla domanda", registryCitation],
     ["eea_registry", "Iscrizione in altro Stato SEE alla domanda", registryCitation],
     [
@@ -85,6 +107,30 @@ export function lazioRuleReference(): GrantDefinition {
       })),
     ],
     rules: [
+      ...(
+        [
+          ["pmi_period", "Continuità del requisito PMI", "eligibility", sizeCitation],
+          ["activity_allowed", "Attività non esclusa", "eligibility", activityCitation],
+          [
+            "relocated_before",
+            "Delocalizzazione nei due anni precedenti",
+            "exclusion",
+            relocationCitation,
+          ],
+          [
+            "relocated_during",
+            "Delocalizzazione durante il progetto",
+            "exclusion",
+            relocationCitation,
+          ],
+        ] as const
+      ).map(([id, label, kind, citations]) => ({
+        id,
+        label,
+        kind,
+        condition: eq(id),
+        citations: [...citations],
+      })),
       {
         id: "size",
         label: "Tutte le dimensioni PMI",
@@ -155,6 +201,16 @@ function scenario(
   };
 }
 export const LAZIO_RULE_CASES: GrantScenario[] = [
+  ...(["pmi_period", "activity_allowed", "relocated_before", "relocated_during"] as const).flatMap(
+    (field) => {
+      const exclusion = field.startsWith("relocated_");
+      return [
+        scenario(`${field}: requisito rispettato`, field, "passed", { [field]: !exclusion }),
+        scenario(`${field}: requisito non rispettato`, field, "failed", { [field]: exclusion }),
+        scenario(`${field}: non verificato`, field, "unknown", {}),
+      ];
+    },
+  ),
   ...["Micro", "Piccola", "Media"].map((size) =>
     scenario(`PMI ${size}`, "size", "passed", { size }),
   ),

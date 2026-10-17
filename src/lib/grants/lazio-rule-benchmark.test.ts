@@ -79,7 +79,10 @@ describe("independent partial Art. 4 rule benchmark", () => {
         ]),
       ),
       ruleStates: Object.fromEntries(
-        Object.entries(s.ruleStates!).map(([key, value]) => [rules[key]!, value]),
+        Object.entries(s.ruleStates!).map(([key, value]) => [
+          rules[key] ?? `missing_${key}`,
+          value,
+        ]),
       ),
     }));
     const results = runScenarios(d, mapped);
@@ -88,6 +91,10 @@ describe("independent partial Art. 4 rule benchmark", () => {
       "PMI Media",
       "Precedente voucher: richiesta già presentata e tipologia diversa",
       "Sede acquisita entro erogazione e piano completo in domanda",
+      "pmi_period: requisito rispettato",
+      "activity_allowed: requisito rispettato",
+      "relocated_before: requisito rispettato",
+      "relocated_during: requisito rispettato",
     ])
       expect(results.find((r) => r.name === name)!.passed, name).toBe(false);
     expect(results.some((r) => r.passed)).toBe(true);
