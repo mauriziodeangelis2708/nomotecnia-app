@@ -1,0 +1,618 @@
+{
+  "reference": "Avviso G12616 del 18/09/2026, BUR 77 del 24/09/2026; griglia ufficiale 7 settembre 2026",
+  "scope": "Pure application engine with synthetic inputs. No database, production writes or GeCoWEB submission.",
+  "passed": 96,
+  "failed": 0,
+  "cases": [
+    {
+      "id": "L01_micro_ammessa_cloud_web",
+      "reference": "Art. 1, 5; App.4.D",
+      "status": "PASS",
+      "size": "micro",
+      "projectStatus": "confermato",
+      "gross": 14076,
+      "contribution": 14076,
+      "score": 45,
+      "criteria": [
+        35,
+        5,
+        5,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "id": "L02_micro_sotto_minimo",
+      "reference": "Art. 1, 5",
+      "status": "PASS",
+      "size": "micro",
+      "projectStatus": "non_ammissibile",
+      "gross": 5593.2,
+      "contribution": 5593.2,
+      "score": 45,
+      "criteria": [
+        35,
+        5,
+        5,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "id": "L03_micro_massimale",
+      "reference": "Art.5",
+      "status": "PASS",
+      "size": "micro",
+      "projectStatus": "confermato",
+      "gross": 65008.8,
+      "contribution": 50000,
+      "score": 55,
+      "criteria": [
+        35,
+        5,
+        15,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "id": "L04_piccola_massimale",
+      "reference": "Art.5",
+      "status": "PASS",
+      "size": "piccola",
+      "projectStatus": "confermato",
+      "gross": 141361.2,
+      "contribution": 100000,
+      "score": 70,
+      "criteria": [
+        35,
+        20,
+        15,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "id": "L05_media_massimale",
+      "reference": "Art.5",
+      "status": "PASS",
+      "size": "media",
+      "projectStatus": "confermato",
+      "gross": 283450.8,
+      "contribution": 150000,
+      "score": 60,
+      "criteria": [
+        35,
+        10,
+        15,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "id": "L06_minimo_esatto",
+      "reference": "Artt.1,5 de minimis",
+      "status": "PASS",
+      "size": "micro",
+      "projectStatus": "confermato",
+      "gross": 27656.4,
+      "contribution": 14000,
+      "score": 45,
+      "criteria": [
+        35,
+        5,
+        5,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "id": "L07_un_centesimo_sotto_minimo",
+      "reference": "Artt.1,5",
+      "status": "PASS",
+      "size": "micro",
+      "projectStatus": "non_ammissibile",
+      "gross": 27656.4,
+      "contribution": 13999.99,
+      "score": 45,
+      "criteria": [
+        35,
+        5,
+        5,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "id": "L08_de_minimis_esaurito",
+      "reference": "Art.5",
+      "status": "PASS"
+    },
+    {
+      "id": "L09_de_minimis_ignoto",
+      "reference": "Art.5",
+      "status": "PASS"
+    },
+    {
+      "id": "L10_sola_diagnosi_media",
+      "reference": "Art.1",
+      "status": "PASS"
+    },
+    {
+      "id": "L11_micro_diagnosi_vietata",
+      "reference": "Art.1",
+      "status": "PASS"
+    },
+    {
+      "id": "L12_micro_cyber_vietata",
+      "reference": "Art.1; App.4.E",
+      "status": "PASS"
+    },
+    {
+      "id": "L13_piccola_senza_diagnosi",
+      "reference": "Art.1",
+      "status": "PASS"
+    },
+    {
+      "id": "L14_grande_esclusa",
+      "reference": "Art.4; App.1 PMI",
+      "status": "PASS"
+    },
+    {
+      "id": "L15_gruppo_senza_aggregati",
+      "reference": "App.1 PMI",
+      "status": "PASS"
+    },
+    {
+      "id": "L16_gruppo_diventa_media",
+      "reference": "App.1 PMI",
+      "status": "PASS"
+    },
+    {
+      "id": "L17_sede_legale_non_sufficiente",
+      "reference": "Art.4",
+      "status": "PASS"
+    },
+    {
+      "id": "L18_sede_futura_documentata",
+      "reference": "Art.4",
+      "status": "PASS"
+    },
+    {
+      "id": "L19_attivita_esclusa",
+      "reference": "Art.4; App.1",
+      "status": "PASS"
+    },
+    {
+      "id": "L20_voucher_precedente_saldo_non_richiesto",
+      "reference": "Art.4",
+      "status": "PASS"
+    },
+    {
+      "id": "L21_stessa_tipologia_gia_finanziata",
+      "reference": "Artt.4,5",
+      "status": "PASS"
+    },
+    {
+      "id": "L22_tipologia_diversa_ammessa",
+      "reference": "Artt.4,5",
+      "status": "PASS"
+    },
+    {
+      "id": "L23_cumulo_stessi_costi",
+      "reference": "Art.5; App.4 premessa",
+      "status": "PASS"
+    },
+    {
+      "id": "L24_workplace_sei_sotto_minimo",
+      "reference": "Artt.1,5",
+      "status": "PASS",
+      "size": "micro",
+      "projectStatus": "non_ammissibile",
+      "gross": 13622.4,
+      "contribution": 13622.4,
+      "score": 26.56,
+      "criteria": [
+        15.56,
+        6,
+        5,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "id": "L25_workplace_sette_ammessa",
+      "reference": "Artt.1,5",
+      "status": "PASS",
+      "size": "micro",
+      "projectStatus": "confermato",
+      "gross": 15892.8,
+      "contribution": 15892.8,
+      "score": 13.67,
+      "criteria": [
+        1.67,
+        7,
+        5,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "id": "L26_postazioni_oltre_addetti",
+      "reference": "Art.5; App.4.B",
+      "status": "PASS"
+    },
+    {
+      "id": "L27_limite_addetti_Lazio_accentrati",
+      "reference": "App.4.B",
+      "status": "PASS"
+    },
+    {
+      "id": "L28_categorie_distinte_obbligatorie",
+      "reference": "App.4.B",
+      "status": "PASS"
+    },
+    {
+      "id": "L29_workplace_upgrade_escluso",
+      "reference": "App.4.B",
+      "status": "PASS"
+    },
+    {
+      "id": "L30_durata_35_mesi",
+      "reference": "App.4.B",
+      "status": "PASS"
+    },
+    {
+      "id": "L31_commerce_saas_escluso",
+      "reference": "App.4.C",
+      "status": "PASS"
+    },
+    {
+      "id": "L32_commerce_sostituzione_esattamente_3_anni",
+      "reference": "App.4.C",
+      "status": "PASS"
+    },
+    {
+      "id": "L33_commerce_sostituzione_oltre_3_anni",
+      "reference": "App.4.C",
+      "status": "PASS"
+    },
+    {
+      "id": "L34_cloud_gia_cloud_escluso",
+      "reference": "App.4.D",
+      "status": "PASS"
+    },
+    {
+      "id": "L35_VM_duplicata_non_moltiplica",
+      "reference": "Art.5",
+      "status": "PASS"
+    },
+    {
+      "id": "L36_componente_cloud_obbligatoria_assente",
+      "reference": "App.4.D",
+      "status": "PASS"
+    },
+    {
+      "id": "L37_esperto_cyber_non_idoneo",
+      "reference": "App.4.A,E",
+      "status": "PASS"
+    },
+    {
+      "id": "L38_preventivo_non_modifica_forfait",
+      "reference": "Art.5",
+      "status": "PASS"
+    },
+    {
+      "id": "L39_documento_mancante_non_conferma",
+      "reference": "Art.6",
+      "status": "PASS"
+    },
+    {
+      "id": "L40_IVA_mancante_azzera_solo_C1",
+      "reference": "Art.6",
+      "status": "PASS"
+    },
+    {
+      "id": "L41_INPS_mancante_azzera_C1_C2",
+      "reference": "Art.6",
+      "status": "PASS"
+    },
+    {
+      "id": "L42_certificazioni_senza_prove",
+      "reference": "Art.6",
+      "status": "PASS",
+      "size": "piccola",
+      "projectStatus": "confermato",
+      "gross": 73171.2,
+      "contribution": 73171.2,
+      "score": 100,
+      "criteria": [
+        35,
+        20,
+        15,
+        10,
+        10,
+        10
+      ]
+    },
+    {
+      "id": "L43_punteggio_100_documentato",
+      "reference": "Art.6; Griglia G9,G27,G34,G45,G50,G55",
+      "status": "PASS"
+    },
+    {
+      "id": "L44_forfettario",
+      "reference": "Art.6; Griglia C23",
+      "status": "PASS"
+    },
+    {
+      "id": "L45_OSS_editoria",
+      "reference": "Art.6 note",
+      "status": "PASS"
+    },
+    {
+      "id": "L46_finestra_ora_italiana",
+      "reference": "Art.6",
+      "status": "PASS"
+    },
+    {
+      "id": "L47_sei_mesi_calendario",
+      "reference": "Artt.5,7",
+      "status": "PASS"
+    },
+    {
+      "id": "L48_importi_base_GeCoWEB_senza_doppio20",
+      "reference": "Art.5 nota2; guida GeCoWEB",
+      "status": "PASS"
+    },
+    {
+      "id": "L49_GeCoWEB_20percento_duplicato_segnalato",
+      "reference": "Art.5 nota2",
+      "status": "PASS"
+    },
+    {
+      "id": "L50_zero_addetti_denominatore_uno",
+      "reference": "Art.6; Griglia E9",
+      "status": "PASS"
+    },
+    {
+      "id": "L51_dati_importo_incompleti",
+      "reference": "Art.5",
+      "status": "PASS"
+    },
+    {
+      "id": "L52_regola_divergente_bloccata",
+      "reference": "Art.5",
+      "status": "PASS"
+    },
+    {
+      "id": "L53_durata_frazionaria_non_confermata",
+      "reference": "App.4.B",
+      "status": "PASS"
+    },
+    {
+      "id": "L54_postazioni_negative_non_confermate",
+      "reference": "Art.5",
+      "status": "PASS"
+    },
+    {
+      "id": "L55_date_realizzate_coerenti",
+      "reference": "Artt.5,7; App.4.A",
+      "status": "PASS"
+    },
+    {
+      "id": "L56_avvio_prima_diagnosi_escluso",
+      "reference": "Art.5; App.4.A",
+      "status": "PASS"
+    },
+    {
+      "id": "L57_diagnosi_obsoleta_esclusa",
+      "reference": "Art.7; App.4.A",
+      "status": "PASS"
+    },
+    {
+      "id": "L58_conclusione_oltre_sei_mesi_esclusa",
+      "reference": "Artt.5,7",
+      "status": "PASS"
+    },
+    {
+      "id": "L59_saldo_tardivo_richiede_verifica_non_proroga",
+      "reference": "Art.7",
+      "status": "PASS"
+    },
+    {
+      "id": "L60_rideterminazione_non_aumenta_concesso",
+      "reference": "Art.5",
+      "status": "PASS"
+    },
+    {
+      "id": "S1_valore_aggiunto_0",
+      "reference": "Griglia G9/K9",
+      "status": "PASS"
+    },
+    {
+      "id": "S1_valore_aggiunto_35000",
+      "reference": "Griglia G9/K9",
+      "status": "PASS"
+    },
+    {
+      "id": "S1_valore_aggiunto_42500",
+      "reference": "Griglia G9/K9",
+      "status": "PASS"
+    },
+    {
+      "id": "S1_valore_aggiunto_50000",
+      "reference": "Griglia G9/K9",
+      "status": "PASS"
+    },
+    {
+      "id": "S1_valore_aggiunto_150000",
+      "reference": "Griglia G9/K9",
+      "status": "PASS"
+    },
+    {
+      "id": "S1_valore_aggiunto_249999",
+      "reference": "Griglia G9/K9",
+      "status": "PASS"
+    },
+    {
+      "id": "S1_valore_aggiunto_250000",
+      "reference": "Griglia G9/K9",
+      "status": "PASS"
+    },
+    {
+      "id": "S1_valore_aggiunto_300000",
+      "reference": "Griglia G9/K9",
+      "status": "PASS"
+    },
+    {
+      "id": "S2_addetti_0",
+      "reference": "Griglia G27/K27",
+      "status": "PASS"
+    },
+    {
+      "id": "S2_addetti_1",
+      "reference": "Griglia G27/K27",
+      "status": "PASS"
+    },
+    {
+      "id": "S2_addetti_10",
+      "reference": "Griglia G27/K27",
+      "status": "PASS"
+    },
+    {
+      "id": "S2_addetti_20",
+      "reference": "Griglia G27/K27",
+      "status": "PASS"
+    },
+    {
+      "id": "S2_addetti_21",
+      "reference": "Griglia G27/K27",
+      "status": "PASS"
+    },
+    {
+      "id": "S2_addetti_60",
+      "reference": "Griglia G27/K27",
+      "status": "PASS"
+    },
+    {
+      "id": "S2_addetti_99",
+      "reference": "Griglia G27/K27",
+      "status": "PASS"
+    },
+    {
+      "id": "S2_addetti_100",
+      "reference": "Griglia G27/K27",
+      "status": "PASS"
+    },
+    {
+      "id": "S2_addetti_150",
+      "reference": "Griglia G27/K27",
+      "status": "PASS"
+    },
+    {
+      "id": "S3_articolazione_micro_1",
+      "reference": "Griglia G34",
+      "status": "PASS"
+    },
+    {
+      "id": "S3_articolazione_micro_2",
+      "reference": "Griglia G34",
+      "status": "PASS"
+    },
+    {
+      "id": "S3_articolazione_micro_3",
+      "reference": "Griglia G34",
+      "status": "PASS"
+    },
+    {
+      "id": "S3_articolazione_micro_4",
+      "reference": "Griglia G34",
+      "status": "PASS"
+    },
+    {
+      "id": "S3_articolazione_piccola_1",
+      "reference": "Griglia G34",
+      "status": "PASS"
+    },
+    {
+      "id": "S3_articolazione_piccola_2",
+      "reference": "Griglia G34",
+      "status": "PASS"
+    },
+    {
+      "id": "S3_articolazione_piccola_3",
+      "reference": "Griglia G34",
+      "status": "PASS"
+    },
+    {
+      "id": "S3_articolazione_piccola_4",
+      "reference": "Griglia G34",
+      "status": "PASS"
+    },
+    {
+      "id": "S3_articolazione_media_1",
+      "reference": "Griglia G34",
+      "status": "PASS"
+    },
+    {
+      "id": "S3_articolazione_media_2",
+      "reference": "Griglia G34",
+      "status": "PASS"
+    },
+    {
+      "id": "S3_articolazione_media_3",
+      "reference": "Griglia G34",
+      "status": "PASS"
+    },
+    {
+      "id": "S3_articolazione_media_4",
+      "reference": "Griglia G34",
+      "status": "PASS"
+    },
+    {
+      "id": "P_dimensione_9_2000000",
+      "reference": "App.1 PMI",
+      "status": "PASS"
+    },
+    {
+      "id": "P_dimensione_10_2000000",
+      "reference": "App.1 PMI",
+      "status": "PASS"
+    },
+    {
+      "id": "P_dimensione_49_10000000",
+      "reference": "App.1 PMI",
+      "status": "PASS"
+    },
+    {
+      "id": "P_dimensione_50_10000000",
+      "reference": "App.1 PMI",
+      "status": "PASS"
+    },
+    {
+      "id": "P_dimensione_249_50000000",
+      "reference": "App.1 PMI",
+      "status": "PASS"
+    },
+    {
+      "id": "P_dimensione_249_60000000",
+      "reference": "App.1 PMI",
+      "status": "PASS"
+    },
+    {
+      "id": "P_dimensione_250_1",
+      "reference": "App.1 PMI",
+      "status": "PASS"
+    }
+  ]
+}

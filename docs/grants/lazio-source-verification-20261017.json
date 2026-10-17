@@ -1,0 +1,56 @@
+{
+  "checked": "2026-10-17",
+  "page": "https://www.lazioinnova.it/bandi/voucher-digitalizzazione-pmi-2026/",
+  "files": [
+    {
+      "url": "https://www.lazioinnova.it/app/uploads/2026/09/Determina-Voucher-Digitalizzazione.pdf",
+      "sha256": "d2f9206512a99886c200832b483f0bd73ef8d1e5fffff3140a9b23f87af8586d",
+      "bytes": 235650,
+      "local_sha256": "d2f9206512a99886c200832b483f0bd73ef8d1e5fffff3140a9b23f87af8586d",
+      "matches_local": true
+    },
+    {
+      "url": "https://www.lazioinnova.it/app/uploads/2026/09/Avviso-Pubblico-Voucher-digitalizzazione-PMI-2026.pdf",
+      "sha256": "5441b7a46164e51b91b824027836b47ec2a935a8b6a0d855f04acaa54885bd57",
+      "bytes": 3119269,
+      "local_sha256": "5441b7a46164e51b91b824027836b47ec2a935a8b6a0d855f04acaa54885bd57",
+      "matches_local": true
+    },
+    {
+      "url": "https://www.lazioinnova.it/app/uploads/2026/09/Allegato-2-Modulistica-e-Istruzioni-Voucher-Digitalizzazione-PMI-2026.pdf",
+      "sha256": "574874f51b8a860cd2770ec8d63a53038f8f769ad1de8b5af181ef9d6d91612f",
+      "bytes": 724082,
+      "local_sha256": "574874f51b8a860cd2770ec8d63a53038f8f769ad1de8b5af181ef9d6d91612f",
+      "matches_local": true
+    },
+    {
+      "url": "https://www.lazioinnova.it/app/uploads/2026/09/Uso-GeCoWEB-e-doc-rend-Voucher-Digitalizzazione-PMI-2026-DEF.pdf",
+      "sha256": "17b06050a5e2fea9d779f11ab6636e8911ec88331112ebd9767fb79715215250",
+      "bytes": 1175034,
+      "local_sha256": "17b06050a5e2fea9d779f11ab6636e8911ec88331112ebd9767fb79715215250",
+      "matches_local": true
+    },
+    {
+      "url": "https://www.lazioinnova.it/app/uploads/2026/09/Griglia-punteggi-7-settembre-2026.xlsx",
+      "sha256": "aee0e28f6f10c6ef361a7d72ff5ac70a21791a9df2413253631e5de49b5f887c",
+      "bytes": 120868,
+      "local_sha256": "aee0e28f6f10c6ef361a7d72ff5ac70a21791a9df2413253631e5de49b5f887c",
+      "matches_local": true
+    },
+    {
+      "url": "https://www.lazioinnova.it/app/uploads/2026/10/Modello-1-Diagnosi-Digitale.docx",
+      "sha256": "bea0c94a72d547f2737df3a93f3999745484895336738406c5e8ed8d5a3451be",
+      "bytes": 38661,
+      "local_sha256": "bea0c94a72d547f2737df3a93f3999745484895336738406c5e8ed8d5a3451be",
+      "matches_local": true
+    },
+    {
+      "url": "https://www.lazioinnova.it/app/uploads/2026/10/Modello-2-Relazione-Digitalizzazione.docx",
+      "sha256": "4448a22b5e91f3cc6be78fff287aea89f4d75176f951bdf3b16ce1b50530d733",
+      "bytes": 27945,
+      "local_sha256": "4448a22b5e91f3cc6be78fff287aea89f4d75176f951bdf3b16ce1b50530d733",
+      "matches_local": true
+    }
+  ],
+  "scope": "Byte identity of the seven files linked by the official page, not a normative completeness certification."
+}

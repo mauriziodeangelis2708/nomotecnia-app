@@ -1,3 +1,4 @@
+import { timestamp, isoDay, calendarMonths, romeDay } from "./lazio-dates";
 import type { Answers, Checklist, Result, Size } from "./engine";
 import type { Question, Step } from "./questions";
 
@@ -11,11 +12,7 @@ const amount = (v: unknown) =>
   Number.isFinite(Number(String(v).replace(",", ".")))
     ? Number(String(v).replace(",", "."))
     : null;
-const day = (v: unknown) => {
-  if (typeof v !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(v)) return null;
-  const d = Date.parse(v + "T00:00:00Z");
-  return Number.isFinite(d) && new Date(d).toISOString().slice(0, 10) === v ? d : null;
-};
+const day = isoDay;
 const tx = (id: string, label: string, showIf?: Question["showIf"], help?: string): Question => ({
   id,
   label,
@@ -63,6 +60,7 @@ const names: Record<string, string> = {
   cyber: "E — Cyber Security",
 };
 export const OFFICIAL_DISCREPANCIES = [
+  "Decorrenza dei 40 giorni: art. 7 p. 13 richiama la PEC di disponibilità dell’Atto; Appendice 4.A p. 32 richiama la messa a disposizione. Il controllo usa la PEC secondo art. 7: verificare entrambe le date e il termine comunicato, senza presumere che coincidano.",
   "Atto micro: Avviso p. 13 indica 15 giorni, modulistica pp. 38–39 indica 10. Verificare PEC/Atto e chiarimento Lazio Innova; non attendere oltre il termine più breve.",
   "IVA mancante: Avviso p. 9 prevede annullamento punti; guida GeCoWEB p. 11 parla di esclusione e p. 13 torna ai punti. Non considerare pronta la domanda senza risolvere il caso.",
   "Zero dipendenti: GeCoWEB p. 16 richiede dichiarazione semplice sostitutiva. Il trattamento dei punti va verificato; N/A non equivale a documento verificato.",
@@ -624,18 +622,15 @@ export function evaluateDossier(a: Answers, cl: Checklist, ctx: Context): Dossie
   initial.push(...geCoRequired(a), ...geCoConsistency(a, ctx));
   if (yes(a, "commerce_sostituzione")) {
     const old = day(a["commerce_precedente_data"]),
-      submitted =
-        typeof a["domanda_timestamp"] === "string"
-          ? day(a["domanda_timestamp"].slice(0, 10))
-          : null;
+      submittedTimestamp = timestamp(a["domanda_timestamp"]),
+      submitted = submittedTimestamp === null ? null : romeDay(submittedTimestamp);
     if (old === null || submitted === null)
       initial.push(
         "Commerce: documentare data precedente soluzione e data domanda per verificare oltre 3 anni.",
       );
     else {
-      const limit = new Date(submitted);
-      limit.setUTCFullYear(limit.getUTCFullYear() - 3);
-      if (old >= limit.getTime())
+      const limit = calendarMonths(submitted, -36);
+      if (old >= limit)
         initial.push(
           "Commerce: soluzione precedente non risulta realizzata oltre 3 anni prima della domanda.",
         );

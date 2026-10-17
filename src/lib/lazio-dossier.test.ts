@@ -23,6 +23,27 @@ const actual: Answers = {
 const calc = (a: Answers, cl: Checklist = docs) => evaluate(a, OFFICIAL_RULES, [], cl);
 
 describe("Regressioni audit dei sette documenti", () => {
+  it.each([
+    ["2026-10-16T23:30:00Z", "confermato", false],
+    ["2026-10-17T01:30:00+02:00", "confermato", false],
+    ["2026-10-17T00:30:00+03:00", "non_ammissibile", true],
+  ] as const)(
+    "Commerce: motore e fascicolo usano il giorno italiano della PEC %s",
+    (submitted, status, warning) => {
+      const r = ev({
+        ...commerce,
+        commerce_sostituzione: "si",
+        commerce_precedente_data: "2023-10-16",
+        domanda_timestamp: submitted,
+      });
+      expect(r.interventions.find((i) => i.key === "commerce")!.status).toBe(status);
+      expect(
+        r.dossier.stages[0]!.issues.some((s) =>
+          s.includes("Commerce: soluzione precedente non risulta"),
+        ),
+      ).toBe(warning);
+    },
+  );
   it.each(["", undefined, "nonso"])("operazioni straordinarie %s non confermano", (v) =>
     expect(ev({ operazioni_straordinarie: v }).sizeStatus).toBe("ignoto"),
   );
