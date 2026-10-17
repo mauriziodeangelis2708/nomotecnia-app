@@ -107,6 +107,46 @@ describe("configurable grant engine", () => {
   });
 });
 describe("untrusted definitions and lifecycle", () => {
+  it.each(["eq", "ne", "in"] as const)(
+    "rejects nonexistent select categories in %s comparisons",
+    (op) => {
+      const d = syntheticGrant();
+      d.questions[0] = {
+        ...d.questions[0]!,
+        type: "select",
+        options: [
+          { value: "Micro", label: "Micro" },
+          { value: "Piccola", label: "Piccola" },
+        ],
+      };
+      d.rules[0]!.condition =
+        op === "in"
+          ? { op, field: "attiva", values: ["Micro", "PMI"] }
+          : { op, field: "attiva", value: "PMI" };
+      expect(() => parseDefinition(d)).toThrow("Categoria non prevista");
+      d.rules[0]!.condition = { op: "in", field: "attiva", values: ["Micro", "Piccola"] };
+      expect(() => parseDefinition(d)).not.toThrow();
+    },
+  );
+  it("validates select categories in visibility and nested formula conditions", () => {
+    const d = syntheticGrant();
+    d.questions[0] = {
+      ...d.questions[0]!,
+      type: "select",
+      options: [{ value: "Micro", label: "Micro" }],
+    };
+    d.rules[0]!.condition = { op: "eq", field: "attiva", value: "Micro" };
+    d.questions[1]!.showIf = { op: "eq", field: "attiva", value: "PMI" };
+    expect(() => parseDefinition(d)).toThrow("Categoria non prevista");
+    delete d.questions[1]!.showIf;
+    d.rules[4]!.formula = {
+      op: "if",
+      when: { op: "not", arg: { op: "eq", field: "attiva", value: "PMI" } },
+      then: { op: "constant", value: 5 },
+      otherwise: { op: "constant", value: 0 },
+    };
+    expect(() => parseDefinition(d)).toThrow("Categoria non prevista");
+  });
   it("accepts only citations present on the specified page", () => {
     const d = syntheticGrant();
     d.rules[0]!.citations = [

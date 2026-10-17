@@ -182,6 +182,11 @@ function parseGrant(input: unknown, fragment: boolean): GrantDefinition {
   }
   const ids = new Set<string>();
   const types = new Map(result.questions.map((q) => [q.id, q.type]));
+  const selectOptions = new Map(
+    result.questions
+      .filter((q) => q.type === "select")
+      .map((q) => [q.id, new Set(q.options?.map((o) => o.value))]),
+  );
   function validateNode(node: unknown, known: Set<string>) {
     for (const field of referencedFields(node))
       if (!known.has(field)) throw new Error(`Campo sconosciuto o dipendenza futura: ${field}`);
@@ -205,6 +210,11 @@ function parseGrant(input: unknown, fragment: boolean): GrantDefinition {
           (["select", "text"].includes(type ?? "") && typeof value !== "string")
         )
           throw new Error("Tipo di confronto incompatibile con la domanda.");
+      if (
+        type === "select" &&
+        values.some((value) => !selectOptions.get(n["field"] as string)?.has(value as string))
+      )
+        throw new Error(`Categoria non prevista nelle opzioni della domanda: ${n["field"]}`);
     }
     for (const child of Object.values(n))
       if (Array.isArray(child)) child.forEach((c) => validateNode(c, known));
