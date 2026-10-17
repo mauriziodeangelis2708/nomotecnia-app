@@ -390,8 +390,9 @@ export function GrantStudio() {
             <h3 className="font-semibold">3. Casi di collaudo con esiti attesi</h3>
             <p className="text-sm">
               Inserire scenari indipendenti: name, answers, expected (pre_eligible, not_eligible,
-              incomplete), score e grants per le formule. I risultati attesi devono derivare dal
-              bando.
+              incomplete), score e grants per le formule, ruleStates per verificare l'esito delle
+              singole regole (passed, failed, unknown, not_applicable, calculated). I risultati
+              attesi devono derivare dal bando.
             </p>
             <Textarea
               aria-label="Scenari di collaudo"

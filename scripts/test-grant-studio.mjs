@@ -71,7 +71,13 @@ try {
   await page.locator("details").evaluateAll(elements => elements.forEach(e => e.open = true));
   await page.getByLabel(/Pagina 1 verificata/).check();
   for (const control of await page.getByLabel("Logica, soglie e riferimenti verificati sull'originale", { exact: true }).all()) await control.check();
-  await page.getByLabel("Scenari di collaudo").fill(JSON.stringify(SYNTHETIC_SCENARIOS.map(s => ({...s, answers: Object.fromEntries(Object.entries(s.answers).map(([id,value]) => [`q_1_${syntheticGrant().questions.findIndex(q => q.id === id)+1}`,value])), grants: Object.fromEntries(Object.entries(s.grants ?? {}).map(([id,value]) => [`r_1_${syntheticGrant().rules.findIndex(r => r.id === id)+1}`,value]))}))));
+  const scenarios = SYNTHETIC_SCENARIOS.map(s => ({...s, answers: Object.fromEntries(Object.entries(s.answers).map(([id,value]) => [`q_1_${syntheticGrant().questions.findIndex(q => q.id === id)+1}`,value])), grants: Object.fromEntries(Object.entries(s.grants ?? {}).map(([id,value]) => [`r_1_${syntheticGrant().rules.findIndex(r => r.id === id)+1}`,value])), ruleStates: {r_1_1: s.answers.attiva === true ? "passed" : "unknown"}}));
+  await page.getByLabel("Scenari di collaudo").fill(JSON.stringify(scenarios.map((s,i) => i === 0 ? {...s,ruleStates:{r_1_1:"failed"}} : s)));
+  await page.getByRole("button", { name: "Esegui collaudo", exact: true }).click();
+  assert.equal(await page.getByText(/^FAIL:/).count(), 1, "A wrong per-rule expectation must fail even when overall eligibility matches");
+  assert.equal(await publish.isDisabled(), true);
+  pass("independent per-rule expectations expose masked logic errors");
+  await page.getByLabel("Scenari di collaudo").fill(JSON.stringify(scenarios));
   await page.getByRole("button", { name: "Esegui collaudo", exact: true }).click();
   assert.equal(await page.getByText(/^PASS:/).count(), 3);
   assert.equal(await publish.isDisabled(), true, "Must save a draft before activation");

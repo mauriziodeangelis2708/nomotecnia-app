@@ -9,6 +9,9 @@ export const scenarioSchema = z
     expected: z.enum(["pre_eligible", "not_eligible", "incomplete"]),
     score: z.number().finite().nonnegative().nullable().optional(),
     grants: z.record(z.number().finite().nonnegative().nullable()).optional(),
+    ruleStates: z
+      .record(z.enum(["passed", "failed", "unknown", "not_applicable", "calculated"]))
+      .optional(),
   })
   .strict();
 export type GrantScenario = z.infer<typeof scenarioSchema>;
@@ -29,6 +32,9 @@ export function runScenarios(d: GrantDefinition, scenarios: GrantScenario[]) {
         (test.score === undefined || actual.score === test.score) &&
         Object.entries(test.grants ?? {}).every(([id, amount]) =>
           actual.grants.some((r) => r.id === id && r.value === amount),
+        ) &&
+        Object.entries(test.ruleStates ?? {}).every(([id, state]) =>
+          actual.rules.some((r) => r.id === id && r.state === state),
         ),
       actual,
     };
