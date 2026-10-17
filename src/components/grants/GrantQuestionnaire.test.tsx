@@ -6,6 +6,31 @@ import type { GrantAnswers } from "@/lib/grants/schema";
 import { GrantQuestionnaire, GrantResult } from "./GrantQuestionnaire";
 
 describe("generated assessment and report", () => {
+  it("updates the report when a dynamic limit changes or is cleared", () => {
+    const d = syntheticGrant();
+    d.questions.push({ ...d.questions[2]!, id: "limit", label: "Limite ammesso", min: 0 });
+    d.rules[2]!.condition = {
+      op: "compare_fields",
+      field: "investimento",
+      otherField: "limit",
+      comparison: "lte",
+    };
+    function Preview() {
+      const [answers, setAnswers] = useState<GrantAnswers>({ ...SYNTHETIC_ANSWERS, limit: 14000 });
+      return (
+        <>
+          <GrantQuestionnaire definition={d} answers={answers} onChange={setAnswers} />
+          <GrantResult definition={d} answers={answers} />
+        </>
+      );
+    }
+    render(<Preview />);
+    expect(screen.getByText("Preliminarmente ammissibile")).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText(/Limite ammesso/), { target: { value: "13999" } });
+    expect(screen.getByText("Requisiti ostativi")).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText(/Limite ammesso/), { target: { value: "" } });
+    expect(screen.getByText("Da completare / verificare")).toBeInTheDocument();
+  });
   it("shows persistent inventory gaps even when the generic warning list is cleared", () => {
     const d = syntheticGrant();
     d.requirements = [
