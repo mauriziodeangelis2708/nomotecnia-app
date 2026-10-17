@@ -27,6 +27,7 @@ import {
 } from "@/lib/grants/repository";
 import { GrantQuestionnaire, GrantResult } from "./GrantQuestionnaire";
 import { ScenarioCoverage } from "./ScenarioCoverage";
+import { RequirementEditor } from "./RequirementEditor";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -280,6 +281,22 @@ export function GrantStudio() {
           </Button>
         ))}
       </section>
+      <RequirementEditor
+        key={JSON.stringify([
+          sources.map((s) => s.sha256),
+          row?.id,
+          definition?.id,
+          definition?.version,
+        ])}
+        sources={sources}
+        title={title}
+        identity={definition ? { id: definition.id, version: definition.version } : undefined}
+        disabled={locked}
+        onApply={(d) => {
+          resetReview(d);
+          setMessage("Requisiti applicati in anteprima parziale. Nessun bando attivato.");
+        }}
+      />
       <details className="rounded-lg border p-4">
         <summary>Importa o correggi una configurazione strutturata</summary>
         <p className="my-2 text-sm">
@@ -330,6 +347,7 @@ export function GrantStudio() {
                 throw new Error("Per cambiare identità o versione crea prima una nuova versione.");
               resetReview(d);
               setSources(d.sources);
+              setTitle(d.title);
               setMessage(
                 "Configurazione applicata in anteprima. Revisione azzerata; nessun bando attivato.",
               );
