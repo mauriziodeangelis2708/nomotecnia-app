@@ -43,6 +43,40 @@ function setup(admin = true) {
 }
 afterEach(() => vi.useRealTimers());
 describe("admin-only generation gateway", () => {
+  it("compiles calculation plans and sends the validated formula to the independent audit", async () => {
+    const s = setup();
+    const payload = modelOutput();
+    const grant = {
+      id: "planned_award",
+      label: "Importo fisso sintetico",
+      kind: "grant",
+      calculation: { method: "fixed", amount: 1234.56 },
+      citations: payload.rules[0]!.citations,
+    };
+    s.ai
+      .mockReset()
+      .mockResolvedValue({ response: { findings: [] } })
+      .mockResolvedValueOnce({ response: { requirements: [] } })
+      .mockResolvedValueOnce({ response: { ...payload, rules: [...payload.rules, grant] } });
+    const response = await handleGrantGeneration(request(), s.env, s.http);
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(
+      body.definition.rules.find((r: { id: string }) => r.id === "planned_award").formula,
+    ).toEqual({ op: "constant", value: 1234.56 });
+    expect(
+      body.definition.rules.find((r: { id: string }) => r.id === "planned_award"),
+    ).not.toHaveProperty("calculation");
+    const audit = JSON.parse(s.ai.mock.calls[2]![1].messages[1].content);
+    expect(audit.draft).not.toHaveProperty("sources");
+    expect(audit.excerpts).toBeDefined();
+    expect(audit.draft.rules.find((r: { id: string }) => r.id === "planned_award").formula).toEqual(
+      { op: "constant", value: 1234.56 },
+    );
+    const format = s.ai.mock.calls[1]![1].response_format;
+    expect(JSON.stringify(format)).toContain('"calculation"');
+    expect(body.definition.unresolved).toContain(HUMAN_COVERAGE_REVIEW);
+  });
   it("requires a token before using any backend", async () => {
     const s = setup();
     const req = request();

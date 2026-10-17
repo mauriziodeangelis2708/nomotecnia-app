@@ -168,7 +168,16 @@ export async function handleGrantGeneration(
               { role: "system", content: COVERAGE_SYSTEM },
               {
                 role: "user",
-                content: JSON.stringify({ excerpts: chunk, draft: raw }),
+                content: JSON.stringify({
+                  excerpts: chunk,
+                  draft: {
+                    description: draft.description,
+                    questions: draft.questions,
+                    rules: draft.rules,
+                    unresolved: draft.unresolved,
+                    requirements: draft.requirements,
+                  },
+                }),
               },
             ],
             response_format: { type: "json_object" },

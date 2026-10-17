@@ -1,5 +1,7 @@
 # Processo generico: primo confronto fra bandi differenti
 
+Aggiornamento successivo: `calculation-plans-20261017.md` documenta il compilatore comune di piani percentuali, per unità e fissi, 515 test e ulteriori confronti reali ancora semanticamente negativi. Le evidenze seguenti restano quelle dei rispettivi incrementi, senza attribuire loro risultati successivi.
+
 Obiettivo: i requisiti del singolo bando devono risiedere in una configurazione dati prodotta e revisionata; il motore non deve contenere rami dedicati a Lazio, Lombardia o a una specifica soglia. Questa verifica non dichiara riuscita l'estrazione automatica end-to-end.
 
 ## Secondo caso reale

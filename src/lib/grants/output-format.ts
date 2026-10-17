@@ -1,4 +1,5 @@
 // Provider-side shape constraints complement, never replace, schema.ts validation.
+import { CALCULATION_PLAN_FORMAT } from "./calculation-plan";
 type Schema = Record<string, unknown>;
 const text = { type: "string" };
 const id = { type: "string", pattern: "^[a-z][a-z0-9_]{0,63}$" };
@@ -66,9 +67,21 @@ export const GENERATION_FORMAT = {
               },
               ["id", "label", "kind", "condition", "citations"],
             ),
+            object({ ...baseRule, kind: op("score"), formula: expression, maximum: number }, [
+              "id",
+              "label",
+              "kind",
+              "formula",
+              "citations",
+            ]),
             object(
-              { ...baseRule, kind: op("score", "grant"), formula: expression, maximum: number },
-              ["id", "label", "kind", "formula", "citations"],
+              {
+                ...baseRule,
+                kind: op("grant"),
+                calculation: CALCULATION_PLAN_FORMAT,
+                maximum: number,
+              },
+              ["id", "label", "kind", "calculation", "citations"],
             ),
           ],
         },
