@@ -82,6 +82,9 @@ try {
   await page.getByLabel("Scenari di collaudo").fill(JSON.stringify(scenarios));
   await page.getByRole("button", { name: "Esegui collaudo", exact: true }).click();
   await page.getByText(/^PASS:/).nth(2).waitFor();
+  const coverage = page.getByRole("region", {name:"Copertura dei casi per regola"});
+  await coverage.getByText(/Da collaudare: esito negativo/).first().waitFor();
+  pass("passing overall cases retain visible gaps in independent per-rule coverage");
   assert.equal(await page.getByText(/^PASS:/).count(), 3);
   assert.equal(await publish.isDisabled(), true, "Must save a draft before activation");
   await page.getByRole("button", { name: "Salva bozza", exact: true }).click();

@@ -94,6 +94,31 @@ export function publicationProblems(input: unknown, review: GrantReview): string
   }
   return [...new Set(problems)];
 }
+/** Informative coverage of independently declared rule outcomes, never inferred from overall status. */
+export function ruleScenarioCoverage(d: GrantDefinition, scenarios: GrantScenario[]) {
+  const results = runScenarios(d, scenarios);
+  const states = ["passed", "failed", "unknown", "not_applicable"] as const;
+  return d.rules
+    .filter((r) => ["eligibility", "exclusion", "document"].includes(r.kind))
+    .map((rule) => {
+      const cases = Object.fromEntries(
+        states.map((state) => [
+          state,
+          scenarios.flatMap((scenario, i) =>
+            results[i]!.passed && scenario.ruleStates?.[rule.id] === state ? [scenario.name] : [],
+          ),
+        ]),
+      ) as Record<(typeof states)[number], string[]>;
+      return {
+        id: rule.id,
+        label: rule.label,
+        cases,
+        missing: states.filter(
+          (state) => (state === "passed" || state === "failed") && !cases[state].length,
+        ),
+      };
+    });
+}
 export async function definitionHash(d: GrantDefinition): Promise<string> {
   const bytes = new TextEncoder().encode(JSON.stringify(parseDefinition(d)));
   return Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", bytes)), (b) =>

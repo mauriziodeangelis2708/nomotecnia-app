@@ -25,6 +25,7 @@ import {
   type TemplateRow,
 } from "@/lib/grants/repository";
 import { GrantQuestionnaire, GrantResult } from "./GrantQuestionnaire";
+import { ScenarioCoverage } from "./ScenarioCoverage";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -425,6 +426,7 @@ export function GrantStudio() {
                 ))}
               </p>
             ))}
+            <ScenarioCoverage definition={definition} scenarios={review.scenarios} />
           </section>
           <section className="space-y-3 rounded-lg border p-4">
             <h3 className="font-semibold">4. Anteprima assessment e report</h3>
