@@ -48,6 +48,7 @@ export const GENERATION_FORMAT = {
             help: text,
             min: number,
             max: number,
+            integer: { type: "boolean" },
             showIf: predicate,
           },
           ["id", "section", "label", "type", "required", "citations"],

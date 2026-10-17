@@ -2,8 +2,16 @@ import { describe, expect, it } from "vitest";
 import observed from "./workplace-observed.test-support.json";
 import { acceptInventory } from "./inventory";
 import { parseFragment } from "./schema";
+import withContext from "./workplace-context-observed.test-support.json";
 
 describe("real Article 5.B probe: failed model quality gate", () => {
+  it("still rejects altered citations after adding original Article 5 context", () => {
+    expect(withContext.sourceHash).toBe(observed.source.sha256);
+    expect(withContext.excerpts[0]!.text).toContain("Il contributo è a fondo perduto");
+    expect(() => acceptInventory(withContext.response, withContext.excerpts)).toThrow(
+      "Citazione inventario non riscontrata",
+    );
+  });
   it("rejects the first inventory's altered original quotation", () => {
     expect(() => acceptInventory(observed.first.response, [observed.excerpt])).toThrow(
       "Citazione inventario non riscontrata",

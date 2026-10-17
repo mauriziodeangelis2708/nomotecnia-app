@@ -63,7 +63,7 @@ export function GrantQuestionnaire({
                 ) : (
                   <Input
                     type={q.type === "number" ? "number" : "text"}
-                    step="any"
+                    step={q.integer ? 1 : "any"}
                     min={q.min}
                     max={q.max}
                     maxLength={4000}

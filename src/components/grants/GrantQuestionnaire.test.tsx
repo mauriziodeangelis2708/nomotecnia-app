@@ -6,6 +6,22 @@ import type { GrantAnswers } from "@/lib/grants/schema";
 import { GrantQuestionnaire, GrantResult } from "./GrantQuestionnaire";
 
 describe("generated assessment and report", () => {
+  it("shows integer input steps and keeps fractional quantities unverified", () => {
+    const d = syntheticGrant();
+    d.questions[2]!.integer = true;
+    render(
+      <>
+        <GrantQuestionnaire
+          definition={d}
+          answers={{ ...SYNTHETIC_ANSWERS, investimento: 14000.5 }}
+          onChange={() => {}}
+        />
+        <GrantResult definition={d} answers={{ ...SYNTHETIC_ANSWERS, investimento: 14000.5 }} />
+      </>,
+    );
+    expect(screen.getByLabelText(/Investimento/)).toHaveAttribute("step", "1");
+    expect(screen.getByText("Da completare / verificare")).toBeInTheDocument();
+  });
   it("updates the report when a dynamic limit changes or is cleared", () => {
     const d = syntheticGrant();
     d.questions.push({ ...d.questions[2]!, id: "limit", label: "Limite ammesso", min: 0 });

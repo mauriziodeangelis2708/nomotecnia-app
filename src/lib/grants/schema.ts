@@ -113,6 +113,7 @@ export const definitionSchema = z
             help: z.string().max(4000).optional(),
             min: z.number().finite().optional(),
             max: z.number().finite().optional(),
+            integer: z.boolean().optional(),
             showIf: predicate.optional(),
             citations: z.array(citation).min(1).max(20),
           })
@@ -250,6 +251,8 @@ function parseGrant(input: unknown, fragment: boolean): GrantDefinition {
       throw new Error("Opzioni su domanda non selezionabile.");
     if (q.min !== undefined && q.max !== undefined && q.min > q.max)
       throw new Error("Intervallo numerico invertito.");
+    if (q.integer !== undefined && q.type !== "number")
+      throw new Error("Il vincolo intero richiede una domanda numerica.");
     validateNode(q.showIf, ids);
     ids.add(q.id);
   }

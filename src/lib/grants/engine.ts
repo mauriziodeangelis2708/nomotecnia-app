@@ -114,6 +114,7 @@ export function activeAnswers(d: GrantDefinition, raw: GrantAnswers) {
           ? typeof value === "number" &&
             Number.isFinite(value) &&
             Math.abs(value) <= 1e12 &&
+            (!q.integer || Number.isInteger(value)) &&
             (q.min === undefined || value >= q.min) &&
             (q.max === undefined || value <= q.max)
           : typeof value === "string" &&
