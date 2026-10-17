@@ -76,6 +76,7 @@ try {
   await page.getByRole("button", { name: "Esegui collaudo", exact: true }).click();
   await page.getByText(/^ERRORE:/).waitFor();
   assert.equal(await page.getByText(/^ERRORE:/).count(), 1, "A wrong per-rule expectation must fail even when overall eligibility matches");
+  await page.getByText("Regola r_1_1: atteso failed, ottenuto passed.", {exact:true}).waitFor();
   assert.equal(await publish.isDisabled(), true);
   pass("independent per-rule expectations expose masked logic errors");
   await page.getByLabel("Scenari di collaudo").fill(JSON.stringify(scenarios));

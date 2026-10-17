@@ -21,6 +21,27 @@ describe("independent partial Art. 4 rule benchmark", () => {
       runScenarios(d, [{ ...positive, ruleStates: { nonexistent_rule: "passed" } }])[0]!.passed,
     ).toBe(false);
   });
+  it("explains every mismatch, distinguishing missing rules from unknown outcomes", () => {
+    const [result] = runScenarios(syntheticGrant(), [
+      {
+        ...SYNTHETIC_SCENARIOS[0]!,
+        expected: "not_eligible",
+        score: 999,
+        grants: { missing_grant: null },
+        ruleStates: { impresa_attiva: "failed", nonexistent_rule: "unknown" },
+      },
+    ]);
+    expect(result!.passed).toBe(false);
+    expect(result!.differences).toHaveLength(5);
+    expect(result!.differences).toContain("Regola impresa_attiva: atteso failed, ottenuto passed.");
+    expect(result!.differences).toContain(
+      "Regola nonexistent_rule: atteso unknown, ottenuto regola assente.",
+    );
+    expect(result!.differences).toContain(
+      "Contributo missing_grant: atteso null, ottenuto regola assente.",
+    );
+    expect(runScenarios(syntheticGrant(), [SYNTHETIC_SCENARIOS[0]!])[0]!.differences).toEqual([]);
+  });
   it("exposes the observed model's small/medium SME and previous-voucher false exclusions", () => {
     const d = parseDefinition({
       schemaVersion: 1,

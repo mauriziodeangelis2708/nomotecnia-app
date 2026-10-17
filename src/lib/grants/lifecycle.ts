@@ -25,17 +25,29 @@ export function runScenarios(d: GrantDefinition, scenarios: GrantScenario[]) {
   return scenarios.map((raw) => {
     const test = scenarioSchema.parse(raw),
       actual = evaluateGrant(d, test.answers as GrantAnswers);
+    const differences: string[] = [];
+    if (actual.status !== test.expected)
+      differences.push(`Esito: atteso ${test.expected}, ottenuto ${actual.status}.`);
+    if (test.score !== undefined && actual.score !== test.score)
+      differences.push(`Punteggio: atteso ${test.score}, ottenuto ${actual.score}.`);
+    for (const [id, amount] of Object.entries(test.grants ?? {})) {
+      const result = actual.grants.find((r) => r.id === id);
+      if (!result || result.value !== amount)
+        differences.push(
+          `Contributo ${id}: atteso ${amount}, ottenuto ${result ? result.value : "regola assente"}.`,
+        );
+    }
+    for (const [id, state] of Object.entries(test.ruleStates ?? {})) {
+      const result = actual.rules.find((r) => r.id === id);
+      if (!result || result.state !== state)
+        differences.push(
+          `Regola ${id}: atteso ${state}, ottenuto ${result?.state ?? "regola assente"}.`,
+        );
+    }
     return {
       name: test.name,
-      passed:
-        actual.status === test.expected &&
-        (test.score === undefined || actual.score === test.score) &&
-        Object.entries(test.grants ?? {}).every(([id, amount]) =>
-          actual.grants.some((r) => r.id === id && r.value === amount),
-        ) &&
-        Object.entries(test.ruleStates ?? {}).every(([id, state]) =>
-          actual.rules.some((r) => r.id === id && r.state === state),
-        ),
+      passed: differences.length === 0,
+      differences,
       actual,
     };
   });

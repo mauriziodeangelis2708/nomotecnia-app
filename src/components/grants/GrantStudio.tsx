@@ -418,6 +418,11 @@ export function GrantStudio() {
             {runScenarios(definition, review.scenarios).map((s, i) => (
               <p key={i} className="text-sm">
                 {s.passed ? "PASS" : "ERRORE"}: {s.name} · {s.actual.status}
+                {s.differences.map((difference, index) => (
+                  <span key={index} className="block text-destructive">
+                    {difference}
+                  </span>
+                ))}
               </p>
             ))}
           </section>
