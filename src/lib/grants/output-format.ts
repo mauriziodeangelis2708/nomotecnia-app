@@ -85,6 +85,12 @@ export const GENERATION_FORMAT = {
     $defs: {
       predicate: {
         anyOf: [
+          object({
+            op: op("compare_fields"),
+            field: id,
+            otherField: id,
+            comparison: op("eq", "ne", "gt", "gte", "lt", "lte"),
+          }),
           object({ op: op("eq", "ne", "gt", "gte", "lt", "lte"), field: id, value: scalar }),
           object({ op: op("in"), field: id, values: { ...array(scalar, 100), minItems: 1 } }),
           object({ op: op("all", "any"), args: { ...array(predicate, 30), minItems: 1 } }),

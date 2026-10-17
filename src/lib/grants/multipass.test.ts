@@ -6,6 +6,34 @@ import { syntheticGrant, SYNTHETIC_ANSWERS } from "./fixtures.test-support";
 import { parseDefinition, parseFragment } from "./schema";
 
 describe("multipass source coverage and deterministic merging", () => {
+  it("remaps both numeric field references after merging and deduplication", () => {
+    const d = syntheticGrant();
+    d.questions.push({ ...d.questions[2]!, id: "limit", label: "Limite numerico" });
+    d.rules[2]!.condition = {
+      op: "compare_fields",
+      field: "investimento",
+      otherField: "limit",
+      comparison: "lte",
+    };
+    const merged = mergeFragments([d, structuredClone(d)], 2);
+    expect(merged.rules.find((r) => r.label === d.rules[2]!.label)!.condition).toEqual({
+      op: "compare_fields",
+      field: "q_1_3",
+      otherField: "q_1_5",
+      comparison: "lte",
+    });
+    const answers = Object.fromEntries(
+      d.questions.map((q, i) => [
+        `q_1_${i + 1}`,
+        q.id === "limit" ? 13999 : SYNTHETIC_ANSWERS[q.id as keyof typeof SYNTHETIC_ANSWERS],
+      ]),
+    );
+    expect(evaluateGrant(merged, answers).status).toBe("not_eligible");
+    answers["q_1_5"] = 14000;
+    expect(
+      evaluateGrant(merged, answers).rules.find((r) => r.label === d.rules[2]!.label)!.state,
+    ).toBe("passed");
+  });
   it("accepts a complete 121-page 366127-character dossier without changing chunk bounds", () => {
     const d = syntheticGrant();
     const counts = [50, 43, 6, 22],

@@ -9,6 +9,12 @@ const scalar = z.union([
 ]);
 export type Scalar = z.infer<typeof scalar>;
 export type Predicate =
+  | {
+      op: "compare_fields";
+      field: string;
+      otherField: string;
+      comparison: "eq" | "ne" | "gt" | "gte" | "lt" | "lte";
+    }
   | { op: "eq" | "ne" | "gt" | "gte" | "lt" | "lte"; field: string; value: Scalar }
   | { op: "in"; field: string; values: Scalar[] }
   | { op: "all" | "any"; args: Predicate[] }
@@ -22,6 +28,14 @@ export type Expression =
 
 const predicate: z.ZodType<Predicate> = z.lazy(() =>
   z.union([
+    z
+      .object({
+        op: z.literal("compare_fields"),
+        field: id,
+        otherField: id,
+        comparison: z.enum(["eq", "ne", "gt", "gte", "lt", "lte"]),
+      })
+      .strict(),
     z
       .object({ op: z.enum(["eq", "ne", "gt", "gte", "lt", "lte"]), field: id, value: scalar })
       .strict(),
@@ -135,7 +149,7 @@ export type GrantAnswers = Record<string, Scalar | null>;
 export function referencedFields(node: unknown): string[] {
   if (!node || typeof node !== "object") return [];
   return Object.entries(node).flatMap(([key, value]) =>
-    key === "field" && typeof value === "string"
+    (key === "field" || key === "otherField") && typeof value === "string"
       ? [value]
       : Array.isArray(value)
         ? value.flatMap(referencedFields)
@@ -194,6 +208,11 @@ function parseGrant(input: unknown, fragment: boolean): GrantDefinition {
     const n = node as Record<string, unknown>;
     if (typeof n["field"] === "string") {
       const type = types.get(n["field"]);
+      if (
+        n["op"] === "compare_fields" &&
+        (type !== "number" || types.get(n["otherField"] as string) !== "number")
+      )
+        throw new Error("Il confronto tra campi richiede due domande numeriche.");
       if (n["op"] === "field" && type !== "number")
         throw new Error("Le formule possono usare soltanto campi numerici.");
       if (

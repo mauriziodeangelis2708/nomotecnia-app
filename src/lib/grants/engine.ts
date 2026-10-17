@@ -44,6 +44,18 @@ export function testPredicate(p: Predicate, a: GrantAnswers): Truth {
   }
   if (!("field" in p) || !has(a, p.field)) return null;
   const value = a[p.field];
+  if (p.op === "compare_fields") {
+    const other = a[p.otherField];
+    if (
+      !has(a, p.otherField) ||
+      typeof value !== "number" ||
+      typeof other !== "number" ||
+      !Number.isFinite(value) ||
+      !Number.isFinite(other)
+    )
+      return null;
+    return testPredicate({ op: p.comparison, field: p.field, value: other }, a);
+  }
   if (p.op === "in") return p.values.some((v) => v === value);
   if (p.op === "eq") return value === p.value;
   if (p.op === "ne") return value !== p.value;

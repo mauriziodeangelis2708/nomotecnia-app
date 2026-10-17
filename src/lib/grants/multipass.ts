@@ -58,7 +58,7 @@ function remap(value: unknown, fields: Map<string, string>): unknown {
   return Object.fromEntries(
     Object.entries(value).map(([key, child]) => [
       key,
-      key === "field" && typeof child === "string"
+      (key === "field" || key === "otherField") && typeof child === "string"
         ? (fields.get(child) ?? child)
         : remap(child, fields),
     ]),

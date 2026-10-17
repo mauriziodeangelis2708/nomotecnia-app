@@ -11,6 +11,55 @@ import {
 
 describe("configurable grant engine", () => {
   it.each([
+    ["eq", 2, 2, true],
+    ["ne", 2, 3, true],
+    ["gt", 3, 2, true],
+    ["gte", 2, 2, true],
+    ["lt", 2, 3, true],
+    ["lte", 2, 2, true],
+    ["eq", 2, 3, false],
+    ["ne", 2, 2, false],
+    ["gt", 2, 2, false],
+    ["gte", 1, 2, false],
+    ["lt", 2, 2, false],
+    ["lte", 3, 2, false],
+  ] as const)("compares numeric fields: %s %s %s", (comparison, left, right, expected) => {
+    expect(
+      testPredicate(
+        { op: "compare_fields", field: "left", otherField: "right", comparison },
+        { left, right },
+      ),
+    ).toBe(expected);
+  });
+  it.each([undefined, null, "2", Number.NaN, Number.POSITIVE_INFINITY])(
+    "keeps invalid or missing second field %s unknown",
+    (right) => {
+      expect(
+        testPredicate(
+          { op: "compare_fields", field: "left", otherField: "right", comparison: "lte" },
+          { left: 2, right } as GrantAnswers,
+        ),
+      ).toBeNull();
+    },
+  );
+  it("enforces a dynamic numeric limit and ignores a hidden stale limit", () => {
+    const d = syntheticGrant();
+    d.questions.push({ ...d.questions[2]!, id: "limit", label: "Limite verificato", min: 0 });
+    d.rules[2]!.condition = {
+      op: "compare_fields",
+      field: "investimento",
+      otherField: "limit",
+      comparison: "lte",
+    };
+    expect(evaluateGrant(d, { ...good, limit: 14000 }).status).toBe("pre_eligible");
+    expect(evaluateGrant(d, { ...good, limit: 13999 }).status).toBe("not_eligible");
+    expect(evaluateGrant(d, good).status).toBe("incomplete");
+    d.questions.at(-1)!.showIf = { op: "eq", field: "certificata", value: true };
+    expect(
+      evaluateGrant(d, { ...good, limit: 14000 }).rules.find((r) => r.id === "soglia")!.state,
+    ).toBe("unknown");
+  });
+  it.each([
     [13999.99, "not_eligible"],
     [14000, "pre_eligible"],
     [14000.01, "pre_eligible"],
@@ -107,6 +156,30 @@ describe("configurable grant engine", () => {
   });
 });
 describe("untrusted definitions and lifecycle", () => {
+  it("rejects missing, nonnumeric and future right-hand field references", () => {
+    const d = syntheticGrant();
+    d.rules[0]!.condition = {
+      op: "compare_fields",
+      field: "investimento",
+      otherField: "missing",
+      comparison: "lte",
+    };
+    expect(() => parseDefinition(d)).toThrow("sconosciuto");
+    d.rules[0]!.condition = {
+      op: "compare_fields",
+      field: "investimento",
+      otherField: "attiva",
+      comparison: "lte",
+    };
+    expect(() => parseDefinition(d)).toThrow("due domande numeriche");
+    d.questions[0]!.showIf = {
+      op: "compare_fields",
+      field: "investimento",
+      otherField: "investimento",
+      comparison: "lte",
+    };
+    expect(() => parseDefinition(d)).toThrow("dipendenza futura");
+  });
   it.each(["eq", "ne", "in"] as const)(
     "rejects nonexistent select categories in %s comparisons",
     (op) => {
