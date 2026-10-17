@@ -1,5 +1,10 @@
 import { addCoverageFindings, COVERAGE_SYSTEM } from "./coverage";
-import { acceptInventory, attachInventory, INVENTORY_FORMAT, INVENTORY_SYSTEM } from "./inventory";
+import {
+  acceptInventory,
+  attachInventory,
+  INVENTORY_FORMAT,
+  INVENTORY_EXTRACTION_SYSTEM,
+} from "./inventory";
 import { GENERATION_FORMAT } from "./output-format";
 import { planSourceChunks } from "./multipass";
 import {
@@ -105,7 +110,7 @@ export async function handleGrantGeneration(
         (async () => {
           const extracted = await env.AI!.run(GENERATOR_MODEL, {
             messages: [
-              { role: "system", content: INVENTORY_SYSTEM },
+              { role: "system", content: INVENTORY_EXTRACTION_SYSTEM },
               { role: "user", content: JSON.stringify({ excerpts: chunk }) },
             ],
             response_format: INVENTORY_FORMAT,
