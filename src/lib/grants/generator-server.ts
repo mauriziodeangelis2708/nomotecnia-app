@@ -1,10 +1,11 @@
 import { addCoverageFindings, COVERAGE_SYSTEM } from "./coverage";
+import { attachInventory } from "./inventory";
 import {
-  acceptInventory,
-  attachInventory,
-  INVENTORY_FORMAT,
-  INVENTORY_EXTRACTION_SYSTEM,
-} from "./inventory";
+  sourceSpans,
+  spanInventoryFormat,
+  acceptSpanInventory,
+  SPAN_INVENTORY_SYSTEM,
+} from "./source-spans";
 import { GENERATION_FORMAT } from "./output-format";
 import { planSourceChunks } from "./multipass";
 import {
@@ -103,6 +104,7 @@ export async function handleGrantGeneration(
       return reply({ error: parsed.error.issues.map((i) => i.message).join("; ") }, 400);
     const chunks = planSourceChunks(parsed.data.sources);
     const chunk = chunks[parsed.data.chunkIndex]!;
+    const spans = sourceSpans(chunk);
     let timer: ReturnType<typeof setTimeout> | undefined;
     let expired = false;
     try {
@@ -110,17 +112,18 @@ export async function handleGrantGeneration(
         (async () => {
           const extracted = await env.AI!.run(GENERATOR_MODEL, {
             messages: [
-              { role: "system", content: INVENTORY_EXTRACTION_SYSTEM },
-              { role: "user", content: JSON.stringify({ excerpts: chunk }) },
+              { role: "system", content: SPAN_INVENTORY_SYSTEM },
+              { role: "user", content: JSON.stringify({ spans }) },
             ],
-            response_format: INVENTORY_FORMAT,
+            response_format: spanInventoryFormat(spans),
             max_tokens: 4000,
             temperature: 0,
           });
-          const inventory = acceptInventory(
+          const inventory = acceptSpanInventory(
             typeof extracted.response === "string"
               ? JSON.parse(extracted.response)
               : extracted.response,
+            spans,
             chunk,
           );
           if (expired) throw new Error("timeout");

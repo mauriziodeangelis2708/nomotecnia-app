@@ -115,6 +115,41 @@ describe("admin-only generation gateway", () => {
     });
     expect(s.http.mock.calls.every((c) => String(c[0]).startsWith(s.env.SUPABASE_URL!))).toBe(true);
   });
+  it("resolves inventory source IDs server-side before generation and rejects invented IDs", async () => {
+    const s = setup(),
+      payload = {
+        ...modelOutput(),
+        coverage: [
+          { requirementId: "active", questionIds: ["attiva"], ruleIds: ["impresa_attiva"] },
+        ],
+      };
+    s.ai
+      .mockReset()
+      .mockResolvedValue({ response: { findings: [] } })
+      .mockResolvedValueOnce({
+        response: {
+          requirements: [
+            { id: "active", label: "Impresa attiva", citations: [{ spanId: "span_1" }] },
+          ],
+        },
+      })
+      .mockResolvedValueOnce({ response: payload });
+    const result = await handleGrantGeneration(request(), s.env, s.http);
+    expect(result.status).toBe(200);
+    expect((await result.json()).definition.requirements[0].citations[0].quote).toBe(
+      d.sources[0]!.pages[0]!.text,
+    );
+    const wrong = setup();
+    wrong.ai.mockReset().mockResolvedValue({
+      response: {
+        requirements: [
+          { id: "active", label: "Impresa attiva", citations: [{ spanId: "missing" }] },
+        ],
+      },
+    });
+    expect((await handleGrantGeneration(request(), wrong.env, wrong.http)).status).toBe(502);
+    expect(wrong.ai).toHaveBeenCalledTimes(1);
+  });
   it("fails closed if the independent audit fails instead of returning a partial draft", async () => {
     const s = setup();
     s.ai
