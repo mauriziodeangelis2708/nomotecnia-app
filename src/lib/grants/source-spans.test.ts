@@ -26,6 +26,29 @@ const response = (spanId: string) => ({
   requirements: [{ id: "duration", label: "Durata da verificare", citations: [{ spanId }] }],
 });
 describe("source identifiers for inventory citations", () => {
+  it("detects the revised real model's contribution error against the independent second-grant case", () => {
+    const { coverage, ...generated } = observed.revisedGenerationResponse;
+    expect(coverage.length).toBeGreaterThan(0);
+    const draft = parseFragment({
+      schemaVersion: 1,
+      id: "nuova_revised",
+      version: 1,
+      title: "Revised observed draft",
+      sources: [source.source],
+      ...generated,
+    });
+    const actual = evaluateGrant(draft, {
+      investimento_minimo: 3000,
+      spese_in_conto_capitale: 1500,
+      spese_di_parte_corrente: 1500,
+      intensita_contributo: 50,
+      importo_contributo_massimo: 10000,
+    });
+    const expected = evaluateGrant(nuovaImpresaReference(), { capital: 1500, current: 1500 });
+    expect(expected.grants[0]!.value).toBe(1500);
+    expect(actual.grants[0]!.value).toBe(750);
+    expect(actual.status).toBe("incomplete");
+  });
   it("accepts the real source-ID extraction while retaining generation coverage gaps", () => {
     const inventory = acceptSpanInventory(observed.spanResponse, observed.spans, observed.excerpts);
     expect(inventory.requirements).toHaveLength(9);
