@@ -61,4 +61,15 @@ Per la sostituzione Commerce, il motore usava il giorno italiano della PEC mentr
 - Le discrepanze ufficiali rimangono in `OFFICIAL_DISCREPANCIES`; non sono risolte inventando una prevalenza o una proroga. È stata aggiunta la diversa formulazione della decorrenza dei 40 giorni fra art.7 e App.4.A.
 - I controlli documentali e informativi della matrice richiedono un operatore: la copertura del questionario non prova il possesso dei requisiti di un cliente.
 - I riferimenti del generatore configurabile restano parziali e le prove AI reali restano fallite. Non sostituiscono questo motore Lazio.
-- Questo ciclo è offline, con dati sintetici. Non è ancora il collaudo autenticato della nuova versione in staging. Nessun deploy o dato reale modificato.
+- La verifica dei requisiti è offline; il successivo collaudo autenticato della build isolata con Supabase staging e quattro utenti sintetici è passato (run 39015718190, commit ae65260). Sono verificati login, isolamento, assessment/snapshot, CSV, mobile, PDF A4, importazione PDF/OCR, archivio privato, bozze bandi e conflitti di revisione; pulizia conclusa. Non sono una prova del modello AI o della pubblicazione di un bando generato: tali prove restano distinte. Nessun deploy della versione sul sito edge o dato reale modificato.
+
+## Esiti automatici del commit verificato
+
+| Verifica | Run GitHub | Esito |
+| --- | --- | --- |
+| Compilazione e controlli completi | 39015713773 | Superata |
+| 96 scenari funzionali Lazio | 39015718204 | Superata |
+| Prototipo configurabile, Chromium/Firefox/WebKit, modello e persistenza simulati | 39015713836 | Tre browser superati |
+| UI autenticata, Supabase staging reale, quattro utenti sintetici | 39015718190 | Superata, fixture rimosse |
+
+La suite locale comprende 442 test in 32 file, oltre ai 96 scenari funzionali separati. Il commit di questo documento aggiorna soltanto il resoconto; il codice verificato è ae65260ed97feba6be9f410238762522dd6294b7.
