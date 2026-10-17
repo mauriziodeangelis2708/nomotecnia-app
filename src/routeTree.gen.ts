@@ -16,6 +16,7 @@ import { Route as PortalRouteImport } from './routes/portal'
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedAssessmentIdRouteImport } from './routes/_authenticated/assessment.$id'
+import { Route as AuthenticatedGrantIdRouteImport } from './routes/_authenticated/grant.$id'
 import { Route as AuthenticatedIperammortamentoIdRouteImport } from './routes/_authenticated/iperammortamento.$id'
 import { Route as AuthenticatedReportIdRouteImport } from './routes/_authenticated/report.$id'
 
@@ -54,6 +55,11 @@ const AuthenticatedAssessmentIdRoute =
     path: '/assessment/$id',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedGrantIdRoute = AuthenticatedGrantIdRouteImport.update({
+  id: '/grant/$id',
+  path: '/grant/$id',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedIperammortamentoIdRoute =
   AuthenticatedIperammortamentoIdRouteImport.update({
     id: '/iperammortamento/$id',
@@ -73,6 +79,7 @@ export interface FileRoutesByFullPath {
   '/admin': typeof AuthenticatedAdminRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/assessment/$id': typeof AuthenticatedAssessmentIdRoute
+  '/grant/$id': typeof AuthenticatedGrantIdRoute
   '/iperammortamento/$id': typeof AuthenticatedIperammortamentoIdRoute
   '/report/$id': typeof AuthenticatedReportIdRoute
 }
@@ -83,6 +90,7 @@ export interface FileRoutesByTo {
   '/admin': typeof AuthenticatedAdminRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/assessment/$id': typeof AuthenticatedAssessmentIdRoute
+  '/grant/$id': typeof AuthenticatedGrantIdRoute
   '/iperammortamento/$id': typeof AuthenticatedIperammortamentoIdRoute
   '/report/$id': typeof AuthenticatedReportIdRoute
 }
@@ -95,6 +103,7 @@ export interface FileRoutesById {
   '/_authenticated/admin': typeof AuthenticatedAdminRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/assessment/$id': typeof AuthenticatedAssessmentIdRoute
+  '/_authenticated/grant/$id': typeof AuthenticatedGrantIdRoute
   '/_authenticated/iperammortamento/$id': typeof AuthenticatedIperammortamentoIdRoute
   '/_authenticated/report/$id': typeof AuthenticatedReportIdRoute
 }
@@ -107,6 +116,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/dashboard'
     | '/assessment/$id'
+    | '/grant/$id'
     | '/iperammortamento/$id'
     | '/report/$id'
   fileRoutesByTo: FileRoutesByTo
@@ -117,6 +127,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/dashboard'
     | '/assessment/$id'
+    | '/grant/$id'
     | '/iperammortamento/$id'
     | '/report/$id'
   id:
@@ -128,6 +139,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin'
     | '/_authenticated/dashboard'
     | '/_authenticated/assessment/$id'
+    | '/_authenticated/grant/$id'
     | '/_authenticated/iperammortamento/$id'
     | '/_authenticated/report/$id'
   fileRoutesById: FileRoutesById
@@ -190,6 +202,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAssessmentIdRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/grant/$id': {
+      id: '/_authenticated/grant/$id'
+      path: '/grant/$id'
+      fullPath: '/grant/$id'
+      preLoaderRoute: typeof AuthenticatedGrantIdRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/iperammortamento/$id': {
       id: '/_authenticated/iperammortamento/$id'
       path: '/iperammortamento/$id'
@@ -211,6 +230,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedAdminRoute: typeof AuthenticatedAdminRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedAssessmentIdRoute: typeof AuthenticatedAssessmentIdRoute
+  AuthenticatedGrantIdRoute: typeof AuthenticatedGrantIdRoute
   AuthenticatedIperammortamentoIdRoute: typeof AuthenticatedIperammortamentoIdRoute
   AuthenticatedReportIdRoute: typeof AuthenticatedReportIdRoute
 }
@@ -219,6 +239,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAdminRoute: AuthenticatedAdminRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedAssessmentIdRoute: AuthenticatedAssessmentIdRoute,
+  AuthenticatedGrantIdRoute: AuthenticatedGrantIdRoute,
   AuthenticatedIperammortamentoIdRoute: AuthenticatedIperammortamentoIdRoute,
   AuthenticatedReportIdRoute: AuthenticatedReportIdRoute,
 }

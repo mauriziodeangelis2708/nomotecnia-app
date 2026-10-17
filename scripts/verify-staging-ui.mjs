@@ -35,6 +35,7 @@ let serverLog = "";
 let stage = "initialization";
 const blocked = [];
 const consoleErrors = [];
+const networkFailures = [];
 function pass(message) { console.log("PASS: " + message); }
 function must(result, description) {
   if (result.error) throw new Error(description);
@@ -98,6 +99,13 @@ try {
     const context=await browser.newContext({httpCredentials:{origin:base,username:"nomotecnia",password:gate},
       viewport:{width:1365,height:900}});
     contexts.push(context);
+    context.on("response",response=>{
+      if(response.status()<400) return;
+      try { const url=new globalThis.URL(response.url()); if([base,URL].includes(url.origin)) networkFailures.push({status:response.status(),method:response.request().method(),url:url.origin+url.pathname}); } catch {}
+    });
+    context.on("requestfailed",request=>{
+      try { const url=new globalThis.URL(request.url()); if([base,URL].includes(url.origin)) networkFailures.push({error:request.failure()?.errorText,url:url.origin+url.pathname}); } catch {}
+    });
     account.context=context;
     account.page=await context.newPage();
     await context.route("**/*",async route=>{
@@ -421,6 +429,11 @@ try {
     const {verifyDocumentExtensions}=await import("./verify-document-extensions.mjs");
     await verifyDocumentExtensions({root,own,other,admin,assessmentId,base,fixture,createClient,key,outsider:accounts.find(account=>account.name==="OUTSIDER")});
   }
+  if (process.env.STAGING_GRANT_STUDIO === "true") {
+    stage="authenticated grant studio drafts and role gateway";
+    const {verifyGrantStudioStaging}=await import("./verify-grant-studio-staging.mjs");
+    await verifyGrantStudioStaging({accounts,admin,base,nonce,createClient,key,options});
+  }
   await own.auth.signOut();
   await other.auth.signOut();
   stage="network and browser checks";
@@ -431,6 +444,11 @@ try {
   await a.page.screenshot({path:"ui-test-results/assessment-synthetic.png",fullPage:true});
   pass(publicMode ? "published staging browser UI smoke completed" : "local browser UI smoke completed; published edge-site UI remains separate");
 } catch(error) {
+  try {
+    const {recordStagingFailure}=await import("./staging-ui-diagnostics.mjs");
+    const redact=text=>[secret,gate,...accounts.map(a=>a.password)].filter(Boolean).reduce((value,sensitive)=>value.replaceAll(sensitive,"[REDACTED]"),text).replace(/eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+/g,"[REDACTED_JWT]");
+    await recordStagingFailure({accounts,nonce,stage,failures:networkFailures.slice(-80),redact});
+  } catch { console.error("Failure diagnostic unavailable; fixture cleanup will still run"); }
   let message=String(error?.message??"Unknown error")+(stage==="local Cloudflare runtime" ? "\\n"+serverLog : "");
   for(const value of [secret,gate,...accounts.map(a=>a.password)]) if(value) message=message.replaceAll(value,"[REDACTED]");
   console.error("FAILED at: "+stage+" ("+(error?.name??"Error")+") "+message.slice(0,1500));

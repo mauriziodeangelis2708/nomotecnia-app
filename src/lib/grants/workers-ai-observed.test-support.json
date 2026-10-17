@@ -1,0 +1,150 @@
+{
+  "note": "Synthetic live inference, 2026-10-16. Not a validated grant: model omitted SME eligibility.",
+  "source": "Possono partecipare le PMI con sede operativa nel Lazio. Sono escluse le imprese in liquidazione. La spesa ammissibile deve essere almeno 14000 euro. Il contributo è pari al 50% della spesa ammissibile, fino a un massimo di 10000 euro.",
+  "response": {
+    "description": "Bando di collaudo per PMI",
+    "questions": [
+      {
+        "id": "sede_operativa",
+        "section": "Informazioni aziendali",
+        "label": "La sede operativa è nel Lazio?",
+        "type": "boolean",
+        "required": true,
+        "citations": [
+          {
+            "documentId": "documento_1",
+            "page": 1,
+            "quote": "Possono partecipare le PMI con sede operativa nel Lazio"
+          }
+        ]
+      },
+      {
+        "id": "liquidazione",
+        "section": "Informazioni aziendali",
+        "label": "L'impresa è in liquidazione?",
+        "type": "boolean",
+        "required": true,
+        "citations": [
+          {
+            "documentId": "documento_1",
+            "page": 1,
+            "quote": "Sono escluse le imprese in liquidazione"
+          }
+        ]
+      },
+      {
+        "id": "spesa_ammissibile",
+        "section": "Informazioni progetto",
+        "label": "Spesa ammissibile",
+        "type": "number",
+        "required": true,
+        "citations": [
+          {
+            "documentId": "documento_1",
+            "page": 1,
+            "quote": "La spesa ammissibile deve essere almeno 14000 euro"
+          }
+        ],
+        "unit": "euro",
+        "min": 14000
+      }
+    ],
+    "rules": [
+      {
+        "id": "esclusione_liquidazione",
+        "label": "Esclusione per liquidazione",
+        "kind": "exclusion",
+        "condition": {
+          "op": "eq",
+          "field": "liquidazione",
+          "value": true
+        },
+        "citations": [
+          {
+            "documentId": "documento_1",
+            "page": 1,
+            "quote": "Sono escluse le imprese in liquidazione"
+          }
+        ]
+      },
+      {
+        "id": "requisito_sede",
+        "label": "Requisito di sede operativa",
+        "kind": "eligibility",
+        "condition": {
+          "op": "eq",
+          "field": "sede_operativa",
+          "value": true
+        },
+        "citations": [
+          {
+            "documentId": "documento_1",
+            "page": 1,
+            "quote": "Possono partecipare le PMI con sede operativa nel Lazio"
+          }
+        ]
+      },
+      {
+        "id": "requisito_spesa",
+        "label": "Requisito di spesa ammissibile",
+        "kind": "eligibility",
+        "condition": {
+          "op": "gte",
+          "field": "spesa_ammissibile",
+          "value": 14000
+        },
+        "citations": [
+          {
+            "documentId": "documento_1",
+            "page": 1,
+            "quote": "La spesa ammissibile deve essere almeno 14000 euro"
+          }
+        ]
+      },
+      {
+        "id": "calcolo_contributo",
+        "label": "Calcolo del contributo",
+        "kind": "grant",
+        "formula": {
+          "op": "min",
+          "args": [
+            {
+              "op": "multiply",
+              "args": [
+                {
+                  "op": "field",
+                  "field": "spesa_ammissibile"
+                },
+                {
+                  "op": "constant",
+                  "value": 0.5
+                }
+              ]
+            },
+            {
+              "op": "constant",
+              "value": 10000
+            }
+          ]
+        },
+        "citations": [
+          {
+            "documentId": "documento_1",
+            "page": 1,
+            "quote": "Il contributo è pari al 50% della spesa ammissibile, fino a un massimo di 10000 euro"
+          }
+        ]
+      }
+    ],
+    "unresolved": []
+  },
+  "usage": {
+    "prompt_tokens": 899,
+    "completion_tokens": 701,
+    "total_tokens": 1600,
+    "prompt_tokens_details": {
+      "cached_tokens": 0
+    },
+    "neurons": 167.54278564453125
+  }
+}

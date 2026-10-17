@@ -14,6 +14,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { GRANT_STUDIO_ENABLED } from "@/lib/grants/repository";
 import { ReceivedAssessments } from "@/components/ReceivedAssessments";
 import { Disclaimer } from "@/components/StatusBadge";
 import { dt } from "@/lib/checklist";
@@ -50,7 +51,7 @@ function Dashboard() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("clients")
-        .select("*, assessments(id, title, status, updated_at)")
+        .select("*, assessments(id, title, status, updated_at, answers)")
         .order("updated_at", { ascending: false });
 
       if (error) throw error;
@@ -271,6 +272,15 @@ function Dashboard() {
                     Iperammortamento 2026
                   </Button>
 
+                  {GRANT_STUDIO_ENABLED && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => nav({ to: "/grant/$id", params: { id: `new-${c.id}` } })}
+                    >
+                      Altri bandi
+                    </Button>
+                  )}
                   <Button
                     size="sm"
                     variant="destructive"
@@ -290,9 +300,12 @@ function Dashboard() {
                   <li key={a.id} className="flex min-w-0 flex-col items-start gap-3 py-3">
                     <Link
                       to={
-                        a.title.startsWith("Iperammortamento 2026")
-                          ? "/iperammortamento/$id"
-                          : "/assessment/$id"
+                        (a.answers as Record<string, unknown>)?.["_assessment_type"] ===
+                        "configurable_grant_v1"
+                          ? "/grant/$id"
+                          : a.title.startsWith("Iperammortamento 2026")
+                            ? "/iperammortamento/$id"
+                            : "/assessment/$id"
                       }
                       params={{ id: a.id } as never}
                       className="flex min-w-0 items-center gap-2 break-words hover:text-primary"

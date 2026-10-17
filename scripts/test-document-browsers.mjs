@@ -124,7 +124,8 @@ try {
   stage = "model unavailable and recovery";
   await context.route("**/ocr/v7/lang/ita.traineddata.gz", route => route.abort());
   await upload(scan);
-  await alert.getByText(/Impossibile avviare l’OCR/).waitFor({ timeout: 30000 });
+  // Worker transport errors are immediate on some engines; others recover through the 60s initializer deadline.
+  await alert.getByText(/Impossibile avviare l’OCR|Avvio OCR troppo lento/).waitFor({ timeout: 75000 });
   assert.equal(await input.isEnabled(), true);
   await context.unroute("**/ocr/v7/lang/ita.traineddata.gz");
   await page.getByRole("checkbox", { name: "Leggi scansioni con OCR sul dispositivo (massimo 8 pagine)" }).uncheck();

@@ -1,0 +1,385 @@
+{
+  "note": "Authorized two-page real probe with inventory and provider JSON Schema. Structurally improved, but self-gated eligibility and inverted exclusion: negative benchmark, not validated.",
+  "response": {
+    "description": "Voucher Lazio - prova inventario pagine 4 e 5",
+    "questions": [
+      {
+        "id": "rispetto_requisiti_dimensionali_pmi",
+        "section": "Requisiti",
+        "label": "La PMI rispetta i requisiti dimensionali di PMI alla Data della Domanda e fino alla Data di Concessione?",
+        "type": "boolean",
+        "required": true,
+        "citations": [
+          {
+            "documentId": "documento_2",
+            "page": 4,
+            "quote": "I Beneficiari dei contributi del presente Avviso sono le PMI che: a. alla Data della Domanda e fino alla Data di Concessione rispettano i requisiti dimensionali di PMI."
+          }
+        ]
+      },
+      {
+        "id": "iscrizione_registro_imprese",
+        "section": "Requisiti",
+        "label": "La PMI è iscritta al Registro delle Imprese Italiano alla Data della Domanda?",
+        "type": "boolean",
+        "required": true,
+        "citations": [
+          {
+            "documentId": "documento_2",
+            "page": 4,
+            "quote": "b. sono iscritte al Registro delle Imprese Italiano. Tale requisito deve essere posseduto alla Data della Domanda"
+          }
+        ]
+      },
+      {
+        "id": "sede_operativa_lazio",
+        "section": "Requisiti",
+        "label": "La PMI possiede una Sede Operativa nel territorio della regione Lazio e svolge in tale Sede Operativa un’attività economica?",
+        "type": "boolean",
+        "required": true,
+        "citations": [
+          {
+            "documentId": "documento_2",
+            "page": 4,
+            "quote": "c. possiedono una Sede Operativa nel territorio della regione Lazio, come risultante al Registro delle Imprese Italiano, e svolgono in tale Sede Operativa un’attività economica"
+          }
+        ]
+      },
+      {
+        "id": "attivita_economica",
+        "section": "Requisiti",
+        "label": "L’attività economica non è oggetto di Delocalizzazione nel corso della realizzazione del Progetto, né esserlo stata nei due anni precedenti la Data della Domanda?",
+        "type": "boolean",
+        "required": true,
+        "citations": [
+          {
+            "documentId": "documento_2",
+            "page": 4,
+            "quote": "Tale attività economica non deve essere oggetto di Delocalizzazione nel corso della realizzazione del Progetto, né esserlo stata nei due anni precedenti la Data della Domanda"
+          }
+        ]
+      },
+      {
+        "id": "acquisizione_sede_operativa",
+        "section": "Requisiti",
+        "label": "Il requisito di Sede Operativa nel Lazio può essere acquisito entro e non oltre la data della Richiesta di Erogazione?",
+        "type": "boolean",
+        "required": true,
+        "citations": [
+          {
+            "documentId": "documento_2",
+            "page": 4,
+            "quote": "Tale requisito può essere acquisito entro e non oltre la data della Richiesta di Erogazione"
+          }
+        ]
+      },
+      {
+        "id": "non_ammissibilita",
+        "section": "Requisiti",
+        "label": "La PMI non ha ottenuto un contributo a valere sui Precedenti Avvisi Voucher Digitalizzazione PMI?",
+        "type": "boolean",
+        "required": true,
+        "citations": [
+          {
+            "documentId": "documento_2",
+            "page": 5,
+            "quote": "Non sono ammissibili le PMI che hanno ottenuto un contributo a valere sui Precedenti Avvisi Voucher Digitalizzazione PMI"
+          }
+        ]
+      },
+      {
+        "id": "requisiti_generalii",
+        "section": "Requisiti",
+        "label": "I Beneficiari devono possedere i requisiti generali di ammissibilità riportati nell’Appendice 2 all’Avviso?",
+        "type": "boolean",
+        "required": true,
+        "citations": [
+          {
+            "documentId": "documento_2",
+            "page": 5,
+            "quote": "I Beneficiari devono inoltre possedere i requisiti generali di ammissibilità riportati nell’Appendice 2 all’Avviso"
+          }
+        ]
+      },
+      {
+        "id": "comunicazione_eventi",
+        "section": "Requisiti",
+        "label": "Il Proponente e, dopo la concessione del contributo, il Beneficiario deve comunicare tempestivamente a Lazio Innova qualsiasi evento intervenuto successivamente alla presentazione della Domanda?",
+        "type": "boolean",
+        "required": true,
+        "citations": [
+          {
+            "documentId": "documento_2",
+            "page": 5,
+            "quote": "Il Proponente e, dopo la concessione del contributo, il Beneficiario deve comunicare tempestivamente a Lazio Innova qualsiasi evento intervenuto successivamente alla presentazione della Domanda"
+          }
+        ]
+      }
+    ],
+    "rules": [
+      {
+        "id": "requisito_pmi",
+        "label": "Requisito PMI",
+        "when": {
+          "op": "eq",
+          "field": "rispetto_requisiti_dimensionali_pmi",
+          "value": true
+        },
+        "citations": [
+          {
+            "documentId": "documento_2",
+            "page": 4,
+            "quote": "I Beneficiari dei contributi del presente Avviso sono le PMI che: a. alla Data della Domanda e fino alla Data di Concessione rispettano i requisiti dimensionali di PMI."
+          }
+        ],
+        "kind": "eligibility",
+        "condition": {
+          "op": "eq",
+          "field": "rispetto_requisiti_dimensionali_pmi",
+          "value": true
+        }
+      },
+      {
+        "id": "requisito_iscrizione_registro_imprese",
+        "label": "Requisito iscrizione Registro Imprese",
+        "when": {
+          "op": "eq",
+          "field": "iscrizione_registro_imprese",
+          "value": true
+        },
+        "citations": [
+          {
+            "documentId": "documento_2",
+            "page": 4,
+            "quote": "b. sono iscritte al Registro delle Imprese Italiano. Tale requisito deve essere posseduto alla Data della Domanda"
+          }
+        ],
+        "kind": "eligibility",
+        "condition": {
+          "op": "eq",
+          "field": "iscrizione_registro_imprese",
+          "value": true
+        }
+      },
+      {
+        "id": "requisito_sede_operativa_lazio",
+        "label": "Requisito Sede Operativa Lazio",
+        "when": {
+          "op": "eq",
+          "field": "sede_operativa_lazio",
+          "value": true
+        },
+        "citations": [
+          {
+            "documentId": "documento_2",
+            "page": 4,
+            "quote": "c. possiedono una Sede Operativa nel territorio della regione Lazio, come risultante al Registro delle Imprese Italiano, e svolgono in tale Sede Operativa un’attività economica"
+          }
+        ],
+        "kind": "eligibility",
+        "condition": {
+          "op": "eq",
+          "field": "sede_operativa_lazio",
+          "value": true
+        }
+      },
+      {
+        "id": "requisito_attivita_economica",
+        "label": "Requisito attività economica",
+        "when": {
+          "op": "eq",
+          "field": "attivita_economica",
+          "value": true
+        },
+        "citations": [
+          {
+            "documentId": "documento_2",
+            "page": 4,
+            "quote": "Tale attività economica non deve essere oggetto di Delocalizzazione nel corso della realizzazione del Progetto, né esserlo stata nei due anni precedenti la Data della Domanda"
+          }
+        ],
+        "kind": "eligibility",
+        "condition": {
+          "op": "eq",
+          "field": "attivita_economica",
+          "value": true
+        }
+      },
+      {
+        "id": "requisito_acquisizione_sede_operativa",
+        "label": "Requisito acquisizione Sede Operativa",
+        "when": {
+          "op": "eq",
+          "field": "acquisizione_sede_operativa",
+          "value": true
+        },
+        "citations": [
+          {
+            "documentId": "documento_2",
+            "page": 4,
+            "quote": "Tale requisito può essere acquisito entro e non oltre la data della Richiesta di Erogazione"
+          }
+        ],
+        "kind": "eligibility",
+        "condition": {
+          "op": "eq",
+          "field": "acquisizione_sede_operativa",
+          "value": true
+        }
+      },
+      {
+        "id": "non_ammissibilita",
+        "label": "Non ammissibilità",
+        "when": {
+          "op": "eq",
+          "field": "non_ammissibilita",
+          "value": true
+        },
+        "citations": [
+          {
+            "documentId": "documento_2",
+            "page": 5,
+            "quote": "Non sono ammissibili le PMI che hanno ottenuto un contributo a valere sui Precedenti Avvisi Voucher Digitalizzazione PMI"
+          }
+        ],
+        "kind": "exclusion",
+        "condition": {
+          "op": "eq",
+          "field": "non_ammissibilita",
+          "value": true
+        }
+      },
+      {
+        "id": "requisiti_generalii",
+        "label": "Requisiti generali di ammissibilità",
+        "when": {
+          "op": "eq",
+          "field": "requisiti_generalii",
+          "value": true
+        },
+        "citations": [
+          {
+            "documentId": "documento_2",
+            "page": 5,
+            "quote": "I Beneficiari devono inoltre possedere i requisiti generali di ammissibilità riportati nell’Appendice 2 all’Avviso"
+          }
+        ],
+        "kind": "eligibility",
+        "condition": {
+          "op": "eq",
+          "field": "requisiti_generalii",
+          "value": true
+        }
+      },
+      {
+        "id": "comunicazione_eventi",
+        "label": "Comunicazione eventi",
+        "when": {
+          "op": "eq",
+          "field": "comunicazione_eventi",
+          "value": true
+        },
+        "citations": [
+          {
+            "documentId": "documento_2",
+            "page": 5,
+            "quote": "Il Proponente e, dopo la concessione del contributo, il Beneficiario deve comunicare tempestivamente a Lazio Innova qualsiasi evento intervenuto successivamente alla presentazione della Domanda"
+          }
+        ],
+        "kind": "eligibility",
+        "condition": {
+          "op": "eq",
+          "field": "comunicazione_eventi",
+          "value": true
+        }
+      }
+    ],
+    "unresolved": [
+      "La condizione o deroga nel contesto originale non è stata verificata integralmente.",
+      "La condizione o deroga nel contesto originale non è stata verificata integralmente."
+    ],
+    "coverage": [
+      {
+        "requirementId": "requisito_pmi",
+        "questionIds": [
+          "rispetto_requisiti_dimensionali_pmi"
+        ],
+        "ruleIds": [
+          "requisito_pmi"
+        ]
+      },
+      {
+        "requirementId": "requisito_iscrizione_registro_imprese",
+        "questionIds": [
+          "iscrizione_registro_imprese"
+        ],
+        "ruleIds": [
+          "requisito_iscrizione_registro_imprese"
+        ]
+      },
+      {
+        "requirementId": "requisito_sede_operativa_lazio",
+        "questionIds": [
+          "sede_operativa_lazio"
+        ],
+        "ruleIds": [
+          "requisito_sede_operativa_lazio"
+        ]
+      },
+      {
+        "requirementId": "requisito_attivita_economica",
+        "questionIds": [
+          "attivita_economica"
+        ],
+        "ruleIds": [
+          "requisito_attivita_economica"
+        ]
+      },
+      {
+        "requirementId": "requisito_acquisizione_sede_operativa",
+        "questionIds": [
+          "acquisizione_sede_operativa"
+        ],
+        "ruleIds": [
+          "requisito_acquisizione_sede_operativa"
+        ]
+      },
+      {
+        "requirementId": "requisito_non_ammissibilita",
+        "questionIds": [
+          "non_ammissibilita"
+        ],
+        "ruleIds": [
+          "non_ammissibilita"
+        ]
+      },
+      {
+        "requirementId": "requisito_requisiti_generalii",
+        "questionIds": [
+          "requisiti_generalii"
+        ],
+        "ruleIds": [
+          "requisiti_generalii"
+        ]
+      },
+      {
+        "requirementId": "requisito_comunicazione_eventi",
+        "questionIds": [
+          "comunicazione_eventi"
+        ],
+        "ruleIds": [
+          "comunicazione_eventi"
+        ]
+      }
+    ]
+  },
+  "usage": {
+    "prompt_tokens": 5255,
+    "completion_tokens": 2591,
+    "total_tokens": 7846,
+    "prompt_tokens_details": {
+      "cached_tokens": 0
+    },
+    "neurons": 670.7892456054688
+  }
+}

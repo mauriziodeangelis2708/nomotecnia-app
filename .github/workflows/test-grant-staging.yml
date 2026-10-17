@@ -1,0 +1,64 @@
+name: Grant studio authenticated staging checks
+on:
+  push:
+    branches: [feature/document-intelligence-sandbox-20261015]
+    paths:
+      - "src/lib/grants/**"
+      - "src/components/grants/**"
+      - "src/server.ts"
+      - "src/lib/local-pdf-reader.ts"
+      - "scripts/verify-grant-studio-staging.mjs"
+      - ".github/workflows/test-grant-staging.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: nomotecnia-staging-ui-disposable
+  cancel-in-progress: false
+jobs:
+  operational:
+    if: github.ref == 'refs/heads/feature/document-intelligence-sandbox-20261015'
+    runs-on: ubuntu-latest
+    environment: staging-rls
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - name: Install frozen dependencies and browser
+        run: |
+          bun install --frozen-lockfile
+          npm install --prefix /tmp/nomotecnia-ui --no-audit --no-fund playwright@1.56.1 wrangler@4
+          /tmp/nomotecnia-ui/node_modules/.bin/playwright install --with-deps chromium
+      - name: Typecheck and all unit tests
+        run: |
+          bunx tsc --noEmit
+          bun run test
+      - name: Build grant studio using staging database only, no AI binding
+        env:
+          VITE_NOMOTECNIA_STAGING: "true"
+          VITE_ENABLE_DOCUMENT_PDF_LAB: "false"
+          VITE_ENABLE_GRANT_STUDIO: "true"
+          STAGING_DOCUMENT_MODE: "local"
+          VITE_SUPABASE_URL: "https://vknvadzsjuixcuwegxto.supabase.co"
+          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.STAGING_SUPABASE_PUBLISHABLE_KEY }}
+        run: |
+          bun run build
+          node scripts/prepare-full-staging.mjs
+      - name: Authenticated UI and existing operational regression with four disposable staging users
+        env:
+          STAGING_GRANT_STUDIO: "true"
+          STAGING_DOCUMENT_MODE: "local"
+          STAGING_DOCUMENT_EXTENSIONS: "true"
+          STAGING_SUPABASE_URL: "https://vknvadzsjuixcuwegxto.supabase.co"
+          STAGING_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.STAGING_SUPABASE_PUBLISHABLE_KEY }}
+          STAGING_SUPABASE_SECRET_KEY: ${{ secrets.STAGING_SUPABASE_SECRET_KEY }}
+        run: node scripts/verify-staging-ui.mjs
+      - uses: actions/upload-artifact@v4
+        if: success()
+        with:
+          name: grant-studio-authenticated-synthetic-ui
+          path: ui-test-results/
+          retention-days: 3

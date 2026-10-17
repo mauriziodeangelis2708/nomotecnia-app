@@ -1,0 +1,40 @@
+# Processo generico: primo confronto fra bandi differenti
+
+Aggiornamento successivo: `calculation-plans-20261017.md` documenta il compilatore comune di piani percentuali, per unità e fissi, 516 test e ulteriori confronti reali ancora semanticamente negativi. Le evidenze seguenti restano quelle dei rispettivi incrementi, senza attribuire loro risultati successivi.
+
+Obiettivo: i requisiti del singolo bando devono risiedere in una configurazione dati prodotta e revisionata; il motore non deve contenere rami dedicati a Lazio, Lombardia o a una specifica soglia. Questa verifica non dichiara riuscita l'estrazione automatica end-to-end.
+
+## Secondo caso reale
+
+È stato letto il bando ufficiale **Nuova Impresa 2026** di Unioncamere Lombardia, dal PDF pubblico https://www.unioncamerelombardia.it/fileadmin/bandi/2026/NUOVA_IMPRESA_2026/Bando_Nuova_impresa_2026_def.pdf (22 pagine; SHA-256 `41adbb20a2c99f81870d6e855170dae845665029122f50eec6040d2c66f1c875`). Il riferimento numerico è circoscritto alla sezione B.1, pagine 6–7; il fixture conserva le pagine originali 1–7. Non va confuso con la misura lombarda specifica per startup innovative o con Nuova Impresa piccoli comuni.
+
+I casi attesi sono scritti indipendentemente dal modello. Le definizioni di test per entrambi i bandi sono preparate manualmente per verificare il formato comune: NON sono output AI dichiarati corretti. Non è stato introdotto alcun ramo regionale nel motore.
+
+Il riferimento Nuova Impresa usa **spese già verificate come ammissibili e dopo eventuali riduzioni**. Controlla soltanto minimo, composizione dichiarata e formula percentuale/massimale; non decide automaticamente come ridurre spese di parte corrente inizialmente eccedenti. Beneficiari, date, spese, allegati, collegamenti fra domande e de minimis restano esplicitamente irrisolti e impediscono la pubblicazione del riferimento parziale.
+
+## Correzioni del formato comune
+
+- Nuovo predicato `compare`: confronta due espressioni numeriche, per esempio una somma e una soglia. Riutilizza le formule esistenti senza eval o codice eseguibile. Dipendenze, profondità, input mancanti, divisione per zero e valori non calcolabili seguono gli stessi controlli del motore. `compare_fields` e le configurazioni precedenti restano supportati.
+- Schema del provider: `gt/gte/lt/lte` accettano solo un valore numerico; `eq/ne` mantengono i tipi scalari. La risposta reale errata del precedente test Workplace viene respinta anche da una compilazione locale dello schema JSON con AJV, mentre la risposta sintetica valida continua a passare. È una verifica strutturale locale, non una nuova inferenza né garanzia che il provider rispetti sempre lo schema.
+- Il controllo testuale delle fonti preserva anche alcuni rinvii espliciti ad allegati, appendici, modelli, articoli, paragrafi e tabelle. Il rinvio rilevato resta una lacuna manuale anche se l'AI lo omette o lo collega ad altre regole; rimuovere i soli avvisi generali non lo risolve. Identificatori di questi controlli riservati al sistema.
+- Questo controllo di rinvii è euristico: non risolve il collegamento, non acquisisce documenti mancanti e non garantisce di riconoscere ogni forma linguistica o rinvio implicito. Il contesto originale resta citato; superare i limiti provoca un errore esplicito, senza troncamento silenzioso.
+
+## Evidenze e limiti
+
+`generic-portability.test.ts` esegue lo stesso motore sui casi parziali Lazio (forfait per unità/limite addetti) e Nuova Impresa (spese e percentuale), inclusi valori di confine, massimale, input ignoti, rimappatura delle espressioni, dipendenze non numeriche e profondità eccessiva. I rinvii sono provati anche su un passaggio del secondo bando reale. `inventory.test.ts` verifica la persistenza della lacuna dopo un collegamento AI e la protezione degli identificatori riservati.
+
+Il primo incremento 7c848db ha superato controlli GitHub (39016573849), tre browser (39016573819) e UI autenticata con quattro utenti sintetici e database staging reale (39016571300). L'incremento successivo sui riferimenti sorgente porta la suite locale a 473 test in 34 file; TypeScript, lint e build sono verificati separatamente. Non confondere i controlli del primo incremento con quelli ancora da eseguire sul successivo.
+
+## Citazioni per identificativi e prova reale sul secondo bando
+
+Una prima chiamata sul paragrafo B.1 ha ricostruito citazioni della tabella unendo testo non contiguo: inventario respinto. Il server di generazione ora usa, SOLO nella prima fase di inventario, passaggi sorgente identificati: ogni carattere viene conservato in ordine, con documento, nome e pagina originali. Il modello seleziona spanId; il server recupera quote dalla fonte e le convalida. Identificativi inesistenti, citazioni riscritte come campi aggiuntivi e riferimenti non presenti nell'estratto sono respinti. Non è una riparazione della citazione inventata e non modifica i risultati storici. I passaggi hanno limite 1.200 caratteri, salvo il breve residuo finale; non vengono spezzate coppie surrogate. I limiti globali dell'inventario restano applicati, senza troncamento.
+
+La nuova estrazione reale ha selezionato nove voci con identificativi validi e citazioni materializzate dalla fonte. Questo risolve la fedeltà del testo per quella prova, non la completezza o precisione delle etichette. La successiva generazione ha prodotto dati formalmente validi, ma ha interpretato la quota del conto capitale come una soglia assoluta di 0,5 euro, ha chiesto al cliente intensità e massimale invece di usarli come parametri fissi e non ha prodotto formule di contributo. Ha inoltre dichiarato assente una tabella inclusa nell'estratto. Le lacune di copertura restano persistenti; non è stato attivato alcun assessment e non è stata chiamata la fase di audit dopo questa verifica diagnostica negativa.
+
+Una quarta chiamata mantiene invariati estratto, schema e casi attesi, rafforzando solo le istruzioni comuni: distinguere fatti aziendali da parametri normativi e specificare il denominatore delle percentuali. La quota capitale viene ora confrontata correttamente con la parte corrente, ma la formula generata applica il 50% al solo capitale. Con 1.500 euro di capitale e 1.500 di parte corrente produce 750 euro anziché i 1.500 del riferimento indipendente. Persistono domande improprie su aliquota/massimale e condizioni che possono saltare soglie obbligatorie. La correzione del prompt NON supera quindi la verifica semantica. Il nuovo test conserva questa divergenza come evidenza negativa, senza correggere automaticamente la formula del modello.
+
+Input, prompt, output e consumi delle quattro chiamate sono conservati in `nuova-impresa-observed.test-support.json`: circa 1.176,63 neuroni (128,8858 + 101,2434 + 448,5585 + 497,9412). Dati esclusivamente pubblici, nessun documento aziendale o cliente. `source-spans.test.ts` confronta gli errori con il riferimento numerico indipendente; il test del gateway verifica risoluzione dei passaggi e arresto dopo un riferimento inesistente.
+
+L'incremento bb51e0c supera controlli GitHub (39017141700), tre browser (39017141761) e UI autenticata staging (39017139397). La revisione successiva del prompt e la nuova regressione negativa portano la suite locale a **474 test in 34 file**, con TypeScript e lint superati; i controlli remoti di bb51e0c non certificano questa revisione successiva. I test autenticati usano una build isolata e database staging, non attestano un deploy della nuova UI né la correttezza semantica del modello.
+
+La generazione di domande/regole e l'audit usano ancora citazioni libere: il nuovo formato copre per ora l'estrazione dell'inventario. Restano da completare la lettura strutturata di tutto il secondo bando e allegati, la distinzione fra fatti aziendali e parametri normativi fissi, la produzione automatica completa delle configurazioni, il confronto semantico con le attese indipendenti, la revisione/correzione del socio e il collaudo autenticato dell'intero ciclo di una versione generata. Qualità AI ancora NON SUPERATA. Nessun deploy o piano a pagamento; produzione invariata.

@@ -63,7 +63,7 @@ jobs:
           STAGING_SUPABASE_SECRET_KEY: ${{ secrets.STAGING_SUPABASE_SECRET_KEY }}
         run: node scripts/verify-staging-ui.mjs
       - uses: actions/upload-artifact@v4
-        if: success()
+        if: always()
         with:
           name: local-document-synthetic-ui
           path: ui-test-results/
