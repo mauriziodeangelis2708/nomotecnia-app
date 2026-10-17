@@ -34,7 +34,9 @@ export type CalculationPlan = z.infer<typeof calculationPlanSchema>;
 const constant = (value: number): Expression => ({ op: "constant", value });
 const field = (field: string): Expression => ({ op: "field", field });
 const combine = (op: "min" | "add", args: Expression[]): Expression =>
-  args.length === 1 ? args[0]! : { op, args };
+  args.length === 1
+    ? args[0]!
+    : { op, args: args.length <= 30 ? args : [...args.slice(0, 29), combine(op, args.slice(29))] };
 
 /** Lower a bounded calculation plan; no source interpretation or numerical repair occurs here. */
 export function compileCalculationPlan(raw: unknown): Expression {

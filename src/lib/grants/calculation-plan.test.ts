@@ -11,6 +11,43 @@ import source from "./nuova-impresa-source.test-support.json";
 import { workplaceReference, WORKPLACE_CASES } from "./workplace-reference.test-support";
 
 describe("bounded calculation plans shared by all grants", () => {
+  it("keeps the maximum supported cap lists valid in the existing expression schema", () => {
+    const ref = nuovaImpresaReference();
+    const caps = Array.from({ length: 30 }, (_, i) => `cap_${i}`);
+    const questions = [...ref.questions, ...caps.map((id) => ({ ...ref.questions[0]!, id }))];
+    for (const plan of [
+      {
+        method: "percentage",
+        ratePercent: 50,
+        baseFields: ["capital", "current"],
+        capAmount: 10000,
+        capFields: caps,
+      },
+      {
+        method: "per_unit",
+        amountPerUnit: 2,
+        quantityField: "capital",
+        maxUnits: 10000,
+        capQuantityFields: caps,
+        capAmount: 10000,
+      },
+    ]) {
+      const formula = compileCalculationPlan(plan);
+      const definition = parseDefinition({
+        ...ref,
+        questions,
+        rules: ref.rules.map((r) => (r.kind === "grant" ? { ...r, formula } : r)),
+      });
+      const answers = {
+        capital: 1500,
+        current: 1500,
+        ...Object.fromEntries(caps.map((id) => [id, 2000])),
+      };
+      expect(evaluateGrant(definition, answers).grants[0]!.value).toBe(
+        plan.method === "percentage" ? 1500 : 3000,
+      );
+    }
+  });
   it.each(WORKPLACE_CASES)("also preserves the independent per-unit case: $name", (scenario) => {
     const reference = workplaceReference();
     const formula = compileCalculationPlan({
